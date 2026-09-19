@@ -182,3 +182,63 @@ def test_kit_owned_files_are_ascii(path: Path):
     raw = path.read_bytes()
     bad = [(i, b) for i, b in enumerate(raw) if b > 127]
     assert not bad, "%s: non-ASCII byte at offset %d" % (path.name, bad[0][0])
+
+
+# --------------------------------------------------- testing standards (unit)
+
+class TestTestingStandards:
+    """The testing layer is normative in one file, and the roster points at it.
+
+    A standard nothing references is a standard nobody reads. Each assertion
+    below fails against the tree as it stood before `docs/TESTING_STANDARDS.md`
+    existed, which is the property section 3 of that document requires of every
+    test: not satisfiable by the untouched baseline.
+    """
+
+    STANDARDS = KIT / "docs" / "TESTING_STANDARDS.md"
+
+    def test_the_standard_exists(self):
+        assert self.STANDARDS.exists(), "docs/TESTING_STANDARDS.md is missing"
+        assert self.STANDARDS.read_text(encoding="utf-8").strip()
+
+    @pytest.mark.parametrize("name", ["builder", "reviewer"])
+    def test_the_role_sheets_reference_it(self, name: str):
+        text = (AGENTS / ("%s.md" % name)).read_text(encoding="utf-8")
+        assert "TESTING_STANDARDS.md" in text, "%s.md does not cite the standard" % name
+
+    def test_the_workflow_definition_of_done_references_it(self):
+        flow = WORKFLOW.read_text(encoding="utf-8")
+        assert "TESTING_STANDARDS.md" in flow
+        section = flow.split("## 5. Definition of done", 1)
+        assert len(section) == 2, "WORKFLOW has no definition-of-done section"
+        gate = section[1].split("\n## ", 1)[0]
+        # The three obligations this unit added, each named in the gate itself
+        # rather than only in the prose under it.
+        for owed in ("Mutation evidence", "SAST", "Test durations recorded"):
+            assert owed in gate, "definition of done does not require: %s" % owed
+
+    def test_the_integrator_rebalances_on_transplant(self):
+        text = (AGENTS / "integrator.md").read_text(encoding="utf-8")
+        assert "testkit" in text, "integrator has no shard re-score step"
+        assert "4b" in text, "the rebalance step is not in the numbered procedure"
+
+    def test_the_standard_carries_its_normative_sections(self):
+        """Each heading is a rule set the roster cites by number; losing one
+        silently turns a cited section number into a dangling reference."""
+        text = self.STANDARDS.read_text(encoding="utf-8")
+        for heading in (
+            "## 2. The tier pyramid",
+            "## 3. Tests must be able to fail",
+            "## 4. The mutation-check protocol",
+            "## 5. SAST and secrets",
+            "## 6. Sharding, measurement, rebalance",
+            "## 7. The new-symbol coverage gate",
+            "## 8. Gates run LAST",
+        ):
+            assert heading in text, "TESTING_STANDARDS lost %r" % heading
+
+    def test_the_shard_tooling_is_present_and_stdlib_only(self):
+        source = (KIT / "tools" / "wall" / "testkit.py").read_text(encoding="utf-8")
+        assert "def balance(" in source and "def needs_rebalance(" in source
+        for banned in ("import requests", "import yaml", "import pytest_split"):
+            assert banned not in source, "testkit took a third-party dependency"

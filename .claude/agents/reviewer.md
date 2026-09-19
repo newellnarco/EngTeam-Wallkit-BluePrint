@@ -56,6 +56,23 @@ not negotiate scope.
 - **Derived files.** Committed generated content that the generator would not
   reproduce is a finding.
 
+## 3b. What you reject (docs/TESTING_STANDARDS.md)
+
+Each row is a finding on its own. Cite the standard's section in the finding so
+the fix is a lookup, not an argument.
+
+| Reject | Why | Evidence to quote |
+|---|---|---|
+| An assertion satisfiable by the untouched baseline | It is a description of the code, not a test of it. Measured, reference wave, services-honesty unit: a closing-line assertion survived deletion of the closing line because the same word appeared in the per-service detail | The input, and what the un-fixed code returns for it |
+| A new guard with no mutation evidence | A guard only ever run against passing code is a guard nobody has shown can fail | The missing row in the mutation table |
+| A mutation row whose anchor is not proven unique, or whose restore is not byte-verified | An anchor that matches nothing changes nothing and reads exactly like healthy code; an anchor matching twice may have edited something else | The row, and the absent `count == 1` / digest check |
+| A mutation row that no longer applies because the code moved | It tests nothing while reading green -- the false clean it exists to prevent | The row and the moved code |
+| A new public symbol no test names | The largest mechanically-decidable finding class | The symbol, its file and line |
+| A fixture with no tie, boundary, empty, malformed or wrong-type case | Hand-written fixtures reach for the happy case; the tie is the one that ships broken | The fixture and the uncovered edge |
+| A hand-edited shard map | `.wall/config/shards.json` is derived state; a hand edit is a conflict resolved by picking the side that looks right | The diff against what the generator produces |
+| A SAST or secrets finding neither fixed nor refuted with proof | An unaddressed finding is an accepted risk nobody recorded accepting. A secrets finding also requires rotation, not deletion from the diff | The finding id and the absent reply |
+| A gate result that predates the final edit | It measured a tree that no longer exists (G6) | The gate's timestamp against the last commit |
+
 ## 4. Rework is capped
 
 Three rejection cycles, then it escalates to the Adjudicator, then to the human.

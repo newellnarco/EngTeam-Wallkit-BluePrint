@@ -197,7 +197,14 @@ Suggested starting SLAs, all configurable in `.wall/config/wall.json`:
 A builder is not done when its tests pass. Minimum gate:
 
 - [ ] Every acceptance criterion maps to a source
-- [ ] Tests written and passing
+- [ ] Tests written and passing, at the tiers the change class requires
+      (TESTING_STANDARDS.md section 2)
+- [ ] **Mutation evidence** for every new guard: the table, one row each, with
+      the anchor proven unique and the restore byte-verified (section 4)
+- [ ] Every new public symbol is named by at least one test (section 7)
+- [ ] **SAST and secrets lane** read, and every finding fixed or refuted with
+      proof; a secrets finding blocks and the credential is rotated (section 5)
+- [ ] **Test durations recorded**, and no shard map hand-edited (section 6)
 - [ ] Lint and typecheck clean
 - [ ] CI green (or fast-track route confirmed — see FAST_TRACK.md)
 - [ ] `.wall/items/<id>.json` updated
@@ -207,6 +214,10 @@ A builder is not done when its tests pass. Minimum gate:
 
 Maestro cannot enforce a checklist that is not written down. This one lives in
 config so it is one definition, not three drifting copies.
+
+The testing half is normative in `docs/TESTING_STANDARDS.md`; the section
+numbers above point into it. It is the document a Builder reads before writing
+its first test and a Reviewer cites when rejecting.
 
 ---
 
@@ -350,6 +361,10 @@ Push only then, with `--force-with-lease` carrying the SHA from step 0.
 same budget-counted sections, so the unit's pre-rebase measurement is stale. Four
 units nearly blew one budget at once, each having measured only its own addition.
 Record the measured number and the headroom.
+
+**4b. Re-score the test shards.** The rebase moved tests into shards that were
+balanced without them: `testkit check` (TESTING_STANDARDS.md section 6), and
+regenerate the map -- never hand-edit it -- if it reports imbalance or drift.
 
 **5. Gates LAST (G6).** After steps 1 to 4, immediately before the commit and the
 push. Never earlier. There is **no CI** between a worktree commit and this
