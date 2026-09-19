@@ -28,7 +28,7 @@ WORKFLOW = KIT / "docs" / "WORKFLOW.md"
 
 EXPECTED_ROLES = {
     "foreman", "architect", "adjudicator", "builder",
-    "integrator", "reviewer", "researcher",
+    "integrator", "reviewer", "researcher", "warden",
 }
 # The harness resolves these; the authority tier is written as `fable` with a
 # per-host note in the definition (see AGENT_ROSTER_SPEC, model tiering).

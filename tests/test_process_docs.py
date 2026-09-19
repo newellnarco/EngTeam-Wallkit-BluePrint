@@ -153,7 +153,7 @@ def test_topology_has_two_mermaid_diagrams():
 
 def test_topology_names_every_actor():
     t = _text(TOPOLOGY)
-    for actor in ("Maestro", "Architect", "Adjudicator", "Builders", "Researchers",
+    for actor in ("Maestro", "Architect", "Adjudicator", "Warden", "Builders", "Researchers",
                   "Reviewer", "Integrator", "Foreman", "Courier",
                   "SessionStart hook", "SubagentStop hook"):
         assert actor in t, f"topology missing actor {actor!r}"
@@ -374,3 +374,70 @@ def test_readme_carries_the_turnkey_identity_and_visuals():
     assert "docs/diagrams/assets/agent-topology.svg" in t
     assert "docs/screenshots/wall-stories.png" in t
     assert "## The path: quick start to full implementation" in t
+
+
+# ---------------------------------------------------------------- warden
+
+import sys as _sys
+_sys.path.insert(0, str(KIT / "tools" / "wall"))
+from agents import SINGLETON_ROLES, AgentRegistry  # noqa: E402
+
+WARDEN = KIT / ".claude" / "agents" / "warden.md"
+
+
+def test_warden_blocks_but_never_grants():
+    t = _text(WARDEN)
+    flat = " ".join(t.split())
+    assert "You can BLOCK on your own judgment" in flat
+    assert "You can never GRANT" in flat
+    assert "widening any privilege remains the engineer's" in flat.lower() or \
+        "remains the engineer's" in flat
+
+
+def test_warden_has_three_gates_and_risk_tiering():
+    t = _text(WARDEN)
+    for g in ("Gate 1 -- architecture sign-off", "Gate 2 -- data-use evaluation",
+              "Gate 3 -- delivery audit"):
+        assert g in t, f"warden missing {g}"
+    assert "in-scope" in t and "routine" in t
+    for v in ("`allowed`", "`synthetic-only`", "`masked`", "`engineer`", "`refused`"):
+        assert v in t, f"warden missing data verdict {v}"
+
+
+def test_warden_is_overrulable_only_in_writing():
+    t = _text(WARDEN)
+    flat = " ".join(t.split())
+    assert "overrulable" in flat.lower()
+    assert "objection preserved" in flat
+
+
+def test_warden_is_a_structural_singleton(tmp_path):
+    assert "warden" in SINGLETON_ROLES
+    reg = AgentRegistry(tmp_path)
+    reg.claim("warden", "s_test")
+    try:
+        reg.claim("warden", "s_test2")
+    except ValueError as e:
+        assert "singleton" in str(e)
+    else:
+        raise AssertionError("second live warden claim must be refused")
+
+
+def test_singleton_audit_flags_a_hand_edited_violation(tmp_path):
+    reg = AgentRegistry(tmp_path)
+    r1 = reg.claim("warden", "s_a")
+    rows = reg.read()
+    rows.append({**r1, "key": "wrd_deadbee", "name": "Aurelius"})
+    reg.write(rows)
+    problems = reg.audit()
+    assert any("singleton violation" in p for p in problems)
+
+
+def test_warden_wired_into_workflow_and_authoring():
+    wf = _text(KIT / "docs" / "WORKFLOW.md")
+    assert "Sign off security / compliance / data use" in wf
+    assert "The Warden blocks; only the engineer grants" in wf
+    ia = _text(ITEM_AUTHORING)
+    assert "Risk tier" in ia and "Declared data uses" in ia
+    dod = _text(KIT / "tools" / "wall" / "config" / "wall.example.json")
+    assert "warden sign-off recorded for in-scope arcs" in dod

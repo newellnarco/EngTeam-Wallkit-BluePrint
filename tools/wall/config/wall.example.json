@@ -42,6 +42,7 @@
     "every new public symbol is named by at least one test",
     "SAST and secrets lane read; every finding fixed or refuted",
     "test durations recorded; no shard map hand-edited",
+    "warden sign-off recorded for in-scope arcs; every declared data use carries a verdict",
     "reviewer pass complete"
   ],
 

@@ -47,6 +47,7 @@ flowchart TB
     subgraph POOL["Subagent pool (parallel, single-shot, leased)"]
         ARCH["Architect (1)<br/><i>requirements, design, rulings</i>"]
         ADJ["Adjudicator (1)<br/><i>tie-breaks, decision conflicts</i>"]
+        WARD["Warden (exactly 1, singleton-enforced)<br/><i>security/compliance sign-off,<br/>data-use verdicts; blocks, never grants</i>"]
         BLD["Builders (N, parallel)<br/><i>disjoint path scopes via leases</i>"]
         RES["Researchers (N, parallel)<br/><i>one question each, network-gated</i>"]
         REV["Reviewer<br/><i>cold diff read, read-only tools</i>"]
@@ -86,6 +87,8 @@ flowchart TB
     MAESTRO -->|"finding-route"| RES
     MAESTRO -->|"findings for ruling"| ARCH
     MAESTRO -->|"decision conflicts"| ADJ
+    MAESTRO -->|"in-scope designs +<br/>data uses"| WARD
+    WARD -->|"sign-off / block<br/>(grants go to the engineer)"| MAESTRO
     MAESTRO -->|"transplant order"| ITG
     MAESTRO -->|"cold diff"| REV
     MAESTRO -->|"anomaly triage"| FORE
@@ -128,6 +131,7 @@ solid edges are **work handoffs** (somebody does).
 | Researchers | **Parallel** (N, cap tracks builders + 2) | Each holds one question; answers serialize later through the decision writer |
 | Courier / timer / server / shipper | **Parallel to everything** | Zero model calls, read-mostly; the observability plane never takes the control plane's locks |
 | Hooks | **Parallel** (fire per event) | Never block; a hook that can block a run becomes a second control plane |
+| Warden sign-off | **Sequential gate** per in-scope arc | An in-scope design cannot dispatch stories past an unrecorded sign-off; routine arcs get act-and-audit instead |
 | Question answering | **Sequential** through Maestro | One writer for decisions is what makes "no answer contradicts another" enforceable |
 | Decision writes (`DEC-NNNN`) | **Sequential** (Maestro only) | Same single-writer rule |
 | Integration / transplant | **Sequential** (one unit at a time) | One branch, one PR slot; pushing over running checks cancels them (measured: 11 cancelled runs / 77 min) |

@@ -71,6 +71,15 @@ dispatched:
    this, not the prose.
 5. **Decisions in scope** — every `DEC-NNNN` that constrains the arc, so the
    Maestro attaches them at dispatch instead of a Researcher rediscovering them.
+6. **Risk tier** — `in-scope` (touches personal/regulated data, authn/authz,
+   secrets, an external surface, or off-box telemetry) or `routine`, declared
+   by the Architect. In-scope arcs require the **Warden's architecture
+   sign-off before any story dispatches** (warden.md §2); a mis-declared tier
+   found later is itself a blocking finding.
+7. **Declared data uses** — every dataset, credential or external source the
+   arc's stories will touch, for development AND for the product; each gets a
+   Warden verdict (allowed / synthetic-only / masked / engineer / refused)
+   before the story that uses it dispatches (warden.md §3).
 
 An arc closes when its stories are done or explicitly moved out — never by
 drifting. An arc may close without any release ceremony (WALL_STANDARDS

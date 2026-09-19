@@ -147,6 +147,7 @@ about to bypass a boundary:
 | 3 | Effort variables + unanswered product domains | answer |
 | 4 | Review the first merged PR | verify |
 | 5 | Approve adding/removing a reviewer lane; widen researcher network; raise caps/budgets | answer |
+| any | Grant a data use or access the Warden routed up; overrule a Warden block (in writing) | answer |
 | any | The six escalation classes (SESSION_LIFECYCLE.md section 4) | answer |
 
 Everything else, you do — and record.

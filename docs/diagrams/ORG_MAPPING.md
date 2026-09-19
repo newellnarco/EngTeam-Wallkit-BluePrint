@@ -53,8 +53,9 @@ flowchart TB
         QA["QA / Code Review<br/>= <b>Reviewer</b> (cold read) + external lanes +<br/>testing standards + mutation protocol + DoD gate"]
     end
 
-    subgraph SEC["SECURITY  (cross-cutting lane)"]
-        SECN["SAST + secrets lane - network-gated research -<br/>localhost-only surfaces - consent-gated installs -<br/>security findings escalate straight to the sponsor"]
+    subgraph SEC["SECURITY and COMPLIANCE"]
+        WARD["Security/Compliance Authority<br/>= <b>Warden</b> (exactly one)<br/>guardrail corpus - architecture sign-off -<br/>data-use verdicts - delivery audit<br/><i>blocks autonomously, never grants</i>"]
+        SECN["The cross-cutting lane:<br/>SAST + secrets - network-gated research -<br/>localhost-only surfaces - consent-gated installs"]
     end
 
     subgraph PM["PROJECT MANAGEMENT  (carried by state, not a head)"]
@@ -71,6 +72,9 @@ flowchart TB
     BA -->|"findings + evidence"| SA
     SA -->|"rulings -> DEC"| BOARD
     GOV -.->|"contested calls"| EM
+    EM -->|"in-scope designs +<br/>declared data uses"| WARD
+    WARD -->|"sign-off / verdicts / blocks"| EM
+    WARD -.->|"grants routed up,<br/>never issued"| PO
     DEV --> REL
     REL -->|"draft PR"| QA
     QA -->|"pass / findings"| EM
@@ -102,6 +106,7 @@ AGENT_TOPOLOGY.md section 2 pins.
 | **Engineering** | Builders in parallel leased scopes; tests owed by change class; mutation evidence per guard | builder.md, TESTING_STANDARDS.md |
 | **Release engineering** | Integrator: rebase, mechanical conflict resolution, the safety proof, gates LAST, one PR slot | integrator.md, WORKFLOW.md section 9 |
 | **Quality assurance** | Reviewer (cold read, the only role that reads code for correctness) + external reviewer lanes + the DoD gate + the reject list | reviewer.md, TESTING_STANDARDS.md, skills/reviewer-integration |
+| **Security & compliance authority ("the Warden")** | Warden: guardrail corpus, in-scope architecture sign-off before dispatch, per-use data verdicts for dev and product, wave-close delivery audit; blocks autonomously, never grants | warden.md, WORKFLOW.md section 7 |
 | **Security** | A cross-cutting lane, not a box: SAST + secrets in the DoD, network-gated analysts, localhost-only serving, consent-gated installs, and a straight-to-sponsor escalation class | TESTING_STANDARDS.md (SAST lane), SESSION_LIFECYCLE.md section 4, INSTALL.md |
 | **Metrics** | Every number measured, never self-reported: harness token actuals, CI wall-clock, ledger-derived utilization, shard timings; budgets advisory, trends reported | EVENT_SCHEMA.md section 5, CAPACITY_REBALANCING.md section 2 |
 

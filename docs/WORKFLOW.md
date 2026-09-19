@@ -266,21 +266,29 @@ When agents disagree, **evidence outranks rhetoric**. Tiebreak order:
 Two agents arguing, resolved by a third agent's judgment, ratifies whichever was
 more confident. Anchoring on tests and written decisions avoids that.
 
-| | Foreman | Maestro | Architect | Adjudicator | Builder | Integrator | Reviewer | Researcher |
-|---|---|---|---|---|---|---|---|---|
-| Assign work | | yes | | | | | | |
-| Write ledger/wall | yes | | | | | | | |
-| Own requirements | | | yes | | | | | |
-| Own process | | yes | | | | | | |
-| Break ties | | | | yes | | | | |
-| Edit source | | | | | yes | yes | | |
-| Reject work | | yes | yes | | | | yes | |
-| Rebase / force-push the PR ref | | | | | | yes | | |
-| Own a PR's review threads | | | | | | yes | | |
-| Merge / flip ready | | yes | | | | | | |
+| | Foreman | Maestro | Architect | Adjudicator | Warden | Builder | Integrator | Reviewer | Researcher |
+|---|---|---|---|---|---|---|---|---|---|
+| Assign work | | yes | | | | | | | |
+| Write ledger/wall | yes | | | | | | | | |
+| Own requirements | | | yes | | | | | | |
+| Own process | | yes | | | | | | | |
+| Break ties | | | | yes | | | | | |
+| Sign off security / compliance / data use | | | | | yes | | | | |
+| Edit source | | | | | | yes | yes | | |
+| Reject work | | yes | yes | | yes | | | yes | |
+| Rebase / force-push the PR ref | | | | | | | yes | | |
+| Own a PR's review threads | | | | | | | yes | | |
+| Merge / flip ready | | yes | | | | | | | |
 
 Foreman never assigns work. Maestro never edits ledgers. Keeping those separate
 is what stops the observability layer from becoming a second control plane.
+
+**The Warden blocks; only the engineer grants.** An in-scope arc (data, auth,
+secrets, external surfaces, off-box telemetry) does not dispatch until the
+Warden's architecture sign-off is recorded; every declared data use carries a
+Warden verdict; the wave-close audit checks both trails. The Warden can refuse
+on its own authority, and can never widen an access -- that asymmetry is what
+makes an autonomous security authority safe to run (`.claude/agents/warden.md`).
 
 The Integrator edits source only to land a unit that is already built: rebase
 resolution and derived-file regeneration. It is the only role that may force-push

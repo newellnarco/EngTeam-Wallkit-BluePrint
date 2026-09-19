@@ -24,7 +24,7 @@ from pathlib import Path
 
 ROLE_PREFIX = {
     "foreman": "frm", "maestro": "mst", "architect": "arc", "adjudicator": "adj",
-    "builder": "bld", "integrator": "itg", "reviewer": "rev",
+    "builder": "bld", "integrator": "itg", "reviewer": "rev", "warden": "wrd",
     "researcher": "res", "courier": "cou",
 }
 
@@ -36,10 +36,17 @@ POOL = {
     "builder":     ["Desmond", "Priya", "Theo", "Ruth", "Kwame", "Sloane",
                     "Hollis", "Yusuf", "Wren", "Otto", "Bridget", "Xavier"],
     "integrator":  ["Barnaby", "Solveig", "Ephraim", "Tamsin", "Leopold"],
+    "warden":      ["Constance", "Aurelius", "Meredith", "Ignatius", "Prudence"],
     "reviewer":    ["Junia", "Malcolm", "Faye", "Rupert", "Ines"],
     "researcher":  ["Silas", "Nadia", "Quentin", "Delphine", "Roscoe",
                     "Greta", "Fitzgerald", "Verity", "Ozias", "Clementine"],
 }
+
+#: Roles where a second LIVE agent is a contradiction, not a capacity choice:
+#: two security authorities means neither is accountable, two requirement
+#: owners means requirements have no owner, two tie-breakers cannot break a
+#: tie. Enforced at claim time and checked by audit.
+SINGLETON_ROLES = {"architect", "adjudicator", "warden"}
 
 CONFUSABLE = [
     {"Theo", "Otto"}, {"Silas", "Sloane"}, {"Ruth", "Wren"},
@@ -156,6 +163,15 @@ class AgentRegistry:
                     if r["key"] == key:
                         return r
 
+            if role in SINGLETON_ROLES:
+                holder = next((r for r in rows
+                               if r["status"] == "live" and r["role"] == role), None)
+                if holder:
+                    raise ValueError(
+                        f"'{role}' is a singleton role and {holder['name']} "
+                        f"({holder['key']}) is already live. Release it first -- "
+                        f"two of these means neither is accountable.")
+
             live = {r["name"] for r in rows if r["status"] == "live"}
             if name:
                 if name in live:
@@ -225,6 +241,12 @@ class AgentRegistry:
                     f"name collision: '{r['name']}' is live as both "
                     f"{seen[r['name']]} and {r['key']}")
             seen[r["name"]] = r["key"]
+        for role in sorted(SINGLETON_ROLES):
+            holders = [r for r in live if r["role"] == role]
+            if len(holders) > 1:
+                problems.append(
+                    f"singleton violation: {len(holders)} live '{role}' agents "
+                    f"({', '.join(r['key'] for r in holders)}) -- exactly one is allowed")
         keys = [r["key"] for r in rows]
         for k in {k for k in keys if keys.count(k) > 1}:
             problems.append(f"duplicate key: {k}")

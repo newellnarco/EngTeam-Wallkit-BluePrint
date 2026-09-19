@@ -54,7 +54,7 @@ degrades gracefully when the pool is tight.
 
 | Tier | Model | Roles | Rationale |
 |---|---|---|---|
-| Authority | Fable 5.1 | Architect, Adjudicator | Deepest reasoning, lowest volume |
+| Authority | Fable 5.1 (or Opus 5 -- never lighter) | Architect, Adjudicator, Warden | Deepest reasoning, lowest volume |
 | Execution | Opus 5 | Maestro, Builder (complex), Integrator | Dispatch and the work itself |
 | Verification | Sonnet 5 | Foreman, Reviewer, Researcher, Builder (mechanical) | Check and find out |
 
@@ -149,6 +149,23 @@ Also receives conflicts where a new answer contradicts an existing `DEC-NNNN`,
 and decides which supersedes.
 
 ---
+
+## Warden — Fable 5.1 or Opus 5
+
+**Exactly one per repo, enforced by the roster** (a second live claim is
+refused; audit flags a violation). The security, compliance and
+data-governance authority: holds
+the guardrail corpus (regulatory frames, data-classification decisions,
+standing security rules), signs off in-scope architecture BEFORE its stories
+dispatch, rules on every declared data use (development and product), and
+audits delivery at wave close. **Block without grant**: it can refuse
+autonomously; widening any access or privilege remains the engineer's,
+through the human queue with the Warden's evaluation attached. Overrulable
+only by the engineer, in writing, with the objection preserved in the record.
+Never edits source, never merges, never assigns work. Risk tiering keeps it a
+gate, not a bottleneck: arcs declaring no data/auth/external surface get
+act-and-audit spot checks instead of a mandatory gate. Role sheet:
+`.claude/agents/warden.md`.
 
 ## Builder — Opus 5 or Sonnet 5
 

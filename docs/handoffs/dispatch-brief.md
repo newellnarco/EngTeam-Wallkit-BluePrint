@@ -9,6 +9,15 @@
 
 ---
 
+## 0b. Declared data uses
+
+| Dataset / credential / source | Dev or product | Warden verdict + date |
+|---|---|---|
+| | | |
+
+Every data use this story touches, with its verdict from the Warden already
+attached -- a story dispatched with an unruled data use is a process defect.
+
 ## 1. Identity and accounting
 
 | Field | Value |
