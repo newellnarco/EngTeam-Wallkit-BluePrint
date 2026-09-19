@@ -115,7 +115,9 @@ builder hinted.
 
 ## 5. Integration, one PR at a time
 
-One branch, one PR slot, N parallel worktrees. Each finished unit is transplanted
+Concurrent PRs on disjoint leased surfaces (DEC-0016; single-slot mode where
+the host's rules mandate one branch). Merges are yours alone, one at a time,
+next PR rebases first. Each finished unit is transplanted
 by an Integrator (or a Builder wearing the Integrator hat) per WORKFLOW
 section 9. The session:
 

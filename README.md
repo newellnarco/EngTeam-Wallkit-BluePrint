@@ -103,14 +103,40 @@ Deep version with the concern-to-mechanism map: `docs/diagrams/AGENT_TOPOLOGY.md
 
 ### The wall itself
 
+Five screens, named exactly as the page renders them — **MAIN**, **STORIES**,
+**CREW**, **LEDGER**, **WAITING**. The header carries the repo name verbatim
+(bold, case-preserved — `Atlas-Core`, never `atlas-core`) beside the active
+screen's name in lowercase: `Atlas-Core main`, `Atlas-Core stories`,
+`Atlas-Core crew`, and so on; the branch lives in the status strip.
+
+![The MAIN screen — the landing summary: board counts, work in flight, agents at work, waiting, integrity](docs/screenshots/wall-main.png)
+
+**MAIN** is the landing screen: page sections `Now` (items on the board, in
+flight, agents working, waiting on you, integrity flags) and `In progress`
+(the working agents with the items they hold, and every in-flight story).
+
 | | |
 |---|---|
-| ![STORIES tab — arcs with nested stories and bugs](docs/screenshots/wall-stories.png) | ![AGENTS tab — roster, models, tokens, integrity](docs/screenshots/wall-agents.png) |
-| STORIES — arc bands, story/bug nesting, literal status chips | AGENTS — keys, models (`requested -> routed`), cost, integrity flags |
-| ![A real 1143-item board overlaid through the import adapter](docs/screenshots/wall-overlay-reference.png) | ![Honest degrade — malformed snapshot banner](docs/screenshots/wall-degrade.png) |
-| The reference deployment's real board through `adapters/board_import.py` | Honest degrade: a malformed snapshot is a named banner, never a blank page |
+| ![The STORIES tab — Arcs with nested stories and bugs](docs/screenshots/wall-stories.png) | ![The CREW tab — the Crew roster, Budget gauges, Integrity](docs/screenshots/wall-crew.png) |
+| **STORIES** — page sections `Arcs`, `Stories`, `Bugs`: arc bands with story/bug nesting, literal status chips | **CREW** — page sections `Crew`, `Budget`, `Integrity`: names + keys, models (`requested -> routed`), tokens/cost, budget trajectory, integrity flags |
+| ![The LEDGER tab — budget gauges, advisory, per-role rollup](docs/screenshots/wall-ledger.png) | ![The WAITING tab — asks parked on the human](docs/screenshots/wall-waiting.png) |
+| **LEDGER** — see below | **WAITING** — page section `Waiting on you`: every `human_required` ask with its `wall answer` command |
 
-Light mode and the status-vocabulary fixture: `docs/screenshots/`.
+**The LEDGER page** is the money view. Page sections `Ledger` and `By role`:
+per-tool budget gauges (used of limit, % remaining, measured velocity, the
+projected exhaustion date and the pace chip — `slow` / `on pace` /
+`may speed` / `idle` / `unknown` / `exhausted`), the standing advisory line
+("budgets are advisory — nothing here stops work, it tells you when to"),
+and the per-role rollup for the billing period: runs, tokens in/out, cache
+reads and cost per role+model, summed from `run_end` events — counted, never
+asserted. It is the page the Patron reads before answering a
+capacity-ceiling ask, and the page CAPACITY_REBALANCING's budget-trajectory
+signal renders on.
+
+Also in `docs/screenshots/`: the reference deployment's real 1143-item board
+through `adapters/board_import.py` (`wall-overlay-reference.png`), the
+honest-degrade banner for a malformed snapshot (`wall-degrade.png`), light
+mode, and the status-vocabulary fixture.
 
 ---
 
@@ -229,7 +255,9 @@ these are files.
 |---|---|---|
 | `templates/CLAUDE.md.template` | `CLAUDE.md` | Entry point: what the project is, current state, doc index, pointer to the rules. |
 | `templates/RULES.md.template` | `RULES.md` | The binding rules. Part 1 is yours to write; Part 2 ships as-is. |
-| `templates/FAILURE_PATTERNS.md.template` | `FAILURE_PATTERNS.md` | Append-only registry of bug classes, seeded with seventeen general ones. |
+| `templates/FAILURE_PATTERNS.md.template` | `FAILURE_PATTERNS.md` | Append-only registry of bug classes, seeded with seventeen general ones plus four inherited classes awaiting their first occurrence here. |
+| `templates/ENGINEERING_STANDARD.md.template` | `docs/ENGINEERING_STANDARD.md` | The canonical method: root cause to requirement to test to code, the done-definition, and a per-repo Bindings zone that is the only part you edit. |
+| `templates/DESIGN_DOC.md.template` | `docs/architecture/<ARC>.md` | The per-arc design an arc's stories cite by section: intent, boundary, slice plan, rollback story. |
 | `templates/SHIP_CHECKLIST.md.template` | `SHIP_CHECKLIST.md` | The pre-ship gate, including gates-run-last and the budget check. |
 | `templates/BEST_PRACTICES.md.template` | `BEST_PRACTICES.md` | The coding standards the whole roster and any hosted reviewers judge against. |
 | `templates/DOCS_MAP.md.template` | `DOCS_MAP.md` | Change kind to doc surfaces: which docs must update in the same pull request. |
@@ -474,6 +502,8 @@ authority on which commands are in that state today.
 | `CAPACITY_REBALANCING.md` | The measured knobs: builder/researcher split, PR pacing, CI sharding |
 | `DIAGNOSTICS_LOOP.md` | Running system → shipped evidence → automated review → story with design |
 | `TECH_EVALUATION.md` | Measure-before-flip: bench, flag protocol, decision record, re-eval triggers |
+| `UPGRADE_DISCIPLINE.md` | The routine bump nobody evaluated: semver classes, the transitive native-wheel class, the cold soak, pins that lift |
+| `GIT_HOOKS.md` | The free local gate: hooks as step 0, named escape hatches instead of `--no-verify`, line-ending pinning, baseline ratchets |
 | `LLM_BOOTSTRAP.md` | The day-zero procedure an LLM session follows to stand all of this up |
 | `DEPLOYMENT_TARGETS.md` | Docker, VMs, Kubernetes — who runs the timer, serves, ships |
 | `COMPLIANCE_POSTURE.md` | The mechanisms in auditor language: SoD, change control, traceability |
@@ -523,7 +553,7 @@ open picks them up when it next starts.
 | Skill | What it does | When to use it | First-time setup |
 |---|---|---|---|
 | `/adopt` | Parses an existing repository's documents **by function**, writes pointer stubs at the kit's expected locations, and consolidates duplicates with the engineer ruling on every conflict | Adoption day zero, and any time the host's docs and the kit's expectations drift apart | None — auto-discovered |
-| `/wave` | Runs a full build wave: dispatch against disjoint scopes, mediated questions, serial integration through the one PR slot, close-out and wave report | Whenever you are working the backlog rather than making one hand edit | None, but the wall must exist — run `wall run-once` first |
+| `/wave` | Runs a full build wave: dispatch against disjoint scopes, mediated questions, cooperative parallel PRs with serialized merges, close-out and wave report | Whenever you are working the backlog rather than making one hand edit | None, but the wall must exist — run `wall run-once` first |
 | `/reviewer-integration` | Adds or removes an external review lane, baselines its config into the shared criteria, and runs the findings roll-up | Wiring up a hosted reviewer, or at wave close for the `learn` pass | None — though adding or removing a lane is itself an engineer decision |
 
 **Hooks are NOT automatic, by design.** A hook executes code on session events,

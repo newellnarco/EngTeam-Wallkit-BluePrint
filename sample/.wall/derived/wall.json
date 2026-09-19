@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-19T22:52:31.934Z",
+  "generated_at": "2026-09-19T23:55:30.562Z",
   "repo": {
-    "name": "atlas-core",
+    "name": "Atlas-Core",
     "path": "/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kit/sample",
     "branch": "main"
   },
@@ -108,7 +108,7 @@
         "kind": "unassigned_past_sla",
         "question_id": "q_0051",
         "item_id": "ST-112",
-        "age_min": 103.5,
+        "age_min": 166.5,
         "sla_min": 5,
         "detail": "nobody picked it up"
       },
@@ -117,9 +117,9 @@
         "question_id": "q_0051",
         "item_id": "ST-112",
         "tier": "researcher",
-        "age_min": 103.5,
+        "age_min": 166.5,
         "sla_min": 60,
-        "detail": "open 104 min at tier 'researcher' -- escalate a tier"
+        "detail": "open 166 min at tier 'researcher' -- escalate a tier"
       }
     ],
     "stale_claims": [
@@ -862,7 +862,7 @@
     ],
     "period_start": "2026-09-01T00:00:00+00:00",
     "period_end": "2026-10-01T00:00:00+00:00",
-    "pct_period_remaining": 36.8
+    "pct_period_remaining": 36.7
   },
   "rollup_by_role": [
     {

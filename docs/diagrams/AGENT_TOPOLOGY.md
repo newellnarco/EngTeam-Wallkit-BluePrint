@@ -72,7 +72,7 @@ flowchart TB
     end
 
     subgraph HOST["Host platform (sequential by rule)"]
-        PR["ONE PR slot<br/><i>one branch, one open PR,<br/>one set of checks running</i>"]
+        PR["PRs: cooperative + parallel<br/><i>disjoint leased surfaces;<br/>merges one at a time;<br/>never push over running checks</i>"]
         CI["CI pyramid + review lanes"]
     end
 
@@ -134,7 +134,8 @@ solid edges are **work handoffs** (somebody does).
 | Warden sign-off | **Sequential gate** per in-scope arc | An in-scope design cannot dispatch stories past an unrecorded sign-off; routine arcs get act-and-audit instead |
 | Question answering | **Sequential** through Maestro | One writer for decisions is what makes "no answer contradicts another" enforceable |
 | Decision writes (`DEC-NNNN`) | **Sequential** (Maestro only) | Same single-writer rule |
-| Integration / transplant | **Sequential** (one unit at a time) | One branch, one PR slot; pushing over running checks cancels them (measured: 11 cancelled runs / 77 min) |
+| Open pull requests | **Parallel** (one per unit, disjoint leased surfaces — DEC-0016) | Builders cooperate; a PR whose surface overlaps an open one waits |
+| Merges + per-PR pushes | **Sequential** | Maestro merges one at a time, next PR rebases first; never push over a PR's running checks (measured: 11 cancelled runs / 77 min) |
 | Merge + ready flip | **Sequential** (Maestro alone, G12) | Caught two would-have-been-early merges on draft-scoped greens |
 | Review threads | **Sequential per thread** (one writer, G8) | Two writers under one identity read as one writer contradicting itself |
 | Wall/ledger writes per session | **Sequential per shard** (`seq` within `session_id`) | Total order `(ts, session_id, seq)` is what makes the ledger reproducible |

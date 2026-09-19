@@ -20,6 +20,10 @@ Format and front-matter contract: `docs/WALL_STANDARDS.md` section 6.
 | [DEC-0010](DEC-0010.md) | active | One machine-wide timer, not one per repository | install | 2026-09-19 |
 | [DEC-0011](DEC-0011.md) | active | Evidence outranks self-report | crew | 2026-09-19 |
 | [DEC-0012](DEC-0012.md) | active | The Integrator is a first-class role | crew | 2026-09-19 |
+| [DEC-0013](DEC-0013.md) | active | Draft-PR auto-review: per-lane pin, default OFF for metered lanes | review lanes | 2026-09-19 |
+| [DEC-0014](DEC-0014.md) | active | Scoped CI only where escape-rate-validated; the pyramid gates the merge | CI | 2026-09-19 |
+| [DEC-0015](DEC-0015.md) | active | Leases are the invariant; worktrees recommended for git-writing builders | isolation | 2026-09-19 |
+| [DEC-0016](DEC-0016.md) | active | Cooperative parallel PRs; merges + per-PR pushes stay serialized | integration | 2026-09-19 |
 
 ---
 

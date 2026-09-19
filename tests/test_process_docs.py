@@ -163,7 +163,7 @@ def test_topology_states_parallel_vs_sequential():
     t = _text(TOPOLOGY)
     assert "build in parallel, decide and integrate in\nseries" in t or \
         "build in parallel, decide and integrate in series" in " ".join(t.split())
-    assert "ONE PR slot" in t
+    assert "PRs: cooperative + parallel" in t  # DEC-0016 retired the single slot
 
 
 def test_topology_concern_map_covers_every_stated_goal():
@@ -455,10 +455,11 @@ def test_template_intake_covers_every_template_with_both_layers():
                  "FAILURE_PATTERNS.md.template", "SHIP_CHECKLIST.md.template",
                  "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template",
                  "DOCS_MAP.md.template", "OWNER_DECISIONS.md.template",
-                 "REVIEWER_LANES.md.template"):
+                 "REVIEWER_LANES.md.template",
+                 "ENGINEERING_STANDARD.md.template", "DESIGN_DOC.md.template"):
         assert name in t, f"intake missing template {name}"
-    assert t.count("**Required:**") >= 9
-    assert t.count("**LLM probes:**") >= 9
+    assert t.count("**Required:**") >= 11
+    assert t.count("**LLM probes:**") >= 11
     # EVAL_RECORD is per-evaluation, not an adoption-time doc; the intake must
     # say so rather than silently lacking a section for a listed template.
     assert "EVAL_RECORD.md.template" in t and "per evaluation" in t
@@ -481,7 +482,8 @@ def test_every_template_points_at_its_question_set():
                  "FAILURE_PATTERNS.md.template", "SHIP_CHECKLIST.md.template",
                  "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template",
                  "DOCS_MAP.md.template", "OWNER_DECISIONS.md.template",
-                 "REVIEWER_LANES.md.template"):
+                 "REVIEWER_LANES.md.template",
+                 "ENGINEERING_STANDARD.md.template", "DESIGN_DOC.md.template"):
         t = _text(KIT / "templates" / name)
         assert "TEMPLATE_INTAKE.md" in t, f"{name} lacks its question-set pointer"
 
@@ -1054,3 +1056,33 @@ def test_the_foundation_gate_is_stated_everywhere_it_binds():
     assert "precede ANY product line of code" in maestro
     readme = flatten(README)
     assert "a gate, not a suggestion" in readme
+
+
+# ------------------------------------------------- patron rulings (DEC-0013..16)
+
+def test_the_four_patron_rulings_are_recorded_and_indexed():
+    dec_dir = KIT / "docs" / "decisions"
+    idx = _text(dec_dir / "index.md")
+    for n, phrase in (("DEC-0013", "default OFF for metered lanes"),
+                      ("DEC-0014", "pyramid gates the merge"),
+                      ("DEC-0015", "Leases are the invariant"),
+                      ("DEC-0016", "Cooperative parallel PRs")):
+        assert (dec_dir / f"{n}.md").is_file(), f"{n} missing"
+        assert n in idx, f"{n} not indexed"
+        assert phrase in idx
+
+
+def test_cooperative_prs_replace_the_single_slot_everywhere():
+    for path, phrase in (
+        ("docs/WORKFLOW.md", "cooperate on\nconcurrent open pull requests"),
+        ("docs/WALL_STANDARDS.md", "the one-open-PR limit is retired as a general rule"),
+        (".claude/MAESTRO.md", "Concurrent PRs on disjoint leased surfaces"),
+        ("docs/diagrams/AGENT_TOPOLOGY.md", "PRs: cooperative + parallel"),
+    ):
+        t = _text(KIT / path)
+        flat = " ".join(t.replace("**", "").split())
+        assert " ".join(phrase.split()) in flat, f"{path} missing cooperative-PR ruling"
+    # the load-bearing serialization survives
+    wf = " ".join(_text(KIT / "docs" / "WORKFLOW.md").replace("**", "").split())
+    assert "never push to a branch whose checks are running" in wf
+    assert "one at a time" in wf

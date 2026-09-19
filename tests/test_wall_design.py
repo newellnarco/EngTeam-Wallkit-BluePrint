@@ -40,7 +40,7 @@ END_MARK = "==== END theme.css"
 
 # The tab labels the owner named. They are the page's contract with whoever is
 # looking at it; renaming one is a deliberate act, not a refactor.
-TAB_LABELS = ("STORIES", "AGENTS", "LEDGER", "WAITING")
+TAB_LABELS = ("MAIN", "STORIES", "CREW", "LEDGER", "WAITING")
 
 # The closed status set. Each gets exactly one chip class; anything else falls
 # back to `chip--st-unknown` and is still rendered literally.
@@ -193,7 +193,7 @@ def test_rendered_sample_has_the_four_tabs(rendered_sample: str) -> None:
         needle = f"label:'{label}'"
         assert needle in rendered_sample, f"tab label {label!r} not in the rendered wall"
         positions.append(rendered_sample.index(needle))
-    assert positions == sorted(positions), "tabs are not in STORIES / AGENTS / LEDGER / WAITING order"
+    assert positions == sorted(positions), "tabs are not in MAIN / STORIES / CREW / LEDGER / WAITING order"
 
 
 def test_rendered_sample_defines_the_tab_panels(rendered_sample: str) -> None:
@@ -239,3 +239,33 @@ def test_malformed_snapshot_shows_a_banner_not_a_blank_page(template_text: str) 
     assert "JSON.parse" in template_text
     assert "catch" in template_text
     assert "function fail(" in template_text
+
+
+# --------------------------------------------------- header + MAIN screen
+
+def test_header_repo_name_is_verbatim_and_screen_name_lowercase():
+    """Owner direction: the repo name renders case-preserved (bold, the
+    primary text token) and the screen name beside it is always lowercase,
+    changing with the active tab."""
+    t = TEMPLATE.read_text(encoding="utf-8")
+    assert "never transformed" in t and "$('repoName').textContent" in t
+    assert "text-transform: lowercase" in t
+    assert "cur.label.toLowerCase()" in t
+    assert "font-weight: 700" in t.split(".repo {")[1].split("}")[0]
+
+
+def test_main_is_the_default_screen_with_the_summary_panels():
+    t = TEMPLATE.read_text(encoding="utf-8")
+    assert "|| 'main'" in t, "MAIN is the landing screen"
+    assert 'id="panel-main"' in t
+    for anchor in ("Items on the board", "In flight", "Agents working",
+                   "Waiting on you", "Integrity flags"):
+        assert anchor in t, f"main summary missing stat {anchor!r}"
+    assert "No agent is working right now." in t
+    assert "Nothing in flight." in t
+
+
+def test_sample_repo_name_exercises_case_preservation():
+    import json
+    cfg = json.loads((KIT / "sample" / ".wall" / "config" / "wall.json").read_text())
+    assert cfg["repo_name"] == "Atlas-Core", "the fixture must prove mixed case survives"

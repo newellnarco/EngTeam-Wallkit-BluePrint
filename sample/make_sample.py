@@ -412,7 +412,7 @@ def main(root: Path = ROOT):
     cfg = root / ".wall" / "config"
     cfg.mkdir(parents=True, exist_ok=True)
     (cfg / "wall.json").write_text(json.dumps({
-        "repo_name": "atlas-core",
+        "repo_name": "Atlas-Core",
         "role_limits": {"builder": 4, "researcher": 6, "reviewer": 2},
         "budget": {
             "period": "week of 14 Sep 2026",

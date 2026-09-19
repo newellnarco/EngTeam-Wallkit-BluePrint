@@ -442,8 +442,9 @@ td.empty { text-align: center; }
 
 /* ---- wall-specific ------------------------------------------------------- */
 
-.repo { font-size: var(--text-xl); font-weight: 600; letter-spacing: -.015em; margin: 0; }
-.repo .branch {
+.repo { font-size: var(--text-xl); font-weight: 700; letter-spacing: -.015em; margin: 0; color: var(--text-primary); }
+.repo .screen { color: var(--text-secondary); font-weight: 400; text-transform: lowercase; margin-left: var(--space-2); }
+.sweep .branch {
   color: var(--text-muted); font-weight: 400;
   font-family: var(--font-mono); font-size: var(--text-md); margin-left: var(--space-2);
 }
@@ -537,9 +538,10 @@ footer {
 <div class="app-shell app-shell--wide">
 
   <header class="masthead">
-    <h1 class="repo" id="repoName">—<span class="branch" id="repoBranch"></span></h1>
+    <h1 class="repo"><span id="repoName">—</span><span class="screen" id="screenName"></span></h1>
     <span class="spacer"></span>
     <div class="sweep">
+      <span class="branch" id="repoBranch"></span>
       <span class="lamp" id="lamp" aria-hidden="true"></span>
       <span id="sweepAge">—</span>
     </div>
@@ -549,6 +551,24 @@ footer {
   <div class="notice notice--alert" id="errorBanner" role="alert" hidden></div>
 
   <nav class="tabs" role="tablist" id="tabs"></nav>
+
+  <section role="tabpanel" id="panel-main" aria-labelledby="tab-main" hidden>
+    <div class="panel">
+      <h2>Now<span class="sub" id="mainSub"></span></h2>
+      <div class="gauges" id="mainStats"></div>
+    </div>
+    <div class="panel">
+      <h2>In progress<span class="sub">agents at work, and the items they hold</span></h2>
+      <div class="scroll-x"><table class="data">
+        <thead><tr><th>Agent</th><th>Role</th><th>Working on</th><th>Status</th></tr></thead>
+        <tbody id="mainCrewBody"></tbody>
+      </table></div>
+      <div class="scroll-x"><table class="data">
+        <thead><tr><th>Item</th><th>Title</th><th>Kind</th><th>Status</th><th>Assignee</th></tr></thead>
+        <tbody id="mainWorkBody"></tbody>
+      </table></div>
+    </div>
+  </section>
 
   <section role="tabpanel" id="panel-board" aria-labelledby="tab-board">
     <div class="panel">
@@ -581,7 +601,7 @@ footer {
 
   <section role="tabpanel" id="panel-crew" aria-labelledby="tab-crew" hidden>
     <div class="panel">
-      <h2>Agents<span class="sub" id="crewSub"></span></h2>
+      <h2>Crew<span class="sub" id="crewSub"></span></h2>
       <div class="scroll-x"><table class="data">
         <thead><tr>
           <th>Name</th><th>Model</th><th>Status</th><th>Working on</th>
@@ -771,13 +791,14 @@ footer {
   }
 
   var TABS = [
+    {id:'main',    label:'MAIN',    count:function(){ return null; }},
     {id:'board',   label:'STORIES', count:function(){ return allItems().length; }},
-    {id:'crew',    label:'AGENTS',  count:function(d){ return (d.crew||[]).length; }},
+    {id:'crew',    label:'CREW',  count:function(d){ return (d.crew||[]).length; }},
     {id:'ledger',  label:'LEDGER',  count:function(){ return null; }},
     {id:'waiting', label:'WAITING', count:function(d){ return (d.waiting_on_you||[]).length; }, hot:true}
   ];
-  var active = location.hash.replace('#','') || 'board';
-  if (!TABS.some(function(t){ return t.id === active; })) active = 'board';
+  var active = location.hash.replace('#','') || 'main';
+  if (!TABS.some(function(t){ return t.id === active; })) active = 'main';
 
   function paintTabs(){
     $('tabs').innerHTML = TABS.map(function(t){
@@ -788,6 +809,10 @@ footer {
              (c === null ? '' : '<span class="count'+hot+'">'+c+'</span>')+'</button>';
     }).join('');
     TABS.forEach(function(t){ $('panel-'+t.id).hidden = (t.id !== active); });
+    // The header reads "<Repo-Name> <screen>": repo name verbatim from config,
+    // screen name always lowercase (owner direction).
+    var cur = TABS.filter(function(t){ return t.id === active; })[0];
+    $('screenName').textContent = cur ? cur.label.toLowerCase() : '';
   }
   $('tabs').addEventListener('click', function(e){
     var b = e.target.closest('button[data-tab]');
@@ -991,6 +1016,40 @@ footer {
     }).join('');
   }
 
+  // ---- MAIN (summary) -------------------------------------------------------
+
+  var IN_FLIGHT = {in_progress:1, review:1, active:1, blocked:1, triage:1};
+
+  function paintMain(){
+    var items = allItems();
+    var work = items.filter(function(i){ return IN_FLIGHT[(i.status||'').toLowerCase()]; });
+    var working = (D.crew||[]).filter(function(a){ return a.status === 'working' || a.status === 'stale'; });
+    var flags = D.integrity || {};
+    var nflags = 0;
+    Object.keys(flags).forEach(function(k){ if (Array.isArray(flags[k])) nflags += flags[k].length; });
+    $('mainSub').textContent = (D.repo && D.repo.name) ? 'the state of ' + D.repo.name + ' right now' : '';
+    var stats = [
+      {label:'Items on the board', big: items.length, foot:''},
+      {label:'In flight', big: work.length, foot:'in progress, review, blocked, triage'},
+      {label:'Agents working', big: working.length, foot:''},
+      {label:'Waiting on you', big:(D.waiting_on_you||[]).length, foot:'answer on the WAITING tab'},
+      {label:'Integrity flags', big:nflags, foot: nflags ? 'details on the CREW tab' : 'clean'}
+    ];
+    $('mainStats').innerHTML = stats.map(function(s){
+      return '<div class="gauge"><h4>'+esc(s.label)+'</h4><div><span class="big">'+esc(String(s.big))+
+             '</span></div><div class="foot">'+esc(s.foot)+'</div></div>';
+    }).join('');
+    $('mainCrewBody').innerHTML = working.map(function(a){
+      return '<tr><td>'+esc(a.name||a.key||'')+'</td><td>'+esc(a.role||'')+'</td><td>'+
+             esc(a.item_id||'—')+'</td><td>'+statusChip(a.status)+'</td></tr>';
+    }).join('') || '<tr><td colspan="4" class="empty">No agent is working right now.</td></tr>';
+    $('mainWorkBody').innerHTML = work.map(function(i){
+      return '<tr><td><span class="chip">'+esc(i.item_id||'')+'</span></td><td>'+esc(i.title||'')+
+             '</td><td>'+kindChip(i.kind)+'</td><td>'+statusChip(i.status)+'</td><td>'+
+             esc(i.assignee||'—')+'</td></tr>';
+    }).join('') || '<tr><td colspan="5" class="empty">Nothing in flight.</td></tr>';
+  }
+
   // ---- budget gauges (AGENTS + LEDGER share one builder) -------------------
 
   function gaugeHtml(m){
@@ -1037,7 +1096,7 @@ footer {
   function paint(){
     try {
       document.title = 'Wall — ' + (D.repo && D.repo.name || '');
-      $('repoName').firstChild.nodeValue = (D.repo && D.repo.name) || '—';
+      $('repoName').textContent = (D.repo && D.repo.name) || '—';  // verbatim: case is the config's, never transformed
       $('repoBranch').textContent = (D.repo && D.repo.branch) ? D.repo.branch : '';
       var c = D.courier || {};
       $('courierNote').textContent = 'courier ' + (c.last_run_ms != null ? c.last_run_ms + 'ms' : '—') +
@@ -1046,7 +1105,7 @@ footer {
       $('fEvents').textContent = num(c.events) + ' events merged';
       $('fShards').textContent = num(c.shards) + ' shards';
       $('fSessions').textContent = (D.sessions || []).length + ' sessions';
-      paintTabs(); paintSweep(); paintStories(); paintCrew(); paintIntegrity();
+      paintTabs(); paintSweep(); paintMain(); paintStories(); paintCrew(); paintIntegrity();
       paintWaiting(); paintLedger();
       clearFail();
     } catch (e) {

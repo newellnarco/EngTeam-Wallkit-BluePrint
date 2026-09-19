@@ -58,6 +58,8 @@ Repeat one of these per lane, including the dead ones.
   a hard stop does not reopen until the period rolls. The two demand opposite
   reactions, and a lane whose shape is unrecorded gets waited on when it will
   never answer.
+- **Reviews drafts:** <YES / NO> - per-lane pin (DEC-0013), default NO for a
+  metered lane; changing it is a register edit with the meter facts beside it.
 - **Caps and measured ceilings:** <MEASURED_LIMIT_AND_HEADROOM> - measured, not
   quoted from documentation. A config field that grows by policy will cross a
   vendor cap, and past the cap the tool can reject the whole config and keep

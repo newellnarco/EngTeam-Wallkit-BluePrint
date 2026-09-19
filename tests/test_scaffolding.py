@@ -33,6 +33,8 @@ EXPECTED_TEMPLATES = [
     "BUDGETED_DOCS.md.template",
     "OWNER_DECISIONS.md.template",
     "REVIEWER_LANES.md.template",
+    "ENGINEERING_STANDARD.md.template",
+    "DESIGN_DOC.md.template",
 ]
 
 # <PLACEHOLDER>: uppercase, digits, underscores. Deliberately does not match
@@ -152,7 +154,9 @@ def parse_front_matter(body: str) -> dict[str, str]:
 
 def test_decision_seed_set_present():
     names = [p.name for p in decision_files()]
-    expected = [f"DEC-{n:04d}.md" for n in range(1, 13)]
+    # 13-16 are the Patron's recorded rulings (2026-09-19); the equality
+    # still guards against holes and strays.
+    expected = [f"DEC-{n:04d}.md" for n in range(1, 17)]
     assert names == expected, f"decision seed set drifted: {names}"
 
 

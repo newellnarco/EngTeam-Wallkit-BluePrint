@@ -228,13 +228,20 @@ as an integrity flag.
 
 Branch convention is the host's, unchanged. Every change rides a pull request.
 
-**Serialization.** Work is built in parallel and integrated in series: one
-designated branch, one open pull request, one set of checks running. Do not push
-to a branch whose checks are still running - the push cancels the run and
-restarts the meter. Measured in the reference deployment: eleven cancelled runs
-across seventy-seven minutes on one pull request before the rule was adopted.
+**Cooperation, with serialized merges (DEC-0016).** Multiple builders
+cooperate on concurrent open pull requests when their leased surfaces are
+disjoint — the one-open-PR limit is retired as a general rule. What remains
+serialized: never push to a branch whose checks are still running (the push
+cancels the run and restarts the meter — measured: eleven cancelled runs
+across seventy-seven minutes on one pull request), and merges go through the
+coordinator one at a time with the next PR rebasing first. A host whose
+standing rules mandate a single designated branch runs single-slot mode, and
+which mode a repo runs is recorded as a decision.
 
-**Leases.** Subagents inside one session share a working tree, so two builders
+**Leases (the invariant in every topology - DEC-0015).** Worktree isolation
+is recommended for any agent that writes version control, and mandated where
+the host's standing rules say so; the lease check below applies unchanged
+either way. Subagents inside one session share a working tree, so two builders
 editing at once corrupts it. Maestro assigns each item a declared path scope and
 writes a lease; it refuses to dispatch a second builder whose scope overlaps.
 Leases carry a TTL so a dead agent does not hold a path forever. Separate

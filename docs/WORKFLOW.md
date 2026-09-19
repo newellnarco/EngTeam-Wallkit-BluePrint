@@ -46,7 +46,7 @@ Builder. It runs the half of the loop it can run:
 3. Export the snapshot so the wall is current.
 4. Hand back a **dispatch plan**, not a wish list: per unit, the item key, the
    acceptance criteria, the **exact file surfaces shown to be disjoint** (the
-   lease check still applies), and the merge order for the single PR slot.
+   lease check still applies), and the merge order for the merge queue.
 5. **Say plainly that it could not spawn, and why.**
 
 The failure this prevents is a plan reported as a dispatch. The reader must be
@@ -336,10 +336,32 @@ Two corollaries the wave added:
 
 ---
 
-## 9. Integration: transplanting one unit through the single PR slot
+## 9. Integration: cooperative pull requests, serialized merges
 
-N units build in parallel worktrees; there is **one branch and one PR slot**. So
-every finished unit is transplanted, one at a time, and the transplant is its own
+N units build in parallel; with multiple builders they **cooperate on
+concurrent open pull requests** rather than queueing behind one slot
+(DEC-0016, user direction): each unit rides its own branch and its own PR,
+admitted while its **leased surface is disjoint** from every other open
+PR's. What stays serialized is exactly what must:
+
+- **Per PR:** never push to a branch whose checks are running — the push
+  cancels the run and restarts the meter (measured: 11 cancelled runs over
+  77 minutes on one PR).
+- **Merges:** the Maestro merges **one at a time**, in a chosen order; the
+  next PR rebases onto the moved mainline before its turn. Two merges
+  racing is how a green pair produces a red mainline.
+- **Shared derived files:** stay fragment-safe or single-writer-on-main
+  (F-DERIVED); a derived-file collision between open PRs is a design
+  defect, not a scheduling problem.
+- **Host binding:** a host whose standing rules mandate ONE designated
+  branch (the reference deployment does) runs **single-slot mode** — the
+  same procedure with the PR count pinned to one; record which mode the
+  repo runs as a decision.
+
+Every finished unit still goes through the transplant procedure below —
+applied per-PR: rebase the unit's own branch onto the moved mainline, prove
+the branch carries only the unit's declared surface, gates last. The
+transplant is its own
 procedure (G5). The wave executed it five times; by the third run it was handling
 two compactor-consumed-fragment conflicts and a placeholder-lease rejection
 exactly as written. Two more things it proved: the procedure must be a document
