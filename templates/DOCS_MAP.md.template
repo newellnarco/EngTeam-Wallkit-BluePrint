@@ -14,8 +14,8 @@ HOW TO USE    Copy to the repo root as DOCS_MAP.md (or wherever your host keeps
               look at the last twenty merged changes, group them by kind, and
               write down what each kind SHOULD have touched. Delete kinds you
               do not have. Fill every <PLACEHOLDER>.
-QUESTIONS     The rows are derived, not guessed. The per-template question sets
-              in docs/TEMPLATE_INTAKE.md are the model for the interview; this
+QUESTIONS      Required questions + LLM probes to fill this well:
+              docs/TEMPLATE_INTAKE.md section 7.
               table's source material is the repository's own history.
 -->
 

@@ -7,6 +7,14 @@ results the session cannot see. If you are an LLM session reading this in a
 repository that contains the kit: this is your day-zero procedure. Work it top
 to bottom; every phase ends with an exit condition you can check.
 
+**The order is the rule (user direction).** Guardrails, scaffolding,
+metrics, quality and security machinery, and the requirements and
+architecture come FIRST — in a new repo or an existing one — before building
+or delivering ANY product line of code. The phases below are that order, and
+Phase 4 is gated on it: a session that starts writing product code with the
+foundation half-laid has not saved time, it has borrowed it at interest from
+every future wave.
+
 Two standing rules frame everything below:
 
 - **You ask; you do not assume.** Every "ASK THE ENGINEER" block below is a
@@ -99,6 +107,14 @@ Write the product brief; every engineer answer becomes a `DEC-NNNN`.
 arcs that depend on them.
 
 ## Phase 4 — Author and run the first wave
+
+> **THE FOUNDATION GATE.** Phase 4 does not open until the exit conditions
+> of Phases 1–3 hold: rules confirmed, suite green, wall live (or its
+> degrade recorded), intake's product brief written with the data-security
+> domain answered or its arcs parked, and the Warden's corpus seeded from
+> it. **No product story dispatches before this gate** — the first wave's
+> product work waits behind any foundation item still missing, and building
+> the missing item IS the wave until then.
 
 1. As Maestro, dispatch the Architect with the brief; land the first arc and
    its citable stories (ITEM_AUTHORING.md). Import any existing board through

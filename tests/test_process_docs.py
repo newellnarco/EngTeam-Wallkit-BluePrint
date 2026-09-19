@@ -453,10 +453,14 @@ def test_template_intake_covers_every_template_with_both_layers():
     t = _text(TEMPLATE_INTAKE)
     for name in ("CLAUDE.md.template", "RULES.md.template",
                  "FAILURE_PATTERNS.md.template", "SHIP_CHECKLIST.md.template",
-                 "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template"):
+                 "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template",
+                 "DOCS_MAP.md.template"):
         assert name in t, f"intake missing template {name}"
-    assert t.count("**Required:**") >= 6
-    assert t.count("**LLM probes:**") >= 6
+    assert t.count("**Required:**") >= 7
+    assert t.count("**LLM probes:**") >= 7
+    # EVAL_RECORD is per-evaluation, not an adoption-time doc; the intake must
+    # say so rather than silently lacking a section for a listed template.
+    assert "EVAL_RECORD.md.template" in t and "per evaluation" in t
 
 
 def test_template_intake_uses_the_four_project_shapes():
@@ -474,7 +478,8 @@ def test_template_intake_graduates_its_own_probes():
 def test_every_template_points_at_its_question_set():
     for name in ("CLAUDE.md.template", "RULES.md.template",
                  "FAILURE_PATTERNS.md.template", "SHIP_CHECKLIST.md.template",
-                 "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template"):
+                 "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template",
+                 "DOCS_MAP.md.template"):
         t = _text(KIT / "templates" / name)
         assert "TEMPLATE_INTAKE.md" in t, f"{name} lacks its question-set pointer"
 
@@ -493,7 +498,7 @@ def test_adopt_classifies_by_function_not_filename():
     assert "Classify by FUNCTION, not filename" in t
     for fn in ("Entry point", "Standing rules", "Failure registry",
                "Ship checklist", "Coding standards", "Decision log",
-               "Prompt budgets"):
+               "Prompt budgets", "Docs map"):
         assert fn in t, f"adopt missing function {fn}"
 
 
@@ -1026,3 +1031,18 @@ def test_readme_carries_the_forward_looking_fleet_note():
     assert "adopted, reworded, or declined-with-reason" in t
     assert "Silence is not one of them" in t
     assert "A sync verdict is never UNKNOWN" in t
+
+
+# ------------------------------------------------- foundation-first gate
+
+def test_the_foundation_gate_is_stated_everywhere_it_binds():
+    flatten = lambda p: " ".join(_text(p).replace("**", "").replace(">", " ").split())
+    boot = flatten(KIT / "docs" / "LLM_BOOTSTRAP.md")
+    assert "The order is the rule" in boot
+    assert "THE FOUNDATION GATE" in boot
+    assert "No product story dispatches before this gate" in boot
+    maestro = flatten(MAESTRO)
+    assert "Foundation gate (product stories only)" in maestro
+    assert "precede ANY product line of code" in maestro
+    readme = flatten(README)
+    assert "a gate, not a suggestion" in readme

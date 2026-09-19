@@ -17,6 +17,8 @@
 
   "max_rework_cycles": 3,
 
+  "ci_checkin_minutes": 10,
+
   "decisions_dir": "docs/decisions",
 
   "fast_track": {

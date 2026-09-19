@@ -67,6 +67,15 @@ These are the measured failure classes. Each one cost a wave something.
 
 Per WORKFLOW section 2, in this order, every time:
 
+0. **Foundation gate (product stories only).** Before dispatching any story
+   that writes product code, verify the foundation stands: rules + failure
+   registry + ship checklist + standards + budget register filled or mapped
+   (`/adopt`), testing standards adopted, the wall live, the product brief's
+   data-security domain answered (or this story's arc parked on it), and the
+   Warden's corpus seeded. A missing foundation item is dispatched FIRST, as
+   the wave's real work -- guardrails, scaffolding, metrics, quality,
+   security, requirements and architecture precede ANY product line of code
+   (user direction; LLM_BOOTSTRAP's gate, enforced here at dispatch).
 1. **Budget check.** Advisory, recorded. Admission control belongs before
    dispatch, not after the overrun.
 2. **Lease check.** Subagents share a working tree. Compute path-scope

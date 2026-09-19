@@ -110,6 +110,22 @@ AGENT_TOPOLOGY.md section 2 pins.
 | **Security** | A cross-cutting lane, not a box: SAST + secrets in the DoD, network-gated analysts, localhost-only serving, consent-gated installs, and a straight-to-sponsor escalation class | TESTING_STANDARDS.md (SAST lane), SESSION_LIFECYCLE.md section 4, INSTALL.md |
 | **Metrics** | Every number measured, never self-reported: harness token actuals, CI wall-clock, ledger-derived utilization, shard timings; budgets advisory, trends reported | EVENT_SCHEMA.md section 5, CAPACITY_REBALANCING.md section 2 |
 
+## 2b. Enforcement grades — under-promising on purpose
+
+Every capability claimed in section 2 is held up by one of three grades, and
+saying which is part of the claim (user direction: under-promise,
+over-deliver, and test it):
+
+| Grade | Meaning | Examples, with the mechanism named |
+|---|---|---|
+| **structural** | Code refuses the violation; no discipline required | The Warden/Architect/Adjudicator singletons (`tools/wall/agents.py` raises on a second live claim); the wall server's localhost-only bind and four-file allowlist (`tools/wall/server.py`); integrity flags, stale reclassification and budget trajectory computed, never asserted (`tools/wall/courier.py`); byte-reproducible ledger merge (verified by test) |
+| **procedural** | A written instruction agents are briefed from, its load-bearing phrases pinned by tests that fail on drift | Merge authority (G12), gates-last (G6), the authority matrix, the Warden's gates, the transplant safety proof, the review-meter rules — role sheets + WORKFLOW, pinned across the tests/ suite |
+| **advisory** | A recommendation; the engineer may override, and overrides are recorded | Budget meters (warn, never stop), rebalance defaults, the fast-track globs, disposition of optional reviewer findings |
+
+The grade an adopter should assume for anything not listed is **procedural at
+best** — and `tests/test_capability_truth.py` checks that every claim in the
+README's organization table cites an instruction source that actually exists.
+
 ## 3. Domain-driven design alignment
 
 The kit carries DDD's load-bearing ideas under its own names, and one piece

@@ -320,6 +320,10 @@ in the same job:
 6. Every `blocked` item has an open question; every open question past SLA has
    an assignment.
 7. No item claims an open pull request that is already merged or closed.
+8. No living tracker document names as open a pull request the host says is
+   merged (the WORKFLOW section 8 tracker class; the item-state half is the
+   courier's `merged_but_open` check — the tracker half is a host-side grep
+   over the documents DOCS_MAP.md registers, honest about being host-specific).
 
 Checks 4, 6 and 7 catch an agent or a process misbehaving rather than a file
 being malformed, which is the whole point.

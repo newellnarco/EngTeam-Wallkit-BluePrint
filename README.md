@@ -70,21 +70,32 @@ written procedure.
 
 ![The engineering organization mapped to kit roles](docs/diagrams/assets/org-mapping.svg)
 
-| Role (org term) | Kit carrier | Function |
-|---|---|---|
-| Product owner / sponsor | The driving engineer | Effort variables, product Q&A, ceilings, the human queue |
-| Engineering manager | **Maestro** (the session) | Dispatch, capacity within caps, merge authority, process |
-| PMO / metrics analyst | **Foreman** + Courier + the wall | Measured status, integrity, cost; rebalance recommendations |
-| Solution architect | **Architect** | Domain design, arcs + stories, requirements sign-off, rulings |
-| Governance board | **Adjudicator** | Tie-breaks, decision conflicts, contested trade-offs |
-| Security & compliance authority | **Warden** (exactly one, singleton-enforced) | Guardrail corpus; architecture sign-off on in-scope arcs; data-use verdicts (dev + product); delivery audit — blocks autonomously, never grants |
-| Analysts | **Researchers** (N, parallel) | Evidence with sources, options with costs |
-| Engineers | **Builders** (N, parallel) | Implementation in leased scopes, tests owed |
-| Release engineer | **Integrator** (a hat) | Rebase, safety proof, gates last, one PR at a time |
-| QA / code review | **Reviewer** + external lanes | Cold diff read, mutation protocol, DoD gate |
-| Security | A cross-cutting lane | The lane the Warden audits: SAST + secrets, gated network, consent-gated installs |
-| Project management | State, not a head | The wall's arcs/stories/bugs, SLA ladder, decision log |
-| Metrics | Measured, never self-reported | Harness token actuals, CI wall-clock, ledger-derived utilization, shard timings |
+| Role (org term) | Kit carrier | Function | Actual instructions |
+|---|---|---|---|
+| Product owner / sponsor | The driving engineer | Effort variables, product Q&A, ceilings, the human queue | `docs/SESSION_LIFECYCLE.md` §2/§4, `docs/PRODUCT_INTAKE.md` |
+| Engineering manager | **Maestro** (the session) | Dispatch, capacity within caps, merge authority, process | `.claude/MAESTRO.md`, `docs/WORKFLOW.md` §2/§7 |
+| PMO / metrics analyst | **Foreman** + Courier + the wall | Measured status, integrity, cost; rebalance recommendations | `.claude/agents/foreman.md`, `docs/CAPACITY_REBALANCING.md`; the mechanical half is `tools/wall/courier.py` |
+| Solution architect | **Architect** | Domain design, arcs + stories, requirements sign-off, rulings | `.claude/agents/architect.md`, `docs/ITEM_AUTHORING.md` |
+| Governance board | **Adjudicator** | Tie-breaks, decision conflicts, contested trade-offs | `.claude/agents/adjudicator.md` |
+| Security & compliance authority | **Warden** (exactly one, singleton-enforced) | Guardrail corpus; architecture sign-off on in-scope arcs; data-use verdicts (dev + product); delivery audit — blocks autonomously, never grants | `.claude/agents/warden.md`; the singleton is refused in code by `tools/wall/agents.py` |
+| Analysts | **Researchers** (N, parallel) | Evidence with sources, options with costs | `.claude/agents/researcher.md`, `docs/handoffs/finding-route.md` |
+| Engineers | **Builders** (N, parallel) | Implementation in leased scopes, tests owed | `.claude/agents/builder.md`, `docs/TESTING_STANDARDS.md` |
+| Release engineer | **Integrator** (a hat) | Rebase, safety proof, gates last, one PR at a time | `.claude/agents/integrator.md`, `docs/WORKFLOW.md` §9, `docs/handoffs/transplant-order.md` |
+| QA / code review | **Reviewer** + external lanes | Cold diff read, mutation protocol, DoD gate | `.claude/agents/reviewer.md`, `.claude/skills/reviewer-integration/SKILL.md` |
+| Security | A cross-cutting lane | The lane the Warden audits: SAST + secrets, gated network, consent-gated installs | `docs/TESTING_STANDARDS.md` (SAST lane), `docs/INSTALL.md`; the bind is enforced in `tools/wall/server.py` |
+| Project management | State, not a head | The wall's arcs/stories/bugs, SLA ladder, decision log | `docs/WALL_STANDARDS.md` §4, `docs/ITEM_AUTHORING.md`; the sweeps are `tools/wall/courier.py` |
+| Metrics | Measured, never self-reported | Harness token actuals, CI wall-clock, ledger-derived utilization, shard timings | `docs/EVENT_SCHEMA.md` §5; computed by `tools/wall/courier.py`, `tools/wall/testkit.py` |
+
+**Under-promising on purpose.** Every capability above is graded by how it is
+actually held up, and the grade is written where the claim is made
+(`docs/diagrams/ORG_MAPPING.md` §2b): **structural** means code refuses the
+violation (the roster's singleton, the server's localhost bind, the courier's
+integrity flags); **procedural** means a written instruction agents are
+briefed from, with its load-bearing phrases pinned by tests; **advisory**
+means a recommendation the engineer may override. And the table itself is
+tested: `tests/test_capability_truth.py` verifies every cited instruction
+source exists, so a claim that loses its instructions fails the suite instead
+of quietly becoming marketing.
 
 Full mapping with DDD alignment: `docs/diagrams/ORG_MAPPING.md`. The same
 system as sessions, hooks and state — with what runs parallel vs sequential:
@@ -190,6 +201,13 @@ rhythm.
 | 7 | **Wire the graders** | External reviewer lanes imported into one shared body of criteria | `.claude/skills/reviewer-integration/` |
 | 8 | **Tune on measurements** | Builder/researcher split, PR pacing, CI sharding — one knob per cycle | CAPACITY_REBALANCING.md, TESTING_STANDARDS.md |
 | 9 | **Let it learn** | Findings graduate to rules + tests + checklist lines; decisions accrete; the next wave starts smarter | FAILURE_PATTERNS + the `learn` loop |
+
+**Steps 1–5 are a gate, not a suggestion:** guardrails, scaffolding,
+metrics, quality and security machinery, requirements and architecture land
+first — in a new repo or an existing one — before any product line of code is
+built or delivered. The Maestro's dispatch sequence enforces it (a product
+story does not dispatch past a missing foundation item), and the bootstrap
+carries the same gate at Phase 4.
 
 An LLM session can walk this path end-to-end on its own, asking the engineer
 only to run or verify the consent-gated steps: `docs/LLM_BOOTSTRAP.md`.
@@ -435,49 +453,55 @@ authority on which commands are in that state today.
 
 ## Layout
 
-```
-docs/
-  RECONCILIATION.md      BINDING - the 16 questions answered, the wave's lessons
-  WALL_STANDARDS.md      folder layout, git boundaries, reference-deployment mapping
-  AGENT_ROSTER_SPEC.md   the roles, models, caps, authority
-  EVENT_SCHEMA.md        the contract - read this before the first real run
-  WORKFLOW.md            execution model, dispatch, ambiguity, escalation, integration
-  ITEM_AUTHORING.md      arcs, stories, bugs - how the Architect writes them, how research enriches them
-  SESSION_LIFECYCLE.md   session start and close SOPs, startup questions, engineer escalation
-  PRODUCT_INTAKE.md      the product-definition Q&A: derive from the repo first, ask second
-  CAPACITY_REBALANCING.md  the measured knobs: builder/researcher split, PR pacing, CI sharding
-  TEMPLATE_INTAKE.md     the per-template question sets: required + LLM probes, worked examples
-  DIAGNOSTICS_LOOP.md    running system -> shipped evidence -> automated review -> story with design
-  TECH_EVALUATION.md     measure-before-flip: bench, flag protocol, decision record, re-eval triggers
-  LLM_BOOTSTRAP.md       the day-zero procedure an LLM session follows to stand all of this up
-  DEPLOYMENT_TARGETS.md  Docker, VMs, Kubernetes - who runs the timer, serves, ships
-  COMPLIANCE_POSTURE.md  the mechanisms in auditor language: SoD, change control, traceability
-  LOGGING_AND_AUDIT.md   three planes, per-run artifacts, trace commands
-  FAST_TRACK.md          doc-only routing
-  INSTALL.md             machine-wide timer, serving, platform specifics
-  OPEN_QUESTIONS.md      settled decisions, and whatever is open now
-  ORIGINAL_OUTLINE.md    the source outline, unedited
-  decisions/             DEC-NNNN.md, one per ruling, plus index.md
-  diagrams/              components, the closed loop, AGENT_TOPOLOGY (nodes/edges,
-                         parallel vs sequential, concern-to-mechanism map),
-                         ORG_MAPPING (the same system as an engineering org)
-  handoffs/              dispatch brief, finding routing, transplant order, wave report
+### `docs/` — the process corpus
 
-.claude/
-  MAESTRO.md             the session manual - the Maestro IS the session
-  agents/                one role sheet per subagent role
-  hooks/                 terminal-event capture; never blocks, honest orphans
-  skills/wave/           how a wave runs, phase by phase
-  skills/reviewer-integration/  add/remove external review lanes; shared-criteria learning loop
-  skills/adopt/          parse an existing repo's docs by function; map + consolidate
+| File | What it is |
+|---|---|
+| `RECONCILIATION.md` | **BINDING** — the 16 questions answered, the wave's measured lessons |
+| `WALL_STANDARDS.md` | Folder layout, git boundaries, reference-deployment mapping |
+| `AGENT_ROSTER_SPEC.md` | The roles, models, caps, authority |
+| `EVENT_SCHEMA.md` | The ledger contract — read before the first real run |
+| `WORKFLOW.md` | Execution model, dispatch, ambiguity, escalation, integration |
+| `ITEM_AUTHORING.md` | Arcs, stories, bugs — how the Architect writes them, how research enriches them |
+| `SESSION_LIFECYCLE.md` | Session start/close SOPs, startup questions, engineer escalation |
+| `PRODUCT_INTAKE.md` | The product-definition Q&A: derive from the repo first, ask second |
+| `TEMPLATE_INTAKE.md` | Per-template question sets: required + LLM probes, worked examples |
+| `CAPACITY_REBALANCING.md` | The measured knobs: builder/researcher split, PR pacing, CI sharding |
+| `DIAGNOSTICS_LOOP.md` | Running system → shipped evidence → automated review → story with design |
+| `TECH_EVALUATION.md` | Measure-before-flip: bench, flag protocol, decision record, re-eval triggers |
+| `LLM_BOOTSTRAP.md` | The day-zero procedure an LLM session follows to stand all of this up |
+| `DEPLOYMENT_TARGETS.md` | Docker, VMs, Kubernetes — who runs the timer, serves, ships |
+| `COMPLIANCE_POSTURE.md` | The mechanisms in auditor language: SoD, change control, traceability |
+| `TESTING_STANDARDS.md` | Tiers, mutation protocol, SAST lane, sharding + rebalance |
+| `LOGGING_AND_AUDIT.md` | Three planes, per-run artifacts, trace commands |
+| `FAST_TRACK.md` | Doc-only routing |
+| `INSTALL.md` | Machine-wide timer, serving, platform specifics |
+| `OPEN_QUESTIONS.md` | Settled decisions, and whatever is open now |
+| `ORIGINAL_OUTLINE.md` | The source outline, unedited |
+| `decisions/` | `DEC-NNNN.md`, one per ruling, plus `index.md` |
+| `diagrams/` | Components, the closed loop, `AGENT_TOPOLOGY` (nodes/edges, parallel vs sequential, concern map), `ORG_MAPPING` (the same system as an engineering org) |
+| `handoffs/` | Dispatch brief, finding routing, transplant order, wave report |
 
-templates/               the root context documents, with placeholders
-tools/wall/              courier, roster, CLI, service + server + shipper,
-                         install adapters, renderer, board-import adapters
-frontend/theme/          tokens, primitives, preview
-sample/make_sample.py    fixture generator, zero model calls
-tests/                   scaffolding and integrity tests
-```
+### `.claude/` — session, roster and skills
+
+| Path | What it is |
+|---|---|
+| `MAESTRO.md` | The session manual — the Maestro IS the session |
+| `agents/` | One role sheet per subagent role |
+| `hooks/` | Terminal-event capture; never blocks, honest orphans |
+| `skills/wave/` | How a wave runs, phase by phase |
+| `skills/reviewer-integration/` | Add/remove external review lanes; shared-criteria learning loop |
+| `skills/adopt/` | Parse an existing repo's docs by function; map + consolidate |
+
+### Everything else at the root
+
+| Path | What it is |
+|---|---|
+| `templates/` | The root context documents, with placeholders |
+| `tools/wall/` | Courier, roster, CLI, service + server + shipper, install adapters, renderer, board-import adapters |
+| `frontend/theme/` | Tokens, primitives, preview |
+| `sample/make_sample.py` | Fixture generator, zero model calls |
+| `tests/` | Scaffolding and integrity tests |
 
 ---
 

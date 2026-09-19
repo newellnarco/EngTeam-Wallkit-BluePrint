@@ -14,7 +14,7 @@ the kit is dropped into.
 
 1. **Sweep the tree for documents** (`*.md`, `*.rst`, `*.txt`, docs/ trees,
    `.github/`, wiki exports), skipping vendored and generated paths.
-2. **Classify by FUNCTION, not filename.** For each of the seven functions,
+2. **Classify by FUNCTION, not filename.** For each of the eight functions,
    look for the signatures, not the kit's names:
 
 | Function | Filename hints | Content signatures that outrank filenames |
@@ -26,6 +26,7 @@ the kit is dropped into.
 | Coding standards | `BEST_PRACTICES.md`, style guides, reviewer configs (`.coderabbit.yaml`, copilot instruction files) | rules addressed to a reviewer or author, lint rationale |
 | Decision log | `docs/decisions/`, `adr/`, RFC folders | one-file-per-ruling, status/superseded fields, dated verdicts |
 | Prompt budgets | almost never exists | any doc naming a token/char cap for a tool |
+| Docs map | `DOCS_MAP.md`, a docs-discipline note, CONTRIBUTING sections | change-kind to doc-surface obligations, "update the docs in the same PR" rules |
 
 3. **Report the inventory as a table** -- function, file(s) found, the
    evidence line that classified it, and a verdict per function:

@@ -204,6 +204,34 @@ as a method, not a questionnaire about one product:
 - Per-lane caps for every reviewer wired via the reviewer-integration skill
   — the skill's step 5 lands here.
 
+## 7. DOCS_MAP.md.template — the change-kind → doc-surfaces map
+
+**Required:**
+
+- Q7.1 Which change kinds exist HERE? Walk the seeded 13 and strike or add:
+  what does this repo ship that changes a user-visible surface? *(MAX3: a new
+  panel obligates the README views table + a design doc + the screenshot
+  script + the status registry — four surfaces from one change kind.)*
+- Q7.2 For each kind, which doc surfaces must move in the same change? Name
+  files, not "the docs".
+- Q7.3 What enforces each row? A row with no gate (lint, test, checklist
+  line, review rule) is a wish — say which mechanism, or mark it
+  honestly unenforced.
+
+**LLM probes:**
+
+- Mine merged changes: "the last five PRs that changed X — which docs moved
+  with them, and which should have?" The misses are rows.
+- "Which doc do people complain is always stale?" — that doc is missing from
+  some kind's row, by definition.
+- Shape contrasts: an appliance maps config-surface changes to its install/
+  upgrade notes (REEF); a research repo maps article changes to its catalog
+  and index (MRC); an extension maps permission changes to store listings
+  and privacy notes (feedhacker).
+
+*(`EVAL_RECORD.md.template` deliberately has no section here: it is filled
+per evaluation via `docs/TECH_EVALUATION.md`, not at adoption time.)*
+
 ---
 
 ## Using this document
