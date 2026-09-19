@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
 """wall — the command surface for the agent workforce.
 
-Commands marked STUB raise NotImplementedError with a note on what they need.
-Everything else works today. `wall run-once` in particular is fully functional,
-so the whole system can be driven by hand or from a git hook while the scheduled
-task adapters are still stubs.
-
 Local-only: no network calls anywhere in this file.
+
+Ledger and workflow, owned here: run-once, doctor, classify, agents, rebuild,
+diff-state, trace, why, answer, fast-track.
+
+Plumbing, dispatched: install / register / unregister / verify / uninstall /
+serve go to `service.py`; ship / fetch-events go to `shipper.py`. Both imports
+are lazy and inside the command, so the CLI keeps working on a machine where
+those modules were never installed -- the command prints what it needs instead
+of the whole file failing to import.
+
+Exit codes: 0 clean, 1 a real finding (drift, gate failure, refused route),
+2 a usage error or a command whose module is not installed on this machine.
 """
 
 from __future__ import annotations
@@ -14,14 +21,19 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
+import os
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE))
 
 import courier                      # noqa: E402
+import decisions as decisions_mod   # noqa: E402
+import items as items_mod           # noqa: E402
+import questions as questions_mod   # noqa: E402
 from agents import AgentRegistry    # noqa: E402
 
 
@@ -35,16 +47,104 @@ def load_config(repo: Path) -> dict:
 
 
 def stub(name: str, needs: str):
-    raise NotImplementedError(f"`wall {name}` is not built yet.\n  Needs: {needs}")
+    """The honest fallback when a dispatched command's module is absent.
+
+    Not a status label -- `install`, `serve`, `ship` and the rest are live.
+    This fires only when the module that implements one is missing from this
+    checkout, and says which one and what it does, rather than letting an
+    ImportError surface as a traceback.
+    """
+    raise NotImplementedError(
+        f"`wall {name}` cannot run here: its module is not installed.\n"
+        f"  Needs: {needs}")
+
+
+def via_service(name: str, a, needs: str):
+    """The seam for the plumbing commands, dispatched to `service.py`.
+
+    `service.py` owns the machine registry, the timer adapters and the local
+    server; it exposes `cmd_install` / `cmd_register` / `cmd_unregister` /
+    `cmd_verify` / `cmd_uninstall` / `cmd_serve`, each taking the argparse
+    namespace and returning an exit code.
+
+    The import is lazy and inside the command, so the whole CLI stays usable
+    on a machine where that module was never installed -- the command then
+    prints what it needs instead of the file failing to import.
+    """
+    try:
+        import service  # noqa: PLC0415  (deliberately lazy; see docstring)
+    except ImportError:
+        stub(name, needs)
+        return 2
+    fn = getattr(service, "cmd_" + name.replace("-", "_"), None)
+    if fn is None:
+        stub(name, needs + f"\n  (service.py is present but has no cmd_{name})")
+        return 2
+    return fn(a) or 0
+
+
+def via_shipper(fn_name: str, a, needs: str):
+    """The seam for the isolated-branch shipping commands (`shipper.py`).
+
+    Shards are never committed on the development branch: they ship to a
+    dedicated `wall-events` branch through an isolated index, leaving the
+    working tree and the current branch untouched (RECONCILIATION Q7).
+    """
+    try:
+        import shipper  # noqa: PLC0415  (deliberately lazy)
+    except ImportError:
+        stub(fn_name, needs)
+        return 2
+    fn = getattr(shipper, fn_name, None)
+    if fn is None:
+        stub(fn_name, needs + f"\n  (shipper.py is present but has no {fn_name})")
+        return 2
+    branch = getattr(a, "branch", None) or getattr(shipper, "DEFAULT_BRANCH", "wall-events")
+    repo = Path(a.repo).resolve()
+    if fn_name == "ship":
+        return fn(repo, branch)
+    outcome = fn(repo, branch)
+    print(f"[wall-events] fetch: {'updated' if outcome.get('updated') else 'no-op'}"
+          f" -- {outcome.get('reason') or 'nothing to do'}")
+    if outcome.get("updated"):
+        print(f"  {outcome.get('shards', 0)} shard(s)"
+              f"{', snapshot' if outcome.get('snapshot') else ''} materialised — "
+              f"run `wall run-once` to fold them in")
+    return 0
+
+
+def _short(value, width: int = 48) -> str:
+    text = " ".join(str(value).split())
+    return text if len(text) <= width else text[: width - 3] + "..."
+
+
+def _fmt_secs(seconds: float) -> str:
+    seconds = int(max(0, seconds))
+    if seconds < 60:
+        return f"{seconds}s"
+    if seconds < 3600:
+        return f"{seconds // 60}m{seconds % 60:02d}s"
+    return f"{seconds // 3600}h{(seconds % 3600) // 60:02d}m"
 
 
 # ---------------------------------------------------------------- sweep
 
+# The integrity keys that carry findings. `state_drift` is the *count* of
+# `state_drift_detail` (the wall template renders it as a number), so counting
+# both would report every drift twice.
+FLAG_KEYS = ("seq_gaps", "seq_duplicates", "orphan_runs", "duplicates",
+             "state_drift_detail", "merged_but_open", "escalations",
+             "stale_claims", "fold_problems")
+
+
+def count_flags(integrity: dict) -> int:
+    return sum(len(integrity.get(k) or []) for k in FLAG_KEYS)
+
+
 def cmd_run_once(a):
     """Merge shards, build the snapshot, render the wall. Fully working."""
     snap = courier.run_once(Path(a.repo).resolve(), rebuild=a.rebuild)
-    flags = snap["integrity"]
-    n = sum(len(v) for v in flags.values() if isinstance(v, list))
+    n = count_flags(snap["integrity"])
     print(f"swept {snap['courier']['events']} events from "
           f"{snap['courier']['shards']} shards"
           f"{f' — {n} integrity flags' if n else ' — clean'}")
@@ -60,9 +160,33 @@ def cmd_doctor(a):
     snap_path = repo / ".wall" / "derived" / "wall.json"
     if snap_path.exists():
         i = json.loads(snap_path.read_text())["integrity"]
-        for k, v in i.items():
-            n = len(v) if isinstance(v, list) else v
-            print(f"  {k:<16} {'clean' if not n else str(n) + ' flagged'}")
+        if i.get("state_drift_checked") is False:
+            print("  state_drift      not checked — no .wall/items/ yet "
+                  "(run `wall rebuild`)")
+        for k in FLAG_KEYS:
+            if k == "state_drift_detail" and i.get("state_drift_checked") is False:
+                continue
+            n = len(i.get(k) or [])
+            label = "state_drift" if k == "state_drift_detail" else k
+            print(f"  {label:<16} {'clean' if not n else str(n) + ' flagged'}")
+        for flag in (i.get("escalations") or []):
+            print(f"    escalation  {flag['kind']:<26} "
+                  f"{flag.get('question_id') or flag.get('item_id')}  "
+                  f"{flag.get('detail', '')}")
+        for flag in (i.get("merged_but_open") or []):
+            print(f"    reconcile   {flag['kind']:<26} {flag['item_id']}  "
+                  f"{flag.get('detail', '')}")
+
+    # The plumbing half: timer alive, heartbeat fresh, registry sane, app in
+    # sync. `wall verify` calls the same function, so the two agree by
+    # construction rather than by two people maintaining one list twice.
+    try:
+        import service  # noqa: PLC0415  (lazy: the CLI works without it)
+    except ImportError:
+        print("  plumbing         not checked — service.py is not installed")
+    else:
+        for check in service.doctor_checks(repo):
+            print(f"  {check['name']:<16} {check['status']:<8} {check.get('detail', '')}")
 
     problems = AgentRegistry(repo).audit()
     print("  roster          ", "clean" if not problems else "; ".join(problems))
@@ -71,41 +195,93 @@ def cmd_doctor(a):
 
 # ---------------------------------------------------------------- routing
 
+def glob_match(path: str, pattern: str) -> bool:
+    """`fnmatch` with `**/` meaning "zero or more directories".
+
+    Plain `fnmatch` reads `**/*.md` as "at least one directory, then
+    anything.md", because its `*` already crosses `/`. So a root-level
+    `CLAUDE.md` did not match the `**/CLAUDE.md` deny rule that FAST_TRACK.md
+    specifically defends, and a root `README.md` did not match the allow list
+    either. The first is the dangerous half: a rule everybody believes is
+    armed, silently never firing.
+    """
+    if fnmatch.fnmatch(path, pattern):
+        return True
+    while "**/" in pattern:
+        pattern = pattern.replace("**/", "", 1)
+        if fnmatch.fnmatch(path, pattern):
+            return True
+    return False
+
+
+def _match(path: str, globs) -> str | None:
+    return next((g for g in (globs or []) if glob_match(path, g)), None)
+
+
+def classify_files(files: list[str], cfg: dict) -> dict:
+    """Route a changeset by path alone. Pure, so it is testable without git.
+
+    Deny beats allow, always. Every path outside the allow list is full track;
+    there is no mixed mode and no partial credit (FAST_TRACK.md).
+    """
+    allow, deny = cfg.get("allow", []), cfg.get("deny", [])
+    significant = cfg.get("significant", [])
+    rows, fast, full, sig = [], [], [], []
+    for f in files:
+        rule = _match(f, deny)
+        if rule:
+            full.append(f)
+            rows.append({"path": f, "verdict": "deny", "rule": rule})
+            continue
+        rule = _match(f, allow)
+        if rule:
+            fast.append(f)
+            rows.append({"path": f, "verdict": "allow", "rule": rule})
+            if _match(f, significant):
+                sig.append(f)
+        else:
+            full.append(f)
+            rows.append({"path": f, "verdict": "deny", "rule": None})
+    return {
+        "route": "fast_track" if (files and not full) else "full_track",
+        "rows": rows, "fast": fast, "full": full,
+        "significant": sig, "mixed": bool(fast and full),
+    }
+
+
+def changed_files(repo: Path, staged: bool = False) -> list[str]:
+    args = ["git", "-C", str(repo), "diff", "--name-only"]
+    if staged:
+        args.append("--cached")
+    out = subprocess.run(args, capture_output=True, text=True, check=False)
+    return [f for f in out.stdout.split("\n") if f.strip()]
+
+
+def print_classification(result: dict) -> None:
+    print(f"route: {result['route']}")
+    for row in result["rows"]:
+        if row["verdict"] == "allow":
+            print(f"  {row['path']}\n      allow  matched {row['rule']}")
+        elif row["rule"]:
+            print(f"  {row['path']}\n      DENY   matched {row['rule']}")
+        else:
+            print(f"  {row['path']}\n      DENY   matched no allow rule")
+    for path in result["significant"]:
+        print(f"  {path}\n      NOTE   architecture/decision doc -- "
+              f"emits doc_impact for the affected arcs")
+    if result["mixed"]:
+        print("\nmixed changeset — split it rather than taking an exception.")
+
+
 def cmd_classify(a):
     """Route a changeset by path. Mechanical — never asserted by an agent."""
     repo = Path(a.repo).resolve()
     cfg = load_config(repo).get("fast_track", {})
-    allow, deny = cfg.get("allow", []), cfg.get("deny", [])
-
-    args = ["git", "-C", str(repo), "diff", "--name-only"]
-    if a.staged:
-        args.append("--cached")
-    files = [f for f in subprocess.run(args, capture_output=True, text=True).stdout.split("\n") if f]
-
+    files = changed_files(repo, a.staged)
     if not files:
         print("no changes")
         return 0
-
-    def match(path, globs):
-        return next((g for g in globs if fnmatch.fnmatch(path, g)), None)
-
-    verdict, reasons = "fast_track", []
-    for f in files:
-        d = match(f, deny)
-        if d:
-            verdict = "full_track"
-            reasons.append(f"  {f}\n      DENY   matched {d}")
-            continue
-        al = match(f, allow)
-        if al:
-            reasons.append(f"  {f}\n      allow  matched {al}")
-        else:
-            verdict = "full_track"
-            reasons.append(f"  {f}\n      DENY   matched no allow rule")
-
-    print(f"route: {verdict}\n" + "\n".join(reasons))
-    if verdict == "full_track" and any("allow" in r for r in reasons):
-        print("\nmixed changeset — split it rather than taking an exception.")
+    print_classification(classify_files(files, cfg))
     return 0
 
 
@@ -130,45 +306,569 @@ def cmd_agents(a):
     return 0
 
 
-# ---------------------------------------------------------------- stubs
+# ------------------------------------------------- materialized item state
 
-def cmd_install(a):
-    stub("install", "a platform adapter in install/. See INSTALL.md — "
-                    "Windows uses Register-ScheduledTask with a 2-minute "
-                    "repetition trigger, driving `wall run-once` per registered repo.")
-
-
-def cmd_register(a):
-    stub("register", "the machine-wide registry at %USERPROFILE%\\.wall\\registry.json")
-
-
-def cmd_verify(a):
-    stub("verify", "the install adapter, plus --app MANIFEST.sha256 comparison "
-                   "against what the repo expects")
-
-
-def cmd_trace(a):
-    stub("trace", "trace_id threading through dispatch. Read the ledger, filter "
-                  "by trace_id, order by (ts, session_id, seq).")
-
-
-def cmd_why(a):
-    stub("why", "decisions_in_context on run records plus docs/decisions/ index")
+def cmd_rebuild(a):
+    """Regenerate `.wall/items/` from events alone. Idempotent."""
+    repo = Path(a.repo).resolve()
+    result = items_mod.rebuild(repo, prune=bool(getattr(a, "prune", False)))
+    print(f"rebuilt {result['items']} items: {len(result['written'])} written, "
+          f"{len(result['unchanged'])} unchanged"
+          + (f", {len(result['removed'])} pruned" if result["removed"] else ""))
+    for iid in result["orphans"]:
+        print(f"  orphan   {iid}  item file with no event behind it "
+              f"(remove with --prune)")
+    for p in result["problems"]:
+        print(f"  problem  {p.get('kind')}  {p.get('detail', '')}")
+    return 1 if (result["problems"] or result["orphans"]) else 0
 
 
 def cmd_diff_state(a):
-    stub("diff-state", "`wall rebuild` — regenerate .wall/items/ from events "
-                       "alone, then diff against disk. Populates integrity.state_drift.")
+    """Ledger-derived item state vs what is on disk."""
+    repo = Path(a.repo).resolve()
+    result = items_mod.diff_state(repo)
+    if not result["checked"]:
+        print(f"state drift: not checked — {result['note']}")
+        for p in result["problems"]:
+            print(f"  problem  {p.get('kind')}  {p.get('detail', '')}")
+        return 0
+    if not result["drift"] and not result["problems"]:
+        print("state drift: none — every item file matches the ledger")
+        return 0
+    print(f"state drift: {result['count']} difference(s)")
+    for d in result["drift"]:
+        if d["kind"] == "field_mismatch":
+            print(f"  {d['item_id']:<10} {d['field']:<14} "
+                  f"ledger={_short(d['expected'], 28)!r:<32} disk={_short(d['found'], 28)!r}")
+        else:
+            print(f"  {d['item_id']:<10} {d['kind']:<14} {d.get('detail', '')}")
+    for p in result["problems"]:
+        print(f"  problem  {p.get('kind')}  {p.get('detail', '')}")
+    print("\nsomething wrote out of band: an agent bypassing the protocol, or a "
+          "bug in a writer.\nreconcile with `wall rebuild`.")
+    return 1
+
+
+# ------------------------------------------------------------------- trace
+
+_TRACE_DETAIL_SKIP = frozenset(items_mod.ENVELOPE_KEYS) | {"trace_id"}
+
+
+def _trace_detail(e: dict) -> str:
+    ev = e.get("event")
+    if ev == "run_start":
+        bits = [str(e.get("run_id") or "?")]
+        if e.get("item_id"):
+            bits.append(f"item {e['item_id']}")
+        if e.get("model_requested"):
+            model = e.get("model_used") or e["model_requested"]
+            if e.get("model_used") and e["model_used"] != e["model_requested"]:
+                model = f"{e['model_requested']} -> {e['model_used']} (routed)"
+            bits.append(model)
+        return "  ".join(bits)
+    if ev in ("run_end", "run_error"):
+        bits = [str(e.get("run_id") or "?"), f"outcome={e.get('outcome')}"]
+        hook = e.get("hook")
+        if isinstance(hook, dict) and hook.get("resolution") not in (None, "resolved"):
+            bits.append(f"hook={hook.get('resolution')}")
+        if e.get("error_class"):
+            bits.append(f"error={e['error_class']}")
+        if e.get("duration_s") is not None:
+            bits.append(f"{e['duration_s']}s")
+        if e.get("cost_usd"):
+            bits.append(f"${e['cost_usd']}")
+        return "  ".join(bits)
+    if ev == "item_shipped":
+        pr = e.get("pr", e.get("pr_number"))
+        return f"PR #{pr}" if pr is not None else "shipped"
+    if ev in ("item_created", "item_state"):
+        if isinstance(e.get("field"), str):
+            return f"{e['field']}: {_short(e.get('before'), 20)} -> {_short(e.get('after'), 24)}"
+        # Snapshot shape: show what was actually set, not the null padding.
+        shown = [(k, v) for k, v in sorted(e.items())
+                 if k not in _TRACE_DETAIL_SKIP and v not in (None, "", [], {})]
+        return "  ".join(f"{k}={_short(v, 22)}" for k, v in shown)
+    if ev == "question_raised":
+        bits = [str(e.get("question_id") or "?")]
+        if e.get("ambiguity_class"):
+            bits.append(str(e["ambiguity_class"]))
+        if e.get("blocks_criteria"):
+            bits.append("blocks " + ",".join(str(c) for c in e["blocks_criteria"]))
+        return "  ".join(bits)
+    if ev == "question_assigned":
+        return f"{e.get('question_id')} -> {e.get('assignee') or e.get('assigned_to')}"
+    if ev == "question_escalated":
+        return (f"{e.get('question_id')} -> {e.get('tier')}"
+                f"   {_short(e.get('reason') or '', 40)}")
+    if ev in ("question_answered", "human_answered"):
+        return (f"{e.get('question_id') or e.get('ask_id')} "
+                f"source={e.get('source')}  {_short(e.get('answer') or '', 40)}")
+    if ev == "human_required":
+        return f"{e.get('ask_id')}  {_short(e.get('question') or '', 50)}"
+    if ev == "decision_written":
+        ids = e.get("decisions_in_context") or []
+        return ", ".join(str(i) for i in ids) or str(e.get("decision_id") or "")
+    if ev == "route_classified":
+        return f"{e.get('route')}  {_short(e.get('rule') or '', 40)}"
+    extra = {k: v for k, v in e.items() if k not in _TRACE_DETAIL_SKIP}
+    return "  ".join(f"{k}={_short(v, 24)}" for k, v in sorted(extra.items())) or ""
+
+
+def select_trace(events: list[dict], target: str) -> tuple[list[dict], str | None]:
+    """Every event on one work item's journey, in total order.
+
+    Resolution order: an exact trace_id wins; otherwise the target is read as
+    an item_id and mapped through the ledger's first trace for that item.
+    Events carrying the item but no trace are pulled in too, and so is any
+    event sharing a run_id already selected -- a terminal record that lost its
+    trace_id must not drop out of the timeline that explains it.
+    """
+    traces = {e.get("trace_id") for e in events if isinstance(e.get("trace_id"), str)}
+    wanted: set[str] = set()
+    if target in traces:
+        wanted.add(target)
+    mapped = items_mod.trace_ids_by_item(events).get(target)
+    if mapped:
+        wanted.add(mapped)
+
+    selected = [e for e in events
+                if (e.get("trace_id") in wanted and wanted) or e.get("item_id") == target]
+    run_ids = {e.get("run_id") for e in selected if e.get("run_id")}
+    if run_ids:
+        by_id = {id(e) for e in selected}
+        for e in events:
+            if e.get("run_id") in run_ids and id(e) not in by_id:
+                selected.append(e)
+    selected.sort(key=items_mod.order_key)
+    trace_id = next(iter(sorted(wanted)), None)
+    return selected, trace_id
+
+
+def cmd_trace(a):
+    """Causal timeline for one item or trace, across agents and sessions."""
+    repo = Path(a.repo).resolve()
+    if not a.target:
+        print("usage: wall trace <item_id|trace_id>", file=sys.stderr)
+        return 2
+    events = items_mod.load_events(repo)
+    if not events:
+        print("no events — the ledger is empty and no shards were found")
+        return 1
+    selected, trace_id = select_trace(events, a.target)
+    if not selected:
+        print(f"nothing found for {a.target!r}. "
+              f"try an item_id (ST-106) or a trace_id (tr_st106).")
+        return 1
+
+    parents = {e["run_id"]: e.get("parent_run_id")
+               for e in selected if e.get("event") == "run_start" and e.get("run_id")}
+
+    def depth(run_id, guard=0):
+        parent = parents.get(run_id)
+        if not parent or parent not in parents or guard > 6:
+            return 0
+        return 1 + depth(parent, guard + 1)
+
+    starts = {e["run_id"]: e for e in selected
+              if e.get("event") == "run_start" and e.get("run_id")}
+    t0 = items_mod.parse_ts(selected[0].get("ts"))
+    tn = items_mod.parse_ts(selected[-1].get("ts"))
+    span = _fmt_secs((tn - t0).total_seconds()) if (t0 and tn) else "?"
+    sessions = sorted({e.get("session_id") for e in selected if e.get("session_id")})
+    agents = sorted({e.get("agent_name") or e.get("agent_key")
+                     for e in selected if e.get("agent_key")})
+    item_ids = sorted({e["item_id"] for e in selected if e.get("item_id")})
+
+    print(f"trace {trace_id or '(none)'}  ·  item {', '.join(item_ids) or '?'}  ·  "
+          f"{len(selected)} events  ·  {len(sessions)} session(s)  ·  span {span}")
+    print(f"  agents: {', '.join(agents) or '-'}")
+    print()
+
+    for e in selected:
+        ts = items_mod.parse_ts(e.get("ts"))
+        elapsed = _fmt_secs((ts - t0).total_seconds()) if (ts and t0) else "-"
+        clock = e.get("ts", "")[11:23] or "-"
+        pad = "  " * depth(e.get("run_id")) if e.get("run_id") else ""
+        who = e.get("agent_name") or e.get("agent_key") or "-"
+        role = e.get("role") or "-"
+        detail = _trace_detail(e)
+        if e.get("event") in ("run_end", "run_error") and e.get("duration_s") is None:
+            start = starts.get(e.get("run_id"))
+            s0 = items_mod.parse_ts(start.get("ts")) if start else None
+            if s0 and ts:
+                detail += f"  ({_fmt_secs((ts - s0).total_seconds())})"
+        mark = " ^ " if e.get("event") == "question_escalated" else "   "
+        actor = f"{pad}{role}/{who}" if e.get("agent_key") else f"{pad}(system)"
+        print(f"{elapsed:>7}  {clock}{mark}{actor:<26} "
+              f"{str(e.get('event')):<18} {detail}")
+
+    hops = [e for e in selected if e.get("event") == "question_escalated"]
+    if hops:
+        print("\nescalation hops:")
+        for h in hops:
+            print(f"  {h.get('ts', '')[11:19]}  -> {h.get('tier')}   "
+                  f"{_short(h.get('reason') or '', 60)}")
+    unfinished = sorted(set(starts) - {e.get("run_id") for e in selected
+                                       if e.get("event") in ("run_end", "run_error")})
+    if unfinished:
+        print("\nunfinished runs in this trace: " + ", ".join(unfinished))
+    return 0
+
+
+# --------------------------------------------------------------------- why
+
+def _item_scopes(item: dict | None, events: list[dict], item_id: str) -> list[str]:
+    """Where this item is allowed to write: its declared scope plus any path
+    it actually holds a lease on. Leases are the ground truth when the two
+    disagree, so both are shown."""
+    out: list[str] = []
+    scope = (item or {}).get("scope")
+    if isinstance(scope, str) and scope.strip():
+        out.append(scope.strip())
+    elif isinstance(scope, list):
+        out += [str(s).strip() for s in scope if str(s).strip()]
+    for e in events:
+        if e.get("event") != "lease_taken" or e.get("item_id") != item_id:
+            continue
+        paths = e.get("paths") or e.get("scope") or e.get("path")
+        if isinstance(paths, str):
+            paths = [paths]
+        if isinstance(paths, list):
+            out += [str(p).strip() for p in paths if str(p).strip()]
+    seen, ordered = set(), []
+    for p in out:
+        if p not in seen:
+            seen.add(p)
+            ordered.append(p)
+    return ordered
+
+
+def cmd_why(a):
+    """Which decisions govern this item, and which runs actually carried them."""
+    repo = Path(a.repo).resolve()
+    if not a.target:
+        print("usage: wall why <item_id>", file=sys.stderr)
+        return 2
+    config = load_config(repo)
+    events = items_mod.load_events(repo)
+    folded = items_mod.fold_items(events)
+    item = folded.get(a.target)
+    trace_id = (item or {}).get("trace_id") or \
+        items_mod.trace_ids_by_item(events).get(a.target)
+
+    if item is None:
+        print(f"no item {a.target!r} on the ledger. "
+              f"known items: {', '.join(sorted(folded)) or '(none)'}")
+        return 1
+
+    print(f"item {item['item_id']}  {item.get('title') or '(untitled)'}")
+    print(f"  status {item.get('status') or '-'}   assignee "
+          f"{item.get('assignee') or '-'}   trace {trace_id or '-'}")
+
+    scopes = _item_scopes(item, events, a.target)
+    print(f"  scope: {', '.join(scopes) if scopes else '(none declared)'}")
+
+    carried: dict[str, list[dict]] = {}
+    for e in events:
+        if e.get("item_id") != a.target and (not trace_id or e.get("trace_id") != trace_id):
+            continue
+        for dec_id in (e.get("decisions_in_context") or []):
+            if isinstance(dec_id, str):
+                carried.setdefault(dec_id, []).append(e)
+
+    index = decisions_mod.index(repo, config)
+    if not index.decisions:
+        print(f"\nno decision log at "
+              f"{decisions_mod.decisions_dir(repo, config)} — nothing to attach")
+    effective = decisions_mod.in_effect(index.decisions, scopes, list(carried))
+
+    print(f"\ndecisions in effect ({len(effective)}):")
+    for d in effective:
+        flag = "" if d["status"] == decisions_mod.ACTIVE else f"  [{d['status']}]"
+        print(f"  {d['id']}  {d.get('title') or d['file']}{flag}")
+        print(f"      scope {', '.join(d['scope']) or '-'}   "
+              f"expert {d.get('expert') or '-'}   decided {d.get('decided') or '-'}")
+        runs = carried.get(d["id"], [])
+        if runs:
+            shown = ", ".join(
+                f"{r.get('run_id') or r.get('event')}"
+                f"({r.get('agent_name') or r.get('agent_key') or '-'})"
+                for r in runs[:6])
+            print(f"      carried by: {shown}")
+        else:
+            print("      NOT carried by any run for this item — in effect but "
+                  "never delivered")
+    if not effective:
+        print("  (none)")
+
+    stray = sorted(set(carried) - {d["id"] for d in effective})
+    if stray:
+        print("\ncarried but not in the log:")
+        for dec_id in stray:
+            print(f"  {dec_id}  referenced by "
+                  f"{len(carried[dec_id])} run(s), no DEC file found")
+
+    ids = {d["id"] for d in effective} | set(carried)
+    touching = [c for c in decisions_mod.contradictions(index.decisions)
+                if ids & set(c["ids"])]
+    if touching:
+        print("\ncontradictions touching these decisions:")
+        for c in touching:
+            print(f"  {c['kind']:<28} {c['detail']}")
+    for p in index.problems:
+        print(f"  decision-log problem: {p.get('kind')} "
+              f"{p.get('path', '')} {p.get('detail', '')}")
+    return 0
+
+
+# ------------------------------------------------------------------ answer
+
+def cmd_answer(a):
+    """Resolve a human-queue ask: write human_answered, optionally a DEC file."""
+    repo = Path(a.repo).resolve()
+    config = load_config(repo)
+    events = items_mod.load_events(repo)
+    folded = questions_mod.fold(events).questions
+
+    if not a.target:
+        open_qs = questions_mod.open_questions(folded)
+        print("usage: wall answer <ask_id|question_id> --text \"...\"")
+        print(f"\nopen ({len(open_qs)}):")
+        for q in open_qs:
+            print(f"  {q.get('ask_id') or q['question_id']:<12} "
+                  f"{str(q.get('item_id') or '-'):<10} {q['status']:<15} "
+                  f"{_short(q.get('text'), 60)}")
+        return 2
+    if not a.text:
+        print("refusing to answer with nothing: pass --text \"...\"", file=sys.stderr)
+        return 2
+
+    q = questions_mod.resolve(folded, a.target)
+    if q is None:
+        print(f"no question {a.target!r}. open: "
+              f"{', '.join(x.get('ask_id') or x['question_id'] for x in questions_mod.open_questions(folded)) or '(none)'}",
+              file=sys.stderr)
+        return 1
+    if not questions_mod.is_open(q):
+        print(f"{a.target} was already answered at {q.get('answered_at')} "
+              f"(source {q.get('answer_source')}). Not writing a second answer.",
+              file=sys.stderr)
+        return 1
+
+    dec_id = None
+    if a.decision:
+        index = decisions_mod.index(repo, config)
+        dec_id = decisions_mod.next_id(index.decisions)
+        text = decisions_mod.render_skeleton(
+            dec_id,
+            title=_short(q.get("text"), 60) or f"answer to {a.target}",
+            question=q.get("text") or "",
+            ruling=a.text,
+            scope=(q.get("dependent_scope") or [""])[0] if q.get("dependent_scope") else "",
+            asked_by=q.get("raised_by_key") or q.get("raised_by") or "",
+            decided=items_mod.now_iso())
+        path = decisions_mod.write_decision(repo, dec_id, text, config)
+        print(f"wrote {path}")
+        if "scope: null" in text:
+            print("  scope is null — fill it in, or this ruling can never be "
+                  "attached to an item automatically (and the front-matter gate "
+                  "will say so)")
+
+    result = questions_mod.answer(repo, a.target, a.text, session_id=a.session,
+                                  events=events, decision_id=dec_id)
+    record = result["record"]
+    print(f"answered {record['ask_id']} on item {record.get('item_id') or '-'}"
+          f"  (seq {record['seq']} in {record['session_id']})")
+    if dec_id:
+        print(f"  decision {dec_id} written — fill in Why and Consequences "
+              f"before the next dispatch reads it")
+    print("  run `wall run-once` to clear it from the Waiting tab")
+    return 0
+
+
+# -------------------------------------------------------------- fast-track
+
+def fast_track_gates(repo: Path, config: dict) -> tuple[list[dict], list[dict]]:
+    """The free local gates. Fast-track means no *cloud* minutes, not no
+    validation (FAST_TRACK.md). Returns (blocking, warnings)."""
+    blocking: list[dict] = []
+    warnings: list[dict] = []
+
+    for p in items_mod.ledger_schema_check(Path(repo) / ".wall" / "events"):
+        where = p.get("shard") or p.get("session_id") or ""
+        detail = p.get("detail") or p.get("field") or p.get("seq")
+        blocking.append({"gate": "ledger-schema",
+                         "detail": f"{p['kind']}  {where} {detail}".strip()})
+
+    drift = items_mod.diff_state(repo)
+    if drift["checked"] and drift["count"]:
+        blocking.append({"gate": "item-state",
+                         "detail": f"{drift['count']} item field(s) disagree with the "
+                                   f"ledger — run `wall diff-state`"})
+    for p in drift["problems"]:
+        blocking.append({"gate": "item-state",
+                         "detail": f"{p.get('kind')} {p.get('detail', '')}"})
+
+    index = decisions_mod.index(repo, config)
+    for p in index.problems:
+        blocking.append({"gate": "decision-front-matter",
+                         "detail": f"{p.get('kind')}  {p.get('path', '')} "
+                                   f"{p.get('detail', '')}"})
+    for c in decisions_mod.contradictions(index.decisions):
+        warnings.append({"gate": "decision-contradiction", "detail": c["detail"]})
+    return blocking, warnings
+
+
+def _git(repo: Path, *args: str) -> tuple[int, str, str]:
+    out = subprocess.run(["git", "-C", str(repo), *args],
+                         capture_output=True, text=True, check=False)
+    return out.returncode, out.stdout.strip(), out.stderr.strip()
 
 
 def cmd_fast_track(a):
-    stub("fast-track", "classify (built) + local gates + staged commit + push. "
-                       "Must refuse a mixed changeset and offer the split.")
+    """Classify, gate, stage. Never pushes and never merges.
+
+    RECONCILIATION Q8: fast-track is the docs-only *PR* path. The coordinator
+    merges it once its scoped checks are green; this command stops at a local
+    commit and prints what comes next.
+    """
+    repo = Path(a.repo).resolve()
+    config = load_config(repo)
+    cfg = config.get("fast_track", {})
+
+    files = list(a.file) if a.file else changed_files(repo, a.staged)
+    if not files:
+        print("no changes")
+        return 0
+
+    result = classify_files(files, cfg)
+    print_classification(result)
+
+    if result["route"] != "fast_track":
+        print()
+        if result["mixed"]:
+            print("refusing a mixed changeset. the split:")
+            print("  1. fast-track the docs:")
+            print("       wall fast-track " +
+                  " ".join(f"--file {p}" for p in result["fast"]))
+            print("  2. leave the rest on the full track:")
+            for p in result["full"]:
+                print(f"       {p}")
+        else:
+            print("full track: this changeset needs tests, review and CI.")
+        return 1
+
+    blocking, warnings = fast_track_gates(repo, config)
+    for w in warnings:
+        print(f"  warn   {w['gate']}: {w['detail']}")
+    if blocking:
+        print(f"\n{len(blocking)} local gate failure(s) — fast-track skips CI, "
+              f"not validation:")
+        for b in blocking:
+            print(f"  FAIL   {b['gate']}: {b['detail']}")
+        return 1
+    print("\nlocal gates: clean (ledger schema, item state, decision front matter)")
+
+    if a.stage or a.commit:
+        rc, _, err = _git(repo, "add", "--", *result["fast"])
+        if rc != 0:
+            print(f"git add failed: {err}", file=sys.stderr)
+            return 1
+        print(f"staged {len(result['fast'])} file(s)")
+        # The ledger event fires even on the fast path: a fast-track commit is
+        # still a work item with a trace (FAST_TRACK.md, "what it never skips").
+        items_mod.append_event(repo, a.session, {
+            "event": "route_classified", "route": "fast_track",
+            "item_id": a.item, "trace_id": a.trace, "role": "maestro",
+            "rule": "every path matched the allow list",
+            "files": result["fast"],
+        })
+        for path in result["significant"]:
+            items_mod.append_event(repo, a.session, {
+                "event": "doc_impact", "path": path, "item_id": a.item,
+                "trace_id": a.trace, "role": "maestro",
+                "detail": "architecture/decision doc changed on the fast path",
+            })
+
+    if a.commit:
+        branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")[1]
+        if branch in ("main", "master") and not a.allow_main:
+            print(f"\nrefusing to commit on {branch}. fast-track is a PR path "
+                  f"(RECONCILIATION Q8).\n  branch first, or pass --allow-main "
+                  f"if you really mean it.", file=sys.stderr)
+            return 1
+        name = (cfg.get("identity") or {}).get("name") or os.environ.get("GIT_AUTHOR_NAME")
+        email = (cfg.get("identity") or {}).get("email") or os.environ.get("GIT_AUTHOR_EMAIL")
+        if not name or not email:
+            print("\nrefusing to commit without an identity. set "
+                  "fast_track.identity {name,email} in .wall/config/wall.json, "
+                  "or GIT_AUTHOR_NAME / GIT_AUTHOR_EMAIL.\n"
+                  "  (agents never write `git config` — it is repo-global and one "
+                  "agent's write lands on another agent's commit: RECONCILIATION G1)",
+                  file=sys.stderr)
+            return 1
+        message = a.message or "docs: fast-track"
+        rc, out, err = _git(repo, "-c", f"user.name={name}", "-c", f"user.email={email}",
+                            "commit", "-m", message)
+        if rc != 0:
+            print(f"git commit failed: {err or out}", file=sys.stderr)
+            return 1
+        print(f"committed locally as {name} <{email}>")
+
+    print("\nnext: push this branch and open a PR. fast-track does not push and "
+          "does not merge —\n      the coordinator merges once the scoped checks "
+          "are green (RECONCILIATION Q8).")
+    return 0
 
 
-def cmd_answer(a):
-    stub("answer", "the human queue: resolve an ask_id, write human_answered, "
-                   "write DEC-NNNN, signal Maestro to resume the parked item.")
+# ----------------------------------------- plumbing: timer, server, shipping
+
+_INSTALL_NEEDS = ("a platform adapter in install/. See INSTALL.md — "
+                  "Windows uses Register-ScheduledTask with a 2-minute "
+                  "repetition trigger, driving `wall run-once` per registered repo.")
+_REGISTRY_NEEDS = "the machine-wide registry at %USERPROFILE%\\.wall\\registry.json"
+
+
+def cmd_install(a):
+    return via_service("install", a, _INSTALL_NEEDS)
+
+
+def cmd_register(a):
+    return via_service("register", a, _REGISTRY_NEEDS)
+
+
+def cmd_unregister(a):
+    return via_service("unregister", a, _REGISTRY_NEEDS)
+
+
+def cmd_verify(a):
+    return via_service("verify", a,
+                       "the install adapter, plus --app MANIFEST.sha256 comparison "
+                       "against what the repo expects")
+
+
+def cmd_uninstall(a):
+    return via_service("uninstall", a,
+                       "the install adapter's teardown: remove the scheduled task "
+                       "and leave .wall/ intact")
+
+
+def cmd_serve(a):
+    return via_service("serve", a,
+                       "the stdlib server that binds 127.0.0.1 explicitly and sends "
+                       "no-cache headers on the polled JSON")
+
+
+def cmd_ship(a):
+    return via_shipper("ship", a,
+                       "the isolated-branch shipper: build a tree in a temporary "
+                       "GIT_INDEX_FILE and push it by object id, leaving the working "
+                       "tree and the current branch untouched")
+
+
+def cmd_fetch_events(a):
+    return via_shipper("fetch", a,
+                       "the isolated-branch shipper's freshness-guarded fetch")
 
 
 # ---------------------------------------------------------------- main
@@ -197,19 +897,83 @@ def main() -> int:
     s.add_argument("--name")
     s.set_defaults(fn=cmd_agents)
 
-    for name, fn, helptext in [
-        ("install",    cmd_install,    "STUB — create the machine-wide timer"),
-        ("register",   cmd_register,   "STUB — add this repo to the timer's registry"),
-        ("verify",     cmd_verify,     "STUB — timer alive, heartbeat fresh, app in sync"),
-        ("trace",      cmd_trace,      "STUB — causal timeline for an item"),
-        ("why",        cmd_why,        "STUB — decisions in effect and who saw them"),
-        ("diff-state", cmd_diff_state, "STUB — ledger-derived state vs disk"),
-        ("fast-track", cmd_fast_track, "STUB — classify, gate, commit, push"),
-        ("answer",     cmd_answer,     "STUB — resolve a human-queue question"),
-    ]:
-        sp = sub.add_parser(name, help=helptext)
-        sp.add_argument("target", nargs="?")
-        sp.set_defaults(fn=fn)
+    s = sub.add_parser("rebuild", help="regenerate .wall/items/ from events alone")
+    s.add_argument("--prune", action="store_true",
+                   help="delete item files no event created")
+    s.set_defaults(fn=cmd_rebuild)
+
+    sub.add_parser("diff-state", help="ledger-derived item state vs disk"
+                   ).set_defaults(fn=cmd_diff_state)
+
+    s = sub.add_parser("trace", help="causal timeline for an item or trace")
+    s.add_argument("target", nargs="?", help="item_id or trace_id")
+    s.set_defaults(fn=cmd_trace)
+
+    s = sub.add_parser("why", help="decisions in effect, and which runs saw them")
+    s.add_argument("target", nargs="?", help="item_id")
+    s.set_defaults(fn=cmd_why)
+
+    s = sub.add_parser("answer", help="resolve a human-queue question")
+    s.add_argument("target", nargs="?", help="ask_id or question_id")
+    s.add_argument("--text", help="the answer")
+    s.add_argument("--decision", action="store_true",
+                   help="also write a DEC-NNNN skeleton and reference it")
+    s.add_argument("--session", default="s_human", help="shard to append to")
+    s.set_defaults(fn=cmd_answer)
+
+    s = sub.add_parser("fast-track", help="classify, run local gates, stage")
+    s.add_argument("--staged", action="store_true")
+    s.add_argument("--file", action="append", default=[],
+                   help="classify these paths instead of the git diff (repeatable)")
+    s.add_argument("--stage", action="store_true", help="git add the fast-track subset")
+    s.add_argument("--commit", action="store_true", help="commit locally; never pushes")
+    s.add_argument("--allow-main", action="store_true")
+    s.add_argument("-m", "--message")
+    s.add_argument("--item", help="item_id for the ledger event")
+    s.add_argument("--trace", help="trace_id for the ledger event")
+    s.add_argument("--session", default="s_human")
+    s.set_defaults(fn=cmd_fast_track)
+
+    # ---- plumbing, dispatched to service.py / shipper.py -----------------
+    s = sub.add_parser("install", help="create the machine-wide timer")
+    s.add_argument("--yes", action="store_true", help="skip the confirmation")
+    s.add_argument("--interval", type=int, help="sweep interval in seconds")
+    s.add_argument("--system", help="force a platform adapter")
+    s.set_defaults(fn=cmd_install)
+
+    s = sub.add_parser("register", help="add this repo to the timer's registry")
+    s.add_argument("--name", help="display name for this repo")
+    s.set_defaults(fn=cmd_register)
+
+    s = sub.add_parser("unregister", help="drop this repo from the registry")
+    s.add_argument("--name", help="display name for this repo")
+    s.set_defaults(fn=cmd_unregister)
+
+    s = sub.add_parser("verify", help="timer alive, heartbeat fresh, app in sync")
+    s.add_argument("--app", help="deployed app path to compare MANIFEST.sha256 against")
+    s.add_argument("--stale-after-s", type=int, dest="stale_after_s",
+                   help="seconds before a heartbeat counts as stale")
+    s.set_defaults(fn=cmd_verify)
+
+    s = sub.add_parser("uninstall", help="remove the timer, keep .wall/")
+    s.add_argument("--purge", action="store_true",
+                   help="also remove the sweeper and the machine registry")
+    s.add_argument("--system", help="force a platform adapter")
+    s.set_defaults(fn=cmd_uninstall)
+
+    s = sub.add_parser("serve", help="serve .wall/derived/ on 127.0.0.1")
+    s.add_argument("--port", type=int)
+    s.add_argument("--check", action="store_true", help="probe a running server instead")
+    s.add_argument("--verbose", action="store_true")
+    s.set_defaults(fn=cmd_serve)
+
+    s = sub.add_parser("ship", help="push today's shards to the isolated branch")
+    s.add_argument("--branch", help="default: wall-events")
+    s.set_defaults(fn=cmd_ship)
+
+    s = sub.add_parser("fetch-events", help="materialise the isolated branch locally")
+    s.add_argument("--branch", help="default: wall-events")
+    s.set_defaults(fn=cmd_fetch_events)
 
     a = p.parse_args()
     try:

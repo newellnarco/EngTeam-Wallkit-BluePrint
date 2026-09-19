@@ -28,7 +28,7 @@
         "used": 3100000,
         "limit": 20000000,
         "display": "3.1M",
-        "foot": "1 run routed to Opus by safeguards"
+        "foot": "adjudicator runs routed to Opus by safeguards"
       },
       {
         "label": "GitHub Actions",
@@ -37,6 +37,35 @@
         "display": "1,412 min",
         "foot": "fast-track saved an estimated 240 min"
       }
+    ]
+  },
+  "sla_minutes": {
+    "question_assigned": 5,
+    "researcher_first_run": 10,
+    "escalate_to_architect": 30,
+    "escalate_to_human": 60,
+    "question_open_escalate": 60
+  },
+  "decisions_dir": "docs/decisions",
+  "fast_track": {
+    "allow": [
+      "**/*.md",
+      "docs/**/*.docx",
+      "MANIFEST.sha256"
+    ],
+    "deny": [
+      "frontend/src/**",
+      "backend/**/*.py",
+      "**/*.bat",
+      "**/*.ps1",
+      ".github/workflows/**",
+      "tools/**",
+      ".wall/config/**",
+      "**/CLAUDE.md"
+    ],
+    "significant": [
+      "docs/architecture/**",
+      "docs/decisions/**"
     ]
   }
 }

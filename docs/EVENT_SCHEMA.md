@@ -11,11 +11,29 @@ Get this right before the first real run.
 
 ## 1. Three planes, one spine
 
-| Plane | Path | Committed | Retention | Contents |
+| Plane | Path | On the dev branch | Retention | Contents |
 |---|---|---|---|---|
-| Ledger | `.wall/events/` | yes | forever | Small, schema'd accounting records |
+| Ledger | `.wall/events/` | no — shipped to an isolated branch | forever | Small, schema'd accounting records |
 | Trace | `.wall/logs/` | no | 14 days | Diagnostic logs, hook output |
 | Artifacts | `.wall/runs/<run_id>/` | no | 7 days | Prompts, responses, diffs, tool calls |
+
+**Shards are never committed on the development branch.** The kit originally
+said "committed: yes", and the reconciliation pass reversed it: MAX3 pushes one
+designated branch through a one-PR-at-a-time pipeline, so high-churn shards
+would ride every PR and conflict constantly — the exact failure class board
+fragments were invented to kill (RECONCILIATION Q7).
+
+Instead the shards live gitignored in the working tree and the courier ships
+snapshots to a dedicated `wall-events` branch through an isolated
+`GIT_INDEX_FILE`, leaving the working tree and index untouched. That pattern is
+already proven in production on MAX3 (`ship_agent_status.py`, verified during
+the first live wave). Nothing about this schema changes: merge is still
+idempotent on `event_id`, so a clone of the isolated branch rebuilds the same
+ledger byte for byte.
+
+The shipper is a separate module and is deliberately not part of this document
+beyond this note: what it moves is defined here, when and how it moves is
+defined there.
 
 They are separate because their requirements conflict. The ledger must stay
 small enough to keep forever and stable enough to aggregate. Artifacts are large,
@@ -99,12 +117,41 @@ the first time a name is recycled.
 The hook owns the terminal event. An agent that forgets to log is a bug you
 cannot prompt away; a hook that fires on termination is guaranteed.
 
+### `hook` — how the terminal record came to exist
+
+Terminal records carry an additive `hook` object describing their own
+provenance:
+
+```json
+{"event": "run_end", "run_id": "run_0142", "agent_key": "bld_a41f09",
+ "outcome": "partial",
+ "hook": {"source": "SubagentStop", "resolution": "resolved",
+          "agent_reported": true}}
+```
+
+| Field | Meaning |
+|---|---|
+| `source` | Which hook wrote it (`SubagentStop`) |
+| `resolution` | `resolved` when the hook could attribute the run; `unresolved` when it could not |
+| `agent_reported` | Whether the agent also reported its own outcome |
+
+A stop the hook cannot attribute is written with **`agent_key: null` and
+`resolution: "unresolved"`** rather than guessed at. That record still lands,
+so the run surfaces as an orphan instead of being quietly filed under whoever
+ran last — and `agent_reported: false` next to a `resolved` record is the
+signal that an agent is not logging its own outcomes, which is a prompt problem
+rather than a ledger one.
+
+`hook` is envelope metadata: it describes the record, not the work, and is
+never folded into item state.
+
 ### Work item state
 
 | Event | Notes |
 |---|---|
-| `item_state` | Any field change. Carries actor, field, before, after |
-| `item_created` | |
+| `item_created` | Mints the item. Carries the `trace_id` the item keeps |
+| `item_state` | A field change, in either of the two shapes below |
+| `item_shipped` | Terminal. Carries the merged `pr` number. See Shipping |
 | `lease_taken` / `lease_released` | Path scope claimed for exclusive edit |
 
 Item files under `.wall/items/` are a **materialized view**, not a primary
@@ -113,16 +160,83 @@ compares that to disk. A non-empty diff means something wrote out of band —
 either an agent bypassing the protocol or a bug in the writer. Both are worth
 knowing without anyone having to notice.
 
+### Two spellings of `item_state`, both folded
+
+```json
+{"event": "item_state", "item_id": "ST-106", "actor": "bld_a41f09",
+ "field": "status", "before": "ready", "after": "active"}
+```
+
+```json
+{"event": "item_state", "item_id": "ST-106", "status": "active",
+ "assignee": "Desmond", "estimate": "M"}
+```
+
+The first is the **delta** shape: one field, with its previous value, which is
+what an audit trail wants. The second is the **snapshot** shape: every
+non-envelope key on the record is applied as an item field, which is what a
+dispatcher writing four fields at once actually produces.
+
+The fold accepts both, because a ledger that only accepts the tidy shape gets
+bypassed by whichever writer finds it inconvenient, and a bypassed ledger is
+worse than an untidy one. A delta naming an envelope key (`item_id`, `event`,
+`ts`, `seq`, `session_id`, `event_id`) is refused and reported as
+`protected_field_write` — that is a writer trying to rewrite history, not
+record it.
+
+Envelope keys are never folded into the item. `trace_id` is deliberately not an
+envelope key: the item keeps the trace it was minted under, which is what makes
+`wall trace <item_id>` resolvable.
+
+### The materialized record
+
+`wall rebuild` writes, per item, `json.dumps(..., indent=2, sort_keys=True)`
+plus a trailing newline — one canonical spelling, so a rebuild that changes
+nothing produces no diff:
+
+```json
+{
+  "actual": null,      "arc_id": "ARC-01",     "arc_title": "Event ledger",
+  "assignee": "Desmond", "created_at": "...",  "duplicate_of": null,
+  "estimate": "M",     "events": 4,            "item_id": "ST-106",
+  "kind": "story",     "pr": null,             "scope": ["backend/ledger/"],
+  "shipped_at": null,  "status": "active",     "title": "...",
+  "trace_id": "tr_st106", "updated_at": "..."
+}
+```
+
+`title`, `kind` and `status` are always strings, never null: the wall renders
+them directly and a null there is a blank panel rather than an honest gap.
+
 ### Questions and escalation
 
 | Event | Notes |
 |---|---|
 | `question_raised` | Builder hit an ambiguity. See WORKFLOW.md §3 |
-| `question_assigned` | Researcher picked it up |
+| `question_assigned` | Researcher picked it up. Carries `assignee` / `assignee_key` |
 | `question_answered` | Carries `source`: `decision_log` \| `researcher` \| `architect` \| `human` |
-| `question_escalated` | Carries `reason` and the tier moved to |
+| `question_escalated` | Carries `reason` and the `tier` moved to |
 | `human_required` | Surfaces on the Waiting tab |
-| `human_answered` | Clears it |
+| `human_answered` | Clears it. Written by `wall answer <ask_id>` |
+
+The lifecycle events carry `question_id`; the two human-queue events carry
+`ask_id`. Both are indexed and a folded question carries whichever it was
+given, so `wall answer` takes either. A question is open until it is answered —
+`question_escalated` moves the tier, it does not close anything.
+
+`question_raised` also carries the two scopes that decide the builder's fate,
+because **Maestro decides the outcome, not the builder** (WORKFLOW.md §3):
+
+```json
+{"event": "question_raised", "question_id": "q_0042", "item_id": "ST-106",
+ "ambiguity_class": "unclear_acceptance", "blocks_criteria": ["AC-3", "AC-4"],
+ "dependent_scope":   ["backend/ledger/merge.py"],
+ "independent_scope": ["backend/ledger/shard.py"],
+ "outcome_hint": "partial"}
+```
+
+File-disjoint scopes mean `partial` and the builder keeps its lease; any
+overlap means `blocked`, whatever the builder hoped.
 
 ### Decisions
 
@@ -136,7 +250,23 @@ knowing without anyone having to notice.
 | Event | Notes |
 |---|---|
 | `route_classified` | `fast_track` \| `full_track`, plus the rule that matched |
-| `drop_shipped` | Links items to a MAX3 drop number |
+| `doc_impact` | An architecture or decision doc moved on the fast path |
+| `item_shipped` | Terminal. Carries the merged `pr` number |
+
+`item_shipped` replaces the kit's original `drop_shipped`. Drops are
+historical: since 2026-06 MAX3 ships as named PR arcs, squash-merged one at a
+time, and arcs close without a drop (RECONCILIATION Q5, Q9). The join that
+actually exists is item to merged PR, so that is the one the ledger records.
+
+```json
+{"event": "item_shipped", "item_id": "ST-105", "pr": 1654,
+ "agent_key": "mst_08de37", "actual": "XL"}
+```
+
+**It flips the state at merge time, not at compaction time.** The fold sets a
+non-terminal item to `shipped` on this event, which is what closes the G9 hole
+below. A repo that still ships drops keeps the join by adding
+`shipped_in_drop` to the same record; nothing else changes.
 
 ---
 
@@ -210,11 +340,54 @@ Undefined metrics are unfalsifiable. Two defensible definitions, both countable:
   than parsing a record a writer is still appending. `courier.py` does this.
 
 Total order on merge is `(ts, session_id, seq)` — deterministic regardless of
-shard read order.
+shard read order. Every component is coerced to its declared type before
+sorting, so a shard carrying a null `seq` sorts instead of killing the sweep.
 
 ---
 
-## 7. Estimation
+## 7. Integrity, derived from the ledger
+
+Every sweep writes these into `integrity` on the snapshot. They are all
+mechanical: no model runs, and each one names a condition somebody would
+otherwise have to notice.
+
+| Flag | Condition |
+|---|---|
+| `seq_gaps` | A hole in a session's `seq`. A lost write shows as a hole rather than vanishing |
+| `seq_duplicates` | Two records sharing `(session_id, seq)`. `next_seq` is deliberately not atomic across hook processes, so a race is *visible* here rather than silently overwriting |
+| `orphan_runs` | `run_start` with no terminal event, **past its deadline**. In-flight runs do not count, or every working builder lights up the panel |
+| `duplicates` | Two items with the same title, or an explicit `duplicate_of` |
+| `state_drift` | Item files on disk disagree with the ledger-derived view (count; `state_drift_detail` has the fields) |
+| `merged_but_open` | A shipped item that something still claims is open — see below |
+| `escalations` | The five WORKFLOW.md §4 invariants: blocked-without-question, unassigned past SLA, assigned-with-no-run, capacity wasted, open past threshold |
+| `stale_claims` | An agent reading `working` whose run blew its deadline. Evidence outranks self-report |
+
+`state_drift_checked` is a separate boolean. When `.wall/items/` does not exist
+yet, drift is **not checked** rather than reported as zero — a check that has
+never run and a check that passed are different answers, and collapsing them is
+how a dashboard starts lying.
+
+### `merged_but_open` — a merge can outrun its own bookkeeping
+
+Measured between PRs #1654 and #1655: a PR merged before its board fragments
+were compacted left the wall claiming "in CI" on an already-merged PR, and the
+next unrelated PR inherited the resulting red lint (RECONCILIATION G9).
+
+Two shapes are detectable, and each names the item once:
+
+- **`reopened_after_ship`** — `item_shipped` is on the ledger, and a *later*
+  `item_state` puts the item back to a non-terminal status. The fold is
+  faithful; the bookkeeping contradicts itself.
+- **`disk_open_after_ship`** — the ledger shipped it; the item file on disk
+  still carries a non-terminal status or `pr_state: "open"`.
+
+The fix is in the schema, not the checker: `item_shipped` flips the state at
+**merge** time. The flag exists for everything that writes item state without
+going through it.
+
+---
+
+## 8. Estimation
 
 Forecasting needs estimate and actual on every item, or there is nothing to
 regress on. Pick a scale and hold it: `XS | S | M | L | XL`, recorded at

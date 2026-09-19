@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-19T21:23:45.757Z",
+  "generated_at": "2026-09-19T21:54:00.843Z",
   "repo": {
     "name": "atlas-core",
-    "path": "/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kitzip/wallkit/max3-wall-kit/sample",
-    "branch": ""
+    "path": "/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kit/sample",
+    "branch": "main"
   },
   "courier": {
     "last_run_ms": 1,
-    "events": 57,
-    "shards": 2
+    "events": 78,
+    "shards": 3
   },
   "integrity": {
     "seq_gaps": [
@@ -18,17 +18,24 @@
         "seq": 10
       }
     ],
+    "seq_duplicates": [
+      {
+        "session_id": "s_c22d",
+        "seq": 3,
+        "count": 2
+      }
+    ],
     "orphan_runs": [
       {
-        "run_id": "run_024",
-        "agent": "Coretta",
-        "started": "2026-09-19T13:32:09.000Z",
+        "run_id": "run_015",
+        "agent": "Edmund",
+        "started": "2026-09-19T13:35:35.000Z",
         "item_id": "ST-104"
       },
       {
         "run_id": "run_orphan_1",
         "agent": "Nadia",
-        "started": "2026-09-19T18:23:45.700Z",
+        "started": "2026-09-19T18:54:00.761Z",
         "item_id": "ST-121"
       }
     ],
@@ -38,12 +45,55 @@
         "ST-112"
       ]
     ],
-    "state_drift": 0,
+    "state_drift": 2,
+    "state_drift_checked": true,
+    "state_drift_detail": [
+      {
+        "item_id": "ST-110",
+        "kind": "field_mismatch",
+        "field": "assignee",
+        "expected": "Theo",
+        "found": "Hollis"
+      },
+      {
+        "item_id": "ST-110",
+        "kind": "field_mismatch",
+        "field": "status",
+        "expected": "done",
+        "found": "active"
+      }
+    ],
+    "fold_problems": [],
+    "merged_but_open": [
+      {
+        "item_id": "ST-105",
+        "kind": "reopened_after_ship",
+        "pr": 1654,
+        "status": "in_review",
+        "shipped_at": "2026-09-19T15:05:00.000Z",
+        "detail": "item_shipped is on the ledger but a later event put the item back to a non-terminal status"
+      }
+    ],
+    "escalations": [
+      {
+        "kind": "blocked_without_question",
+        "item_id": "BG-025",
+        "detail": "item is blocked with no open question -- blocked without asking"
+      },
+      {
+        "kind": "unassigned_past_sla",
+        "question_id": "q_0051",
+        "item_id": "ST-112",
+        "age_min": 45.0,
+        "sla_min": 5,
+        "detail": "nobody picked it up"
+      }
+    ],
     "stale_claims": [
       {
         "agent": "Nadia",
         "item_id": "ST-121",
-        "since": "2026-09-19T18:23:45.700Z"
+        "since": "2026-09-19T18:54:00.761Z"
       }
     ]
   },
@@ -59,21 +109,21 @@
       "title": "",
       "role": "adjudicator",
       "model_requested": "claude-fable-5-1",
-      "model_used": "claude-fable-5-1",
+      "model_used": "claude-opus-5",
       "status": "idle",
       "item_id": null,
       "item_title": null,
-      "since": "2026-09-19T13:49:14.000Z",
-      "runs": 3,
-      "cost_usd": 3.7710000000000004,
-      "gh_minutes": 2,
+      "since": "2026-09-19T13:42:42.000Z",
+      "runs": 2,
+      "cost_usd": 1.274,
+      "gh_minutes": 4,
       "tokens": {
-        "in": 31615,
-        "out": 5940,
-        "cache_read": 182565,
-        "cache_write": 19995
+        "in": 34952,
+        "out": 3564,
+        "cache_read": 148362,
+        "cache_write": 12827
       },
-      "last_event": "2026-09-19T13:49:14.000Z"
+      "last_event": "2026-09-19T13:42:42.000Z"
     },
     {
       "agent_key": "arc_bb1740",
@@ -85,17 +135,17 @@
       "status": "idle",
       "item_id": null,
       "item_title": null,
-      "since": "2026-09-19T13:40:07.000Z",
-      "runs": 3,
-      "cost_usd": 4.625,
+      "since": "2026-09-19T13:54:03.000Z",
+      "runs": 1,
+      "cost_usd": 1.285,
       "gh_minutes": 4,
       "tokens": {
-        "in": 62235,
-        "out": 8875,
-        "cache_read": 177088,
-        "cache_write": 18548
+        "in": 19730,
+        "out": 3969,
+        "cache_read": 136965,
+        "cache_write": 2442
       },
-      "last_event": "2026-09-19T21:12:45.700Z"
+      "last_event": "2026-09-19T21:43:00.761Z"
     },
     {
       "agent_key": "bld_a41f09",
@@ -107,7 +157,7 @@
       "status": "working",
       "item_id": "ST-106",
       "item_title": "Checkpointed tail reads per shard",
-      "since": "2026-09-19T21:05:45.700Z",
+      "since": "2026-09-19T21:36:00.761Z",
       "runs": 0,
       "cost_usd": 0.0,
       "gh_minutes": null,
@@ -117,7 +167,7 @@
         "cache_read": 0,
         "cache_write": 0
       },
-      "last_event": "2026-09-19T21:05:45.700Z"
+      "last_event": "2026-09-19T21:36:00.761Z"
     },
     {
       "agent_key": "bld_7e33d1",
@@ -129,17 +179,17 @@
       "status": "blocked",
       "item_id": "BG-021",
       "item_title": "Duplicate event_id on retry",
-      "since": "2026-09-19T20:42:45.700Z",
+      "since": "2026-09-19T21:13:00.761Z",
       "runs": 1,
       "cost_usd": 1.42,
       "gh_minutes": null,
       "tokens": {
-        "in": 42258,
-        "out": 4568,
-        "cache_read": 205466,
-        "cache_write": 17578
+        "in": 29382,
+        "out": 7332,
+        "cache_read": 175462,
+        "cache_write": 11768
       },
-      "last_event": "2026-09-19T20:45:45.700Z"
+      "last_event": "2026-09-19T21:16:00.761Z"
     },
     {
       "agent_key": "bld_2fc885",
@@ -151,7 +201,7 @@
       "status": "working",
       "item_id": "ST-111",
       "item_title": "Atomic publish + heartbeat",
-      "since": "2026-09-19T21:17:45.700Z",
+      "since": "2026-09-19T21:48:00.761Z",
       "runs": 0,
       "cost_usd": 0.0,
       "gh_minutes": null,
@@ -161,7 +211,7 @@
         "cache_read": 0,
         "cache_write": 0
       },
-      "last_event": "2026-09-19T21:17:45.700Z"
+      "last_event": "2026-09-19T21:48:00.761Z"
     },
     {
       "agent_key": "frm_4a91c2",
@@ -173,7 +223,7 @@
       "status": "working",
       "item_id": null,
       "item_title": null,
-      "since": "2026-09-19T21:22:45.700Z",
+      "since": "2026-09-19T21:53:00.761Z",
       "runs": 0,
       "cost_usd": 0.0,
       "gh_minutes": null,
@@ -183,7 +233,7 @@
         "cache_read": 0,
         "cache_write": 0
       },
-      "last_event": "2026-09-19T21:22:45.700Z"
+      "last_event": "2026-09-19T21:53:00.761Z"
     },
     {
       "agent_key": "mst_08de37",
@@ -195,17 +245,17 @@
       "status": "idle",
       "item_id": null,
       "item_title": null,
-      "since": "2026-09-19T14:05:16.000Z",
+      "since": "2026-09-19T14:00:41.000Z",
       "runs": 6,
-      "cost_usd": 7.971,
-      "gh_minutes": 16,
+      "cost_usd": 8.688,
+      "gh_minutes": 14,
       "tokens": {
-        "in": 92817,
-        "out": 22690,
-        "cache_read": 562679,
-        "cache_write": 28589
+        "in": 85966,
+        "out": 21489,
+        "cache_read": 530631,
+        "cache_write": 29596
       },
-      "last_event": "2026-09-19T21:19:45.700Z"
+      "last_event": "2026-09-19T21:50:00.761Z"
     },
     {
       "agent_key": "res_66c1b3",
@@ -217,17 +267,17 @@
       "status": "stale",
       "item_id": "ST-121",
       "item_title": "No-op status check",
-      "since": "2026-09-19T18:23:45.700Z",
-      "runs": 3,
-      "cost_usd": 2.431,
-      "gh_minutes": 4,
+      "since": "2026-09-19T18:54:00.761Z",
+      "runs": 6,
+      "cost_usd": 6.622999999999999,
+      "gh_minutes": 14,
       "tokens": {
-        "in": 50797,
-        "out": 7702,
-        "cache_read": 362242,
-        "cache_write": 16618
+        "in": 108391,
+        "out": 17330,
+        "cache_read": 575775,
+        "cache_write": 29736
       },
-      "last_event": "2026-09-19T18:23:45.700Z"
+      "last_event": "2026-09-19T18:54:00.761Z"
     },
     {
       "agent_key": "res_d470af",
@@ -239,17 +289,17 @@
       "status": "working",
       "item_id": "BG-021",
       "item_title": "Find prior art on seq-gap recovery",
-      "since": "2026-09-19T21:20:45.700Z",
-      "runs": 0,
-      "cost_usd": 0.0,
+      "since": "2026-09-19T21:51:00.761Z",
+      "runs": 1,
+      "cost_usd": 0.41,
       "gh_minutes": null,
       "tokens": {
-        "in": 0,
-        "out": 0,
-        "cache_read": 0,
-        "cache_write": 0
+        "in": 11012,
+        "out": 1672,
+        "cache_read": 151271,
+        "cache_write": 5998
       },
-      "last_event": "2026-09-19T21:20:45.700Z"
+      "last_event": "2026-09-19T21:51:00.761Z"
     },
     {
       "agent_key": "rev_913b6e",
@@ -261,17 +311,17 @@
       "status": "idle",
       "item_id": null,
       "item_title": null,
-      "since": "2026-09-19T13:45:58.000Z",
-      "runs": 3,
-      "cost_usd": 5.905,
+      "since": "2026-09-19T13:40:14.000Z",
+      "runs": 2,
+      "cost_usd": 4.19,
       "gh_minutes": 4,
       "tokens": {
-        "in": 45806,
-        "out": 7876,
-        "cache_read": 309706,
-        "cache_write": 13692
+        "in": 30270,
+        "out": 5062,
+        "cache_read": 256136,
+        "cache_write": 7748
       },
-      "last_event": "2026-09-19T13:45:58.000Z"
+      "last_event": "2026-09-19T13:40:14.000Z"
     }
   ],
   "board": {
@@ -282,55 +332,88 @@
         "items": [
           {
             "item_id": "BG-021",
+            "title": "Duplicate event_id on retry",
             "kind": "bug",
             "status": "blocked",
-            "title": "Duplicate event_id on retry",
             "arc_id": "ARC-01",
             "arc_title": "Event ledger and consolidation",
             "assignee": "Priya",
             "estimate": "S",
             "actual": null,
             "duplicate_of": null,
-            "updated_at": "2026-09-19T12:20:37.000Z"
+            "trace_id": "tr_bg021",
+            "scope": [
+              "backend/ledger/"
+            ],
+            "pr": null,
+            "shipped_at": null,
+            "created_at": "2026-09-19T12:17:15.000Z",
+            "updated_at": "2026-09-19T12:18:11.000Z",
+            "events": 2
           },
           {
             "item_id": "ST-104",
+            "title": "Append-only shard writer",
             "kind": "story",
             "status": "done",
-            "title": "Append-only shard writer",
             "arc_id": "ARC-01",
             "arc_title": "Event ledger and consolidation",
             "assignee": "Desmond",
             "estimate": "M",
             "actual": "M",
             "duplicate_of": null,
-            "updated_at": "2026-09-19T12:08:25.000Z"
+            "trace_id": "tr_st104",
+            "scope": [
+              "backend/ledger/"
+            ],
+            "pr": null,
+            "shipped_at": null,
+            "created_at": "2026-09-19T12:08:25.000Z",
+            "updated_at": "2026-09-19T12:08:54.000Z",
+            "events": 2
           },
           {
             "item_id": "ST-105",
+            "title": "Deterministic merge with dedupe",
             "kind": "story",
             "status": "in_review",
-            "title": "Deterministic merge with dedupe",
             "arc_id": "ARC-01",
             "arc_title": "Event ledger and consolidation",
             "assignee": "Priya",
             "estimate": "L",
             "actual": "XL",
             "duplicate_of": null,
-            "updated_at": "2026-09-19T12:10:22.000Z"
+            "trace_id": "tr_st105",
+            "scope": [
+              "backend/ledger/"
+            ],
+            "pr": 1654,
+            "shipped_at": "2026-09-19T15:05:00.000Z",
+            "created_at": "2026-09-19T12:12:56.000Z",
+            "updated_at": "2026-09-19T15:09:00.000Z",
+            "events": 4,
+            "pr_state": "open"
           },
           {
             "item_id": "ST-106",
+            "title": "Checkpointed tail reads per shard",
             "kind": "story",
             "status": "active",
-            "title": "Checkpointed tail reads per shard",
             "arc_id": "ARC-01",
             "arc_title": "Event ledger and consolidation",
             "assignee": "Desmond",
             "estimate": "M",
             "actual": null,
             "duplicate_of": null,
-            "updated_at": "2026-09-19T12:14:24.000Z"
+            "trace_id": "tr_st106",
+            "scope": [
+              "backend/ledger/"
+            ],
+            "pr": null,
+            "shipped_at": null,
+            "created_at": "2026-09-19T12:14:29.000Z",
+            "updated_at": "2026-09-19T12:15:47.000Z",
+            "events": 2
           }
         ]
       },
@@ -340,42 +423,60 @@
         "items": [
           {
             "item_id": "ST-110",
+            "title": "Self-contained HTML template",
             "kind": "story",
             "status": "done",
-            "title": "Self-contained HTML template",
             "arc_id": "ARC-02",
             "arc_title": "Wall renderer and propagation",
             "assignee": "Theo",
             "estimate": "S",
             "actual": "S",
             "duplicate_of": null,
-            "updated_at": "2026-09-19T12:21:41.000Z"
+            "trace_id": "tr_st110",
+            "scope": [],
+            "pr": null,
+            "shipped_at": null,
+            "created_at": "2026-09-19T12:23:49.000Z",
+            "updated_at": "2026-09-19T12:24:06.000Z",
+            "events": 2
           },
           {
             "item_id": "ST-111",
+            "title": "Atomic publish + heartbeat",
             "kind": "story",
             "status": "active",
-            "title": "Atomic publish + heartbeat",
             "arc_id": "ARC-02",
             "arc_title": "Wall renderer and propagation",
             "assignee": "Theo",
             "estimate": "M",
             "actual": null,
             "duplicate_of": null,
-            "updated_at": "2026-09-19T12:22:58.000Z"
+            "trace_id": "tr_st111",
+            "scope": [],
+            "pr": null,
+            "shipped_at": null,
+            "created_at": "2026-09-19T12:29:05.000Z",
+            "updated_at": "2026-09-19T12:29:42.000Z",
+            "events": 2
           },
           {
             "item_id": "ST-112",
+            "title": "Live-poll upgrade path",
             "kind": "story",
             "status": "ready",
-            "title": "Live-poll upgrade path",
             "arc_id": "ARC-02",
             "arc_title": "Wall renderer and propagation",
             "assignee": null,
             "estimate": "M",
             "actual": null,
             "duplicate_of": null,
-            "updated_at": "2026-09-19T12:28:12.000Z"
+            "trace_id": "tr_st112",
+            "scope": [],
+            "pr": null,
+            "shipped_at": null,
+            "created_at": "2026-09-19T12:30:41.000Z",
+            "updated_at": "2026-09-19T12:31:02.000Z",
+            "events": 2
           }
         ]
       },
@@ -385,42 +486,79 @@
         "items": [
           {
             "item_id": "BG-024",
+            "title": "Mixed changeset takes wrong route",
             "kind": "bug",
             "status": "triage",
-            "title": "Mixed changeset takes wrong route",
             "arc_id": "ARC-03",
             "arc_title": "Fast-track routing",
             "assignee": null,
             "estimate": "S",
             "actual": null,
             "duplicate_of": null,
-            "updated_at": "2026-09-19T12:39:05.000Z"
+            "trace_id": "tr_bg024",
+            "scope": [],
+            "pr": null,
+            "shipped_at": null,
+            "created_at": "2026-09-19T12:39:48.000Z",
+            "updated_at": "2026-09-19T12:41:08.000Z",
+            "events": 2
+          },
+          {
+            "item_id": "BG-025",
+            "title": "Lease TTL never expires on a crashed agent",
+            "kind": "bug",
+            "status": "blocked",
+            "arc_id": "ARC-03",
+            "arc_title": "Fast-track routing",
+            "assignee": "Theo",
+            "estimate": "S",
+            "actual": null,
+            "duplicate_of": null,
+            "trace_id": "tr_bg025",
+            "scope": [],
+            "pr": null,
+            "shipped_at": null,
+            "created_at": "2026-09-19T12:45:25.000Z",
+            "updated_at": "2026-09-19T12:45:42.000Z",
+            "events": 2
           },
           {
             "item_id": "ST-120",
+            "title": "Path-based route classifier",
             "kind": "story",
             "status": "ready",
-            "title": "Path-based route classifier",
             "arc_id": "ARC-03",
             "arc_title": "Fast-track routing",
             "assignee": null,
             "estimate": "S",
             "actual": null,
             "duplicate_of": "ST-112",
-            "updated_at": "2026-09-19T12:29:40.000Z"
+            "trace_id": "tr_st120",
+            "scope": [],
+            "pr": null,
+            "shipped_at": null,
+            "created_at": "2026-09-19T12:35:24.000Z",
+            "updated_at": "2026-09-19T12:36:27.000Z",
+            "events": 2
           },
           {
             "item_id": "ST-121",
+            "title": "No-op status check for protection",
             "kind": "story",
             "status": "ready",
-            "title": "No-op status check for protection",
             "arc_id": "ARC-03",
             "arc_title": "Fast-track routing",
             "assignee": null,
             "estimate": "M",
             "actual": null,
             "duplicate_of": null,
-            "updated_at": "2026-09-19T12:33:27.000Z"
+            "trace_id": "tr_st121",
+            "scope": [],
+            "pr": null,
+            "shipped_at": null,
+            "created_at": "2026-09-19T12:37:42.000Z",
+            "updated_at": "2026-09-19T12:38:22.000Z",
+            "events": 2
           }
         ]
       }
@@ -432,24 +570,172 @@
       "question": "Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?",
       "agent": "Priya",
       "item_id": "BG-021",
-      "since": "2026-09-19T20:45:45.700Z",
-      "trace_id": "tr_bg-021"
+      "since": "2026-09-19T21:16:00.761Z",
+      "trace_id": "tr_bg021"
     },
     {
       "ask_id": "ask_0008",
       "question": "Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?",
       "agent": "Edmund",
       "item_id": "ST-112",
-      "since": "2026-09-19T21:12:45.700Z",
-      "trace_id": "tr_st-112"
+      "since": "2026-09-19T21:43:00.761Z",
+      "trace_id": "tr_st112"
     },
     {
       "ask_id": "ask_0009",
       "question": "Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?",
       "agent": "Rosalind",
       "item_id": "ARC-03",
-      "since": "2026-09-19T21:19:45.700Z",
-      "trace_id": "tr_arc-03"
+      "since": "2026-09-19T21:50:00.761Z",
+      "trace_id": "tr_arc03"
+    }
+  ],
+  "questions": [
+    {
+      "question_id": "q_0042",
+      "ask_id": null,
+      "item_id": "ST-106",
+      "trace_id": "tr_st106",
+      "text": "AC-3 says the checkpoint is per shard; AC-4 says per session. Which survives a shard being replaced?",
+      "ambiguity_class": "unclear_acceptance",
+      "status": "answered",
+      "raised_at": "2026-09-19T14:05:00.000Z",
+      "raised_by": "Desmond",
+      "raised_by_key": "bld_a41f09",
+      "assigned_to": "Silas",
+      "assigned_to_key": "res_d470af",
+      "assigned_at": "2026-09-19T14:08:00.000Z",
+      "first_run_at": "2026-09-19T14:14:00.000Z",
+      "escalations": [
+        {
+          "at": "2026-09-19T14:39:00.000Z",
+          "reason": "researcher pass found prior art but no ruling",
+          "tier": "architect"
+        }
+      ],
+      "tier": "architect",
+      "answered_at": "2026-09-19T14:53:00.000Z",
+      "answer_source": "architect",
+      "answer": "Checkpoint per shard; a replaced shard resets its own offset and nothing else.",
+      "blocks_criteria": [
+        "AC-3",
+        "AC-4"
+      ],
+      "dependent_scope": [
+        "backend/ledger/merge.py",
+        "backend/tests/test_merge.py"
+      ],
+      "independent_scope": [
+        "backend/ledger/shard.py"
+      ],
+      "outcome_hint": "partial",
+      "events": 4
+    },
+    {
+      "question_id": "q_0051",
+      "ask_id": null,
+      "item_id": "ST-112",
+      "trace_id": "tr_st112",
+      "text": "Does the live-poll upgrade read wall.json or subscribe to a socket? No interface is specified either way.",
+      "ambiguity_class": "undefined_interface",
+      "status": "open",
+      "raised_at": "2026-09-19T21:09:00.761Z",
+      "raised_by": "Theo",
+      "raised_by_key": "bld_2fc885",
+      "assigned_to": null,
+      "assigned_to_key": null,
+      "assigned_at": null,
+      "first_run_at": null,
+      "escalations": [],
+      "tier": "researcher",
+      "answered_at": null,
+      "answer_source": null,
+      "answer": null,
+      "blocks_criteria": [
+        "AC-1"
+      ],
+      "dependent_scope": [],
+      "independent_scope": [],
+      "outcome_hint": "blocked",
+      "events": 1
+    },
+    {
+      "question_id": "ask_0007",
+      "ask_id": "ask_0007",
+      "item_id": "BG-021",
+      "trace_id": "tr_bg021",
+      "text": "Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?",
+      "ambiguity_class": null,
+      "status": "human_required",
+      "raised_at": "2026-09-19T21:16:00.761Z",
+      "raised_by": "Priya",
+      "raised_by_key": null,
+      "assigned_to": null,
+      "assigned_to_key": null,
+      "assigned_at": null,
+      "first_run_at": null,
+      "escalations": [],
+      "tier": "human",
+      "answered_at": null,
+      "answer_source": null,
+      "answer": null,
+      "blocks_criteria": [],
+      "dependent_scope": [],
+      "independent_scope": [],
+      "outcome_hint": null,
+      "events": 1
+    },
+    {
+      "question_id": "ask_0008",
+      "ask_id": "ask_0008",
+      "item_id": "ST-112",
+      "trace_id": "tr_st112",
+      "text": "Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?",
+      "ambiguity_class": null,
+      "status": "human_required",
+      "raised_at": "2026-09-19T21:43:00.761Z",
+      "raised_by": "Edmund",
+      "raised_by_key": null,
+      "assigned_to": null,
+      "assigned_to_key": null,
+      "assigned_at": null,
+      "first_run_at": null,
+      "escalations": [],
+      "tier": "human",
+      "answered_at": null,
+      "answer_source": null,
+      "answer": null,
+      "blocks_criteria": [],
+      "dependent_scope": [],
+      "independent_scope": [],
+      "outcome_hint": null,
+      "events": 1
+    },
+    {
+      "question_id": "ask_0009",
+      "ask_id": "ask_0009",
+      "item_id": "ARC-03",
+      "trace_id": "tr_arc03",
+      "text": "Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?",
+      "ambiguity_class": null,
+      "status": "human_required",
+      "raised_at": "2026-09-19T21:50:00.761Z",
+      "raised_by": "Rosalind",
+      "raised_by_key": null,
+      "assigned_to": null,
+      "assigned_to_key": null,
+      "assigned_at": null,
+      "first_run_at": null,
+      "escalations": [],
+      "tier": "human",
+      "answered_at": null,
+      "answer_source": null,
+      "answer": null,
+      "blocks_criteria": [],
+      "dependent_scope": [],
+      "independent_scope": [],
+      "outcome_hint": null,
+      "events": 1
     }
   ],
   "budget": {
@@ -475,7 +761,7 @@
         "used": 3100000,
         "limit": 20000000,
         "display": "3.1M",
-        "foot": "1 run routed to Opus by safeguards"
+        "foot": "adjudicator runs routed to Opus by safeguards"
       },
       {
         "label": "GitHub Actions",
@@ -489,29 +775,29 @@
   "rollup_by_role": [
     {
       "role": "adjudicator",
-      "model": "claude-fable-5-1",
-      "runs": 3,
-      "tokens_in": 31615,
-      "tokens_out": 5940,
-      "cache_read": 182565,
-      "cost_usd": 3.7710000000000004
+      "model": "claude-opus-5",
+      "runs": 2,
+      "tokens_in": 34952,
+      "tokens_out": 3564,
+      "cache_read": 148362,
+      "cost_usd": 1.274
     },
     {
       "role": "architect",
       "model": "claude-fable-5-1",
-      "runs": 3,
-      "tokens_in": 62235,
-      "tokens_out": 8875,
-      "cache_read": 177088,
-      "cost_usd": 4.625
+      "runs": 1,
+      "tokens_in": 19730,
+      "tokens_out": 3969,
+      "cache_read": 136965,
+      "cost_usd": 1.285
     },
     {
       "role": "builder",
       "model": "claude-opus-5",
       "runs": 1,
-      "tokens_in": 42258,
-      "tokens_out": 4568,
-      "cache_read": 205466,
+      "tokens_in": 29382,
+      "tokens_out": 7332,
+      "cache_read": 175462,
       "cost_usd": 1.42
     },
     {
@@ -536,32 +822,33 @@
       "role": "maestro",
       "model": "claude-opus-5",
       "runs": 6,
-      "tokens_in": 92817,
-      "tokens_out": 22690,
-      "cache_read": 562679,
-      "cost_usd": 7.971
+      "tokens_in": 85966,
+      "tokens_out": 21489,
+      "cache_read": 530631,
+      "cost_usd": 8.688
     },
     {
       "role": "researcher",
       "model": "claude-sonnet-5",
-      "runs": 3,
-      "tokens_in": 50797,
-      "tokens_out": 7702,
-      "cache_read": 362242,
-      "cost_usd": 2.431
+      "runs": 7,
+      "tokens_in": 119403,
+      "tokens_out": 19002,
+      "cache_read": 727046,
+      "cost_usd": 7.0329999999999995
     },
     {
       "role": "reviewer",
       "model": "claude-sonnet-5",
-      "runs": 3,
-      "tokens_in": 45806,
-      "tokens_out": 7876,
-      "cache_read": 309706,
-      "cost_usd": 5.905
+      "runs": 2,
+      "tokens_in": 30270,
+      "tokens_out": 5062,
+      "cache_read": 256136,
+      "cost_usd": 4.19
     }
   ],
   "sessions": [
     "s_7f3a",
-    "s_b19e"
+    "s_b19e",
+    "s_c22d"
   ]
 }

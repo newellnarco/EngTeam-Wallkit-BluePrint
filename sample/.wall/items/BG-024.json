@@ -1,0 +1,19 @@
+{
+  "actual": null,
+  "arc_id": "ARC-03",
+  "arc_title": "Fast-track routing",
+  "assignee": null,
+  "created_at": "2026-09-19T12:39:48.000Z",
+  "duplicate_of": null,
+  "estimate": "S",
+  "events": 2,
+  "item_id": "BG-024",
+  "kind": "bug",
+  "pr": null,
+  "scope": [],
+  "shipped_at": null,
+  "status": "triage",
+  "title": "Mixed changeset takes wrong route",
+  "trace_id": "tr_bg024",
+  "updated_at": "2026-09-19T12:41:08.000Z"
+}

@@ -27,6 +27,11 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+
+import items as items_mod        # noqa: E402  materialized item view + total order
+import questions as questions_mod  # noqa: E402  question lifecycle + invariants
+
 SCHEMA_VERSION = 1
 DATA_MARKER = "__WALL_DATA__"
 REPO_MARKER = "__REPO_NAME__"
@@ -117,30 +122,42 @@ def merge(ledger_path: Path, new_events: list[dict]) -> list[dict]:
                 if line:
                     try:
                         e = json.loads(line)
-                        by_id[e.get("event_id", "")] = e
                     except json.JSONDecodeError:
                         continue
+                    if isinstance(e, dict):   # a bare scalar line is not a record
+                        by_id[e.get("event_id", "")] = e
     for e in new_events:
-        by_id[e.get("event_id", "")] = e
-    return sorted(
-        by_id.values(),
-        key=lambda e: (e.get("ts", ""), e.get("session_id", ""), e.get("seq", 0)),
-    )
+        if isinstance(e, dict):
+            by_id[e.get("event_id", "")] = e
+    # One definition of the total order, in items.order_key, which coerces each
+    # component to its declared type so a null seq sorts instead of raising.
+    return sorted(by_id.values(), key=items_mod.order_key)
 
 
 # --------------------------------------------------------------- integrity
 
-def check_integrity(events: list[dict], items: dict, stale_after_min: int = 30) -> dict:
-    seq_gaps, seen = [], defaultdict(set)
+def check_integrity(events: list[dict], items: dict, stale_after_min: int = 30,
+                    repo: Path | None = None) -> dict:
+    # Both directions of the same property. `next_seq` is deliberately not
+    # atomic across hook processes: two terminal records written in the same
+    # instant can land on one number. That is a concurrency artifact and it is
+    # *visible*; a gap is a lost write. Flagging only one of them means the
+    # other passes as healthy, so the validator catches both.
+    seq_gaps, seq_duplicates = [], []
+    seen: dict = defaultdict(lambda: defaultdict(int))
     for e in events:
-        if e.get("seq") is not None:
-            seen[e.get("session_id")].add(e["seq"])
-    for session, nums in seen.items():
+        seq = e.get("seq")
+        if isinstance(seq, int) and not isinstance(seq, bool):
+            seen[e.get("session_id")][seq] += 1
+    for session in sorted(seen, key=lambda s: str(s)):
+        nums = seen[session]
         if not nums:
             continue
-        expected = set(range(min(nums), max(nums) + 1))
-        for missing in sorted(expected - nums):
+        for missing in sorted(set(range(min(nums), max(nums) + 1)) - set(nums)):
             seq_gaps.append({"session_id": session, "seq": missing})
+        for seq in sorted(n for n, count in nums.items() if count > 1):
+            seq_duplicates.append({"session_id": session, "seq": seq,
+                                   "count": nums[seq]})
 
     started, finished = {}, set()
     for e in events:
@@ -168,16 +185,40 @@ def check_integrity(events: list[dict], items: dict, stale_after_min: int = 30) 
     titles = defaultdict(list)
     duplicates = []
     for iid, item in items.items():
-        titles[item.get("title", "").strip().lower()].append(iid)
+        title = item.get("title")
+        # An untitled item is not a duplicate of every other untitled item.
+        if isinstance(title, str) and title.strip():
+            titles[title.strip().lower()].append(iid)
         if item.get("duplicate_of"):
             duplicates.append([iid, item["duplicate_of"]])
     duplicates += [ids for ids in titles.values() if len(ids) > 1]
 
+    # Materialized item files vs the ledger that derives them. Skipped, with
+    # `state_drift_checked: false`, when no rebuild has ever run -- otherwise a
+    # fresh repo reports every item as drift, which is noise, not a finding.
+    drift = {"checked": False, "count": 0, "drift": [], "problems": []}
+    disk_items: dict = {}
+    if repo is not None:
+        try:
+            drift = items_mod.diff_state(repo, events)
+            disk_items, _ = items_mod.load_disk_items(repo)
+        except OSError as exc:      # a read failure is a flag, not a dead sweep
+            drift = {"checked": False, "count": 0, "drift": [],
+                     "problems": [{"kind": "diff_state_failed", "detail": str(exc)}]}
+
     return {
         "seq_gaps": seq_gaps,
+        "seq_duplicates": seq_duplicates,
         "orphan_runs": orphans,
         "duplicates": duplicates,
-        "state_drift": 0,      # populated by `wall diff-state`
+        # An int: the wall template renders this as a count.
+        "state_drift": drift["count"],
+        "state_drift_checked": drift["checked"],
+        "state_drift_detail": drift["drift"],
+        "fold_problems": drift.get("problems", []),
+        # RECONCILIATION G9 -- a merge can outrun its own bookkeeping.
+        "merged_but_open": items_mod.merged_but_open(events, disk_items),
+        "escalations": [],     # populated in build_snapshot, once crew is known
         "stale_claims": [],    # populated by the Foreman pass
     }
 
@@ -187,9 +228,13 @@ def check_integrity(events: list[dict], items: dict, stale_after_min: int = 30) 
 def build_snapshot(repo: Path, events: list[dict], config: dict, shard_count: int,
                    run_ms: int) -> dict:
     agents: dict[str, dict] = {}
-    items: dict[str, dict] = {}
     asks: dict[str, dict] = {}
     sessions: set[str] = set()
+
+    # The board is the same materialized view `wall rebuild` writes and
+    # `wall diff-state` audits. One fold, so the wall and the item files can
+    # never disagree about what the ledger says.
+    items = items_mod.fold_items(events)
 
     for e in events:
         if e.get("session_id"):
@@ -229,13 +274,6 @@ def build_snapshot(repo: Path, events: list[dict], config: dict, shard_count: in
                     a.update(item_id=None, item_title=None)
                 a["since"] = e.get("ts")
 
-        if e.get("event") == "item_state":
-            it = items.setdefault(e["item_id"], {"item_id": e["item_id"]})
-            it.update({k: v for k, v in e.items()
-                       if k in ("title", "kind", "status", "arc_id", "arc_title",
-                                "assignee", "estimate", "actual", "duplicate_of")})
-            it["updated_at"] = e.get("ts")
-
         if e.get("event") == "human_required":
             asks[e["ask_id"]] = {
                 "ask_id": e["ask_id"], "question": e.get("question", ""),
@@ -271,7 +309,7 @@ def build_snapshot(repo: Path, events: list[dict], config: dict, shard_count: in
         r["cache_read"] += a["tokens"]["cache_read"]
         r["cost_usd"] += a["cost_usd"]
 
-    integrity = check_integrity(events, items, config.get("stale_after_min", 30))
+    integrity = check_integrity(events, items, config.get("stale_after_min", 30), repo)
 
     # An agent whose run blew its deadline is not working, whatever its last
     # event claimed. Evidence outranks self-report.
@@ -285,6 +323,14 @@ def build_snapshot(repo: Path, events: list[dict], config: dict, shard_count: in
         {"agent": a["name"], "item_id": a.get("item_id"), "since": a.get("since")}
         for a in agents.values() if a["status"] == "stale"
     ]
+
+    # WORKFLOW.md Section 4: escalation is an invariant, checked every sweep,
+    # so a lapse surfaces whether or not Maestro remembered. Needs the crew,
+    # hence here rather than inside check_integrity.
+    folded_questions = questions_mod.fold(events).questions
+    integrity["escalations"] = questions_mod.escalation_flags(
+        folded_questions, items, list(agents.values()),
+        config.get("sla_minutes", {}))
 
     return {
         "schema_version": SCHEMA_VERSION,
@@ -300,6 +346,8 @@ def build_snapshot(repo: Path, events: list[dict], config: dict, shard_count: in
         "crew": sorted(agents.values(), key=lambda a: (a["role"], a["name"])),
         "board": {"arcs": sorted(arcs.values(), key=lambda a: a["arc_id"])},
         "waiting_on_you": sorted(asks.values(), key=lambda a: a["since"] or ""),
+        "questions": sorted(folded_questions.values(),
+                            key=lambda q: (q.get("raised_at") or "", q["question_id"])),
         "budget": config.get("budget", DEFAULT_BUDGET),
         "rollup_by_role": sorted(rollup.values(), key=lambda r: (r["role"], r["model"])),
         "sessions": sorted(sessions),

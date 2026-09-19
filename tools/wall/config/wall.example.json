@@ -10,10 +10,13 @@
     "question_assigned": 5,
     "researcher_first_run": 10,
     "escalate_to_architect": 30,
-    "escalate_to_human": 60
+    "escalate_to_human": 60,
+    "question_open_escalate": 60
   },
 
   "max_rework_cycles": 3,
+
+  "decisions_dir": "docs/decisions",
 
   "fast_track": {
     "allow": ["**/*.md", "docs/**/*.docx", "TREE_INTEGRITY_LEDGER.txt",
@@ -21,7 +24,10 @@
     "deny":  ["frontend/src/**", "backend/**/*.py", "**/*.bat", "**/*.ps1",
               ".github/workflows/**", "tools/**", ".wall/config/**",
               "**/CLAUDE.md"],
-    "significant": ["docs/architecture/**", "docs/decisions/**"]
+    "significant": ["docs/architecture/**", "docs/decisions/**"],
+
+    "_identity": "Per-invocation commit identity for `wall fast-track --commit`. Agents never write `git config`: it is repo-global, and one agent's write lands on another agent's in-flight commit (RECONCILIATION G1). Left empty, the command refuses to commit rather than guessing.",
+    "identity": { "name": "", "email": "" }
   },
 
   "definition_of_done": [
