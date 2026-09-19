@@ -308,8 +308,15 @@ docs/
   diagrams/              components, one item's journey, the closed loop
   handoffs/              dispatch brief, finding routing, transplant order, wave report
 
-templates/               the five root context documents, with placeholders
-tools/wall/              courier, roster, CLI, install adapters, renderer
+.claude/
+  MAESTRO.md             the session manual - the Maestro IS the session
+  agents/                one role sheet per subagent role
+  hooks/                 terminal-event capture; never blocks, honest orphans
+  skills/wave/           how a wave runs, phase by phase
+
+templates/               the root context documents, with placeholders
+tools/wall/              courier, roster, CLI, service + server + shipper,
+                         install adapters, renderer, board-import adapters
 frontend/theme/          tokens, primitives, preview
 sample/make_sample.py    fixture generator, zero model calls
 tests/                   scaffolding and integrity tests

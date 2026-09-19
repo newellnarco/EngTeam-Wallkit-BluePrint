@@ -53,7 +53,7 @@ time. An entry with no check is a story, not a defence.
   a recurring argument.
 - **Command:** `<PARSE_ALL_SOURCES_COMMAND>` (e.g. a test that compiles or
   parses every file of the affected type and fails if any does not).
-- **Note:** taught by the MAX3 reference deployment, where the same false
+- **Note:** taught by the reference deployment, where the same false
   "truncated file" finding was refuted twice across consecutive pull requests
   before the parse gate was added.
 
@@ -98,7 +98,7 @@ time. An entry with no check is a story, not a defence.
   reclassify it.
 - **Command:** `<GREP_FOR_WISHFUL_GUARD_MESSAGES>` (e.g. grep the codebase for
   the phrases above and audit each hit).
-- **Note:** MAX3's standing form of this rule is blunter - if a sentence of the
+- **Note:** the reference deployment's standing form of this rule is blunter - if a sentence of the
   form "run this on the box" appears, name the channel that cannot carry the
   work; if there is none, the sentence is a defect in the plan.
 
@@ -121,7 +121,7 @@ time. An entry with no check is a story, not a defence.
   collection in the test and assert the restored state still points at the same
   item.
 - **Command:** `<STATE_ROUNDTRIP_TEST_COMMAND>`
-- **Note:** MAX3 hit this when a learning frontier persisted as a bare index
+- **Note:** the reference deployment hit this when a learning frontier persisted as a bare index
   into a ladder that later gained a rung.
 
 ---
@@ -161,7 +161,7 @@ time. An entry with no check is a story, not a defence.
   file is keyed by agent key. Grep the crew's instructions and tooling for
   `git config` and for unkeyed temp filenames.
 - **Command:** `<GREP_FOR_GIT_CONFIG_WRITES>`
-- **Note:** observed directly during MAX3's first multi-agent wave, on a pull
+- **Note:** observed directly during the reference deployment's first multi-agent wave, on a pull
   request whose first commit took a sibling's identity.
 
 ---

@@ -1,7 +1,7 @@
 """Windows adapter -- one scheduled task, driving the registry sweeper.
 
-The MAX3 target platform: repo at C:\\Dev\\gh-repos\\newellnarco\\MAX3,
-application at C:\\Dev\\MAX3.
+Registers one machine-wide scheduled task driving `wall run-once` for every
+registered repo (e.g. repo at C:\\Repos\\your-repo, deployed copy elsewhere).
 
 ``schtasks.exe`` rather than PowerShell's ``Register-ScheduledTask``. Both can
 create the task; ``schtasks.exe`` is a plain argv with no quoting layer between

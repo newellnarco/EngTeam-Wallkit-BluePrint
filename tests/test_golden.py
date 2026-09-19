@@ -160,3 +160,26 @@ def test_the_sample_rebuilds_byte_identically(tmp_path):
     incremental = (tmp_path / LEDGER).read_bytes()
     run(tmp_path, rebuild=True)
     assert (tmp_path / LEDGER).read_bytes() == incremental
+
+
+def test_an_item_with_a_null_arc_id_lands_in_unassigned_not_a_crash(tmp_path):
+    """items._blank() writes arc_id: None for any item that never set an arc.
+
+    build_snapshot's arc grouping must treat that explicit None like an absent
+    field (the `or "unassigned"` form), or the arc sort raises TypeError
+    comparing None to str -- which is exactly what the first real board overlay
+    hit. Same rule for a null arc_title rendering as the string "None".
+    """
+    day = "2026-09-19"
+    sh = tmp_path / ".wall" / "events" / day
+    sh.mkdir(parents=True)
+    ev = {"event_id": "ev_nullarc01", "seq": 1, "ts": f"{day}T10:00:00Z",
+          "session_id": "s_null", "event": "item_created", "item_id": "ST-900",
+          "title": "no arc set", "kind": "story", "actor": "tst_000000"}
+    (sh / "s_null.jsonl").write_text(json.dumps(ev) + "\n", encoding="utf-8")
+    (tmp_path / ".wall" / "config").mkdir()
+    snap = courier.run_once(tmp_path, rebuild=True)
+    arcs = {a["arc_id"]: a for a in snap["board"]["arcs"]}
+    assert "unassigned" in arcs
+    assert all(a["arc_id"] is not None and a["title"] is not None
+               for a in arcs.values())

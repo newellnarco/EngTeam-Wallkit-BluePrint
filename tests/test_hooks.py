@@ -245,7 +245,7 @@ def test_env_run_id_wins_over_inference(wall: Path):
 def test_wall_is_found_by_walking_up_from_cwd(tmp_path: Path):
     repo = tmp_path / "repo"
     (repo / ".wall" / "registry").mkdir(parents=True)
-    nested = repo / "backend" / "max3"
+    nested = repo / "backend" / "app"
     nested.mkdir(parents=True)
 
     proc = run_hook(SUBAGENT_STOP, {"session_id": SESSION, "cwd": str(nested),

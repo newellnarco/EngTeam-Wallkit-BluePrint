@@ -21,6 +21,9 @@ builder eventually discovers that calling its work a doc skips the gates.
 
 No mixed mode, no partial credit.
 
+An illustrative config (tune the globs to your host; the shape is what is
+fixed):
+
 ```json
 {
   "fast_track": {

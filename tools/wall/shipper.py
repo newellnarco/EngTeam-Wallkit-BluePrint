@@ -8,7 +8,7 @@ shards live gitignored in the working tree and travel on a dedicated branch
 instead, written with an isolated ``GIT_INDEX_FILE`` so the checkout, the real
 index and the current branch are never touched.
 
-This is the same plumbing MAX3's ``tools/ship_agent_status.py`` ran in
+This is the same plumbing the reference deployment ran in
 production overnight on 2026-09-18/19; the guards below are its measured
 lessons, restated:
 

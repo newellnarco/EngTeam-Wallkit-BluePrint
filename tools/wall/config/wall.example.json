@@ -1,6 +1,7 @@
 {
-  "repo_name": "MAX3",
-  "app_path": "C:\\Dev\\MAX3",
+  "repo_name": "",
+  "app_path": "",
+  "_paths": "repo_name falls back to the directory name when empty. app_path is the deployed copy `wall verify --app` compares MANIFEST.sha256 against; leave empty if the repo is not deployed as a separate tree.",
 
   "role_limits": { "builder": 4, "reviewer": 2, "researcher": 6 },
 
@@ -19,8 +20,7 @@
   "decisions_dir": "docs/decisions",
 
   "fast_track": {
-    "allow": ["**/*.md", "docs/**/*.docx", "TREE_INTEGRITY_LEDGER.txt",
-              "MANIFEST.sha256"],
+    "allow": ["**/*.md", "docs/**/*.docx", "MANIFEST.sha256"],
     "deny":  ["frontend/src/**", "backend/**/*.py", "**/*.bat", "**/*.ps1",
               ".github/workflows/**", "tools/**", ".wall/config/**",
               "**/CLAUDE.md"],
@@ -38,12 +38,16 @@
     "item file updated",
     "docs touched if architectural",
     "decisions consumed are referenced",
+    "mutation evidence recorded for every new guard",
+    "every new public symbol is named by at least one test",
+    "SAST and secrets lane read; every finding fixed or refuted",
+    "test durations recorded; no shard map hand-edited",
     "reviewer pass complete"
   ],
 
-  "researcher_network": {
-    "enabled": false,
-    "_comment": "Local-only by default. See OPEN_QUESTIONS.md #10.",
+  "research": {
+    "network": "none",
+    "_comment": "none | allowlist | session-default. Local-only by default; researchers state the mode in every finding. See .claude/agents/researcher.md section 2.",
     "allowlist": []
   },
 

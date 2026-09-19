@@ -6,7 +6,7 @@ and the page meta-refreshes), but the served mode is better: the page polls
 ``wall.json`` every ten seconds and repaints in place, so scroll position, the
 active tab and focus all survive. That needs an origin, which needs a server.
 
-Four safety properties, copied from MAX3's ``tools/board_wall_server.py`` which
+Four safety properties, copied from the reference deployment's production wall server, which
 has been serving this exact page in production:
 
 1. **Bind 127.0.0.1 explicitly.** ``.wall/derived/`` also holds

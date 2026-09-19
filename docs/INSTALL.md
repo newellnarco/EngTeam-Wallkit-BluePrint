@@ -3,9 +3,10 @@
 Getting the courier running on a schedule, the wall in front of you, and the
 event ledger off the box -- as built.
 
-Target environment for MAX3: **Windows**, repo at
-`C:\Dev\gh-repos\newellnarco\MAX3`, application at `C:\Dev\MAX3`. macOS and
-Linux adapters ship too and are exercised by the same tests.
+Adapters ship for **Windows** (scheduled task), **macOS** (LaunchAgent) and
+**Linux** (systemd user timer, cron fallback), all exercised by the same tests.
+Examples below use `~/code/your-repo` for the repository and
+`/opt/deployed-app` for a separately deployed copy, where one exists.
 
 ---
 
@@ -70,7 +71,7 @@ wall install would create:
   schedule   systemctl --user enable --now wall-courier.timer
   (fallback where user systemd is unavailable: */2 * * * * ...)
 
-  registering repo  /home/j/code/MAX3
+  registering repo  /home/j/code/your-repo
   sweep interval    every 120s
 
 The schedule is ONE task for this machine. It walks the registry and
@@ -144,10 +145,11 @@ GET and HEAD only; a POST is 501 whatever the path.
 the response parses as a wall snapshot **and** carries `no-store`: a server
 handing out the snapshot cacheable is serving a wall that can go quietly stale.
 
-**If the host repo already serves a wall**, register the kit's files with it
-instead of running a second server. In MAX3 that is
-`tools/board_wall_server.py` on the same port 8123; add `wall.json` and
-`heartbeat.json` to its `NO_CACHE_FILES` set and point it at `.wall/derived/`.
+**If the host repo already serves a wall or status page**, register the kit's
+files with it instead of running a second server: add `wall.json` and
+`heartbeat.json` to its no-cache set and point it at `.wall/derived/`. (The
+reference deployment did exactly this with its existing board server on the
+same port.)
 
 ---
 
@@ -205,8 +207,9 @@ someone's workstation two weeks later.
 `wall run-once` works with no adapter installed at all, which means the whole
 system can be driven by hand or from a git hook.
 
-Ship a `wall.bat` shim beside `push-to-github.bat` and `pull-to-local.bat` so
-the CLI matches how MAX3 is already driven, rather than assuming a POSIX shell.
+On a Windows-driven repository, ship the `wall.bat` shim beside the host's
+other `.bat` entry points so the CLI matches how the repo is already driven,
+rather than assuming a POSIX shell.
 
 ---
 
@@ -218,9 +221,8 @@ on every parallel unit -- the F-DERIVED-001 class that board fragments were
 invented to kill. So shards live gitignored in the working tree and travel on
 their own branch.
 
-`tools/wall/shipper.py` is that path, modelled directly on MAX3's
-`tools/ship_agent_status.py`, which ran this exact plumbing in production during
-the first agent wave:
+`tools/wall/shipper.py` is that path, modelled directly on the plumbing the
+reference deployment ran in production during its first agent wave:
 
 ```
 python tools/wall/shipper.py --repo . --ship     # push the day's shards + snapshot
@@ -284,7 +286,7 @@ Same evidence-over-self-report principle, applied to the plumbing.
 `wall verify` output:
 
 ```
-wall verify  /home/j/code/MAX3
+wall verify  /home/j/code/your-repo
   ok   heartbeat  last sweep 47s ago
   ok   registry   3 repo(s), this one included
   ok   timer      installed and running; scheduler last run Sat 2026-09-19 11:58:00 UTC
@@ -303,15 +305,16 @@ to report that headroom. `service.budget_headroom()` is the hook, it returns
 
 ## Verification the repo cannot do
 
-`C:\Dev\MAX3` is the deployed application. An arc is not really done because CI
-went green; it is done when the installed app behaves.
+Some hosts deploy the repo as a separate tree (`/opt/deployed-app` in these
+examples). An arc is not really done because CI went green; it is done when the
+installed app behaves.
 
 ```
-wall verify --app C:\Dev\MAX3
+wall verify --app /opt/deployed-app
 ```
 
 compares the deployed `MANIFEST.sha256` against the repo's and reports `match`,
 `differs` (with the count of differing entries, and "the deployed app is not
-this tree") or `missing`. That catches the exact failure `max3-docs-sync` was
-written to recover from: a drop's manifest entries shipped but its install bat
-never ran.
+this tree") or `missing`. That catches a failure class the reference deployment
+paid for: a release's manifest entries shipped but its install script never
+ran, so the deployed tree silently lagged the repo.

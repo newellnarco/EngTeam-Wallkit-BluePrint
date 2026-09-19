@@ -18,7 +18,7 @@ Get this right before the first real run.
 | Artifacts | `.wall/runs/<run_id>/` | no | 7 days | Prompts, responses, diffs, tool calls |
 
 **Shards are never committed on the development branch.** The kit originally
-said "committed: yes", and the reconciliation pass reversed it: MAX3 pushes one
+said "committed: yes", and the reconciliation pass reversed it: the reference deployment pushes one
 designated branch through a one-PR-at-a-time pipeline, so high-churn shards
 would ride every PR and conflict constantly — the exact failure class board
 fragments were invented to kill (RECONCILIATION Q7).
@@ -26,7 +26,7 @@ fragments were invented to kill (RECONCILIATION Q7).
 Instead the shards live gitignored in the working tree and the courier ships
 snapshots to a dedicated `wall-events` branch through an isolated
 `GIT_INDEX_FILE`, leaving the working tree and index untouched. That pattern is
-already proven in production on MAX3 (`ship_agent_status.py`, verified during
+already proven in production on the reference deployment (verified during
 the first live wave). Nothing about this schema changes: merge is still
 idempotent on `event_id`, so a clone of the isolated branch rebuilds the same
 ledger byte for byte.
@@ -254,7 +254,7 @@ overlap means `blocked`, whatever the builder hoped.
 | `item_shipped` | Terminal. Carries the merged `pr` number |
 
 `item_shipped` replaces the kit's original `drop_shipped`. Drops are
-historical: since 2026-06 MAX3 ships as named PR arcs, squash-merged one at a
+historical: since 2026-06 the reference deployment ships as named PR arcs, squash-merged one at a
 time, and arcs close without a drop (RECONCILIATION Q5, Q9). The join that
 actually exists is item to merged PR, so that is the one the ledger records.
 

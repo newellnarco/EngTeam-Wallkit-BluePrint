@@ -24,7 +24,8 @@ from pathlib import Path
 
 ROLE_PREFIX = {
     "foreman": "frm", "maestro": "mst", "architect": "arc", "adjudicator": "adj",
-    "builder": "bld", "reviewer": "rev", "researcher": "res", "courier": "cou",
+    "builder": "bld", "integrator": "itg", "reviewer": "rev",
+    "researcher": "res", "courier": "cou",
 }
 
 POOL = {
@@ -34,6 +35,7 @@ POOL = {
     "adjudicator": ["Coretta", "Percival", "Winifred", "Gideon", "Adelaide"],
     "builder":     ["Desmond", "Priya", "Theo", "Ruth", "Kwame", "Sloane",
                     "Hollis", "Yusuf", "Wren", "Otto", "Bridget", "Xavier"],
+    "integrator":  ["Barnaby", "Solveig", "Ephraim", "Tamsin", "Leopold"],
     "reviewer":    ["Junia", "Malcolm", "Faye", "Rupert", "Ines"],
     "researcher":  ["Silas", "Nadia", "Quentin", "Delphine", "Roscoe",
                     "Greta", "Fitzgerald", "Verity", "Ozias", "Clementine"],

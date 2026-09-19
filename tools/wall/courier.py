@@ -286,9 +286,9 @@ def build_snapshot(repo: Path, events: list[dict], config: dict, shard_count: in
 
     arcs: dict[str, dict] = {}
     for it in items.values():
-        arc_id = it.get("arc_id", "unassigned")
+        arc_id = it.get("arc_id") or "unassigned"
         arc = arcs.setdefault(arc_id, {
-            "arc_id": arc_id, "title": it.get("arc_title", "Unassigned"), "items": [],
+            "arc_id": arc_id, "title": it.get("arc_title") or "Unassigned", "items": [],
         })
         if it.get("arc_title"):
             arc["title"] = it["arc_title"]
