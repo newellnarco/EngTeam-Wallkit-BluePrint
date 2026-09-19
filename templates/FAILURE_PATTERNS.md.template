@@ -188,6 +188,199 @@ time. An entry with no check is a story, not a defence.
 
 ---
 
+## F-DERIVED-001 - derived shared state committed by concurrent changes
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** Every concurrent change conflicts on the same generated file - a
+  manifest, a board or index, a lock file, a compacted registry. Rebases pile up
+  on work that does not overlap in source at all, and eventually a conflict
+  marker survives a resolution and reaches the mainline inside a file that is
+  supposed to be machine-written.
+- **Root cause:** A derived artifact is committed by every change that touches
+  anything it summarises, so N parallel changes are N writers to one file. The
+  artifact has no owner, and merging it by hand is guesswork because its content
+  is a function of state nobody is looking at during the merge.
+- **Check:** Changes ship **per-change fragments with distinct filenames**
+  instead of editing the shared artifact; **one automated job on the mainline is
+  the only writer** of the derived file, folding fragments in after the merge.
+  Where a shared artifact must be committed directly, resolve conflicts by
+  re-running its generator, never by choosing a side.
+- **Command:** `<REGENERATE_DERIVED_ARTIFACT_COMMAND>`
+- **Note:** measured in the reference deployment as roughly a dozen rebases and
+  two corrupted generated files in a single day, before the fragment pattern.
+
+---
+
+## F-ONESHOT-001 - a one-time script stamps success on a skip path
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** A migration or one-time fix is recorded as applied on every
+  machine and never runs again - and the thing it was supposed to change is
+  unchanged everywhere.
+- **Root cause:** The runner marks the script done on exit code 0, and the
+  script returned 0 from a path where it did no work: a dependency was absent, a
+  precondition was not met yet, or a failure was caught and logged. "Nothing
+  went wrong" and "the work completed" became the same exit code.
+- **Check:** Every path where the work did not complete exits **non-zero**;
+  enumerate the script's exit paths and assert each one in a test. Verify
+  idempotency explicitly before trusting a re-run - "safe to run twice" is a
+  property, not an assumption. A runner that stamps a marker reads the exit code
+  as a claim about the WORK, so the script must only make that claim when true.
+- **Command:** `<ONE_TIME_SCRIPT_EXIT_PATH_TEST>`
+
+---
+
+## F-PROBE-CACHE-001 - a boot-time race becomes a permanent silent degrade
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** A dependent feature is dead for the entire run, with one early
+  log line and no further complaint. Restarting fixes it, sometimes.
+- **Root cause:** A dependency was probed once during startup - while that
+  dependency was itself still warming up - and the failed result was cached for
+  the process lifetime. A transient condition was recorded as a permanent fact,
+  and nothing ever asks again.
+- **Check:** A failed probe **re-probes on an interval**; sticky failure is
+  allowed only with a written justification naming why recovery is impossible.
+  On recovery, validate the dependency's shape before trusting it, so a
+  half-initialised service cannot corrupt state that a clean failure would have
+  protected.
+- **Command:** `<PROBE_RECOVERY_TEST_COMMAND>`
+- **Note:** the sibling of F-STATUS-001: there the failure is reported as
+  health, here it is reported once and then forgotten.
+
+---
+
+## F-GATE-ABSENT-001 - a merge gate satisfied by absence
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** A change merges without the gate that was supposed to stop it.
+  Afterwards the check either is not there at all, or is sitting at
+  `in_progress` on the commit that merged.
+- **Root cause:** The gate asked "are there runs?" rather than "did the required
+  check conclude successfully?". Any of three states satisfied it: a check still
+  running, a check queued, and **no checks at all** - the last one arriving when
+  an upstream event was dropped and nothing was ever triggered.
+- **Check:** Merge only on the required check's **name plus
+  `conclusion == success`**. `in_progress`, `queued`, `cancelled` and **zero
+  runs** are each a distinct non-pass and none of them is a pass. Read the check
+  runs themselves; a summary line that says green is a claim about a claim.
+- **Command:** `<READ_REQUIRED_CHECK_CONCLUSION_COMMAND>`
+
+---
+
+## F-OBS-COUPLED-001 - the observability channel depends on what it observes
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** The status feed, dashboard or report goes quiet exactly when the
+  observed system fails, so the worst outage produces the least evidence - and
+  the silence is indistinguishable from a calm period.
+- **Root cause:** The reporter runs as part of, behind, or conditional on the
+  health of the thing it reports on: it starts only if the service started, or
+  it collects by calling an endpoint of the dying service and gives up when the
+  call fails.
+- **Check:** The reporter runs **unconditionally**, on its own schedule, from
+  outside the subject's lifecycle, and publishes "could not reach the subject"
+  as **content** rather than by staying silent. An unreachable subject is a
+  reportable state, not a reason to skip the report.
+- **Command:** `<REPORTER_RUNS_WITH_SUBJECT_DOWN_TEST>`
+- **Note:** the sibling of F-SCHED-001 - both turn absence of signal into
+  absence of problem, one by a dead timer and one by a dead subject.
+
+---
+
+## F-RETIRE-001 - retiring a component drops its failure handling with it
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** A replacement works fine for weeks, then an old failure mode
+  returns - retry storms against a failing dependency, an unbounded burst, a
+  cascade that used to be contained. Nobody changed that behaviour; it was never
+  carried over.
+- **Root cause:** The replacement was written against the **happy path** of the
+  component it replaced. The retired component's accumulated defences - backoff,
+  circuit breaking, burst caps, dead-letter handling, idempotency guards - were
+  invisible in its interface, so they were invisible in the port.
+- **Check:** Before deleting a component, **enumerate its error-handling
+  behaviours** and show, one by one, that each is carried across or consciously
+  dropped with a reason. The enumeration is the artifact; "the new one handles
+  errors" is not.
+- **Command:** `<GREP_RETIRED_COMPONENT_ERROR_PATHS>`
+
+---
+
+## F-RETRY-SAME-001 - a repair loop retries a proven-failed strategy unchanged
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** A recovery or self-heal path runs forever at its interval,
+  reporting an attempt each cycle and changing nothing. Logs look busy; the
+  condition is identical hours later.
+- **Root cause:** The retry re-runs the exact attempt that already failed, with
+  the same stale inputs, the same cached snapshot, the same strategy. Nothing in
+  the loop can produce a different outcome, so it is not a repair - it is a
+  timer attached to a failure.
+- **Check:** Every retry must **change at least one input** - refreshed state, a
+  different strategy, a wider scope - or **escalate**. A retry identical to a
+  failed attempt is a loop; cap the attempts and make the cap escalate rather
+  than sleep.
+- **Command:** `<RETRY_CHANGES_AN_INPUT_TEST>`
+
+---
+
+## F-GUARD-ORDER-001 - an "already running?" guard samples state too late
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** A skip-if-running, already-exists or first-time-only guard
+  **always** fires, or **never** fires. It has been in the code for months and
+  reads as protection in every review.
+- **Root cause:** The precondition was probed **after** the guarded thing was
+  created or started, so the probe observes the state the action just produced.
+  The branch is dead code with a reassuring name.
+- **Check:** Precondition probes sample **before** the guarded action, and the
+  sample is held in a variable that the guard reads - not re-computed. Test the
+  guard by **arranging the pre-existing state** and asserting the action was
+  skipped; a guard tested only from a clean slate is untested.
+- **Command:** `<GUARD_PRECONDITION_ORDER_TEST>`
+- **Note:** a specific case of section 3's rule that an observation must not be
+  read as a conclusion - here the observation is of the wrong moment.
+
+---
+
+## F-TEXTMATCH-STATE-001 - a reconcile matches free text instead of the anchor
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** A work item, ticket or record flips to done because its
+  identifier was **mentioned** somewhere - in another change's description, in a
+  comment, in a list of related work. Items deliberately parked get closed by
+  unrelated activity.
+- **Root cause:** The state-flipping matcher searched a free-text body for the
+  identifier instead of reading the authoritative field. Any substring hit
+  anywhere in the text was treated as the record's own state change.
+- **Check:** State-flipping matchers anchor on the **authoritative field** - the
+  structured id, the designated line, the API's own association - never a
+  substring hit in a body. Where free text must be parsed, require the
+  documented form at a documented position, and log every non-matching mention
+  rather than acting on it.
+- **Command:** `<STATE_RECONCILE_ANCHOR_TEST>`
+
+---
+
+## F-DUPDEF-001 - two live definitions of one thing, and the wiring picks one
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** A fix lands, the tests pass, and the behaviour does not change -
+  because the fix landed in the copy nothing runs. Or two same-named classes,
+  configs or constants drift until one surface disagrees with another for
+  reasons nobody can locate.
+- **Root cause:** A rename, a move, an extraction or a vendored copy left two
+  definitions of one name alive. The wiring imports one, the interface or the
+  test imports the other, and both are importable, so nothing errors.
+- **Check:** **One definition per name.** On any rename or move, grep **every**
+  import site in the same change and leave none pointing at the old path. Prefer
+  **deleting the copy that can drift** over documenting that it must not -
+  documentation does not survive the next person who finds the old name first.
+- **Command:** `<GREP_DUPLICATE_DEFINITIONS>`
+
+---
+
 ## <F-SCOPE-NNN> - <next class, appended when it happens>
 
 - **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>

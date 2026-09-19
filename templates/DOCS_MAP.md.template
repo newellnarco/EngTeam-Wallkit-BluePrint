@@ -1,0 +1,107 @@
+<!--
+TEMPLATE: DOCS_MAP.md
+WHAT THIS IS  The change-kind map: for each kind of change this repository
+              makes, the exact documentation surfaces that must be updated in
+              the same pull request. One table, filled by the host.
+WHY IT EXISTS "Update the docs if relevant" is a rule nobody can fail. The
+              failure it permits is specific and repeated: a panel, endpoint or
+              command ships, the doc that lists them does not change, and six
+              weeks later the document is a confident description of a system
+              that no longer exists. A reader cannot tell a stale doc from a
+              current one, so one stale section devalues the whole file.
+HOW TO USE    Copy to the repo root as DOCS_MAP.md (or wherever your host keeps
+              process docs) and fill the rows from your own change history:
+              look at the last twenty merged changes, group them by kind, and
+              write down what each kind SHOULD have touched. Delete kinds you
+              do not have. Fill every <PLACEHOLDER>.
+QUESTIONS     The rows are derived, not guessed. The per-template question sets
+              in docs/TEMPLATE_INTAKE.md are the model for the interview; this
+              table's source material is the repository's own history.
+-->
+
+# DOCS_MAP.md - which docs move with which change
+
+> Documentation is part of the change, not a follow-up. A pull request that
+> alters something a reader can observe, and leaves the document describing it
+> untouched, has shipped a known-false statement on purpose.
+
+---
+
+## 1. The rules, before the table
+
+**Same change, not a follow-up.** The doc update rides the pull request that
+causes it. A follow-up doc task is a task that competes with new work and
+loses; the only reliable moment is while the author still knows what changed.
+
+**On doc-versus-code drift, the code wins - and fixing the doc is the change.**
+Where a document and the running system disagree, the system is the fact. That
+resolves the argument but does not close the defect: the stale sentence is
+repaired in the same pass that discovered it, because a known-stale document
+left in place is now a deliberate one.
+
+**A skipped doc update is explicit, with a reason. Silence is not allowed.**
+"No documentation impact" is a legitimate answer and it is a *stated* answer,
+written in the pull request body. The banned state is the one where nobody can
+tell whether the docs were considered and dismissed or simply forgotten -
+because those two look identical afterwards, and only one of them is fine.
+
+**Every new document registers itself in the same change.** A new file joins
+the doc index (and any README or entry-point table the host keeps) in the
+commit that creates it. A document nothing links to is a document nobody reads
+and nobody maintains; it will be rediscovered later as a contradiction.
+
+**A document that contradicts a newer one is superseded in both directions.**
+The old one says what replaced it; the new one says what it replaced. A reader
+landing on either must be able to tell which is current without reading both.
+
+---
+
+## 2. The map
+
+Fill one row per change kind this repository actually makes. The right-hand
+column is a list of files, not a sentiment.
+
+| Change kind | Doc surfaces that must update in the same change |
+|---|---|
+| New user-visible surface (screen, page, view) | <INDEX_OR_MENU_TABLE>, a design doc at <DESIGN_DOC_PATH>, the capture/screenshot registry at <CAPTURE_REGISTRY>, the surface-status list at <STATUS_LIST> |
+| New or changed API endpoint | The route table in <API_MODULE_OR_DOC>, <API_REFERENCE>, any client or integration doc that enumerates endpoints |
+| New or changed command / CLI flag | <CLI_REFERENCE>, the help text itself, <INSTALL_OR_USAGE_DOC> |
+| New configuration key or feature flag | <CONFIG_REFERENCE>, the default and its meaning, the revert instruction |
+| New background job, timer or scheduled lane | <OPERATIONS_DOC>, the liveness/heartbeat expectations, the on-call or triage notes |
+| New event, log line or metric others consume | <EVENT_OR_SCHEMA_DOC> - a consumer cannot subscribe to something undocumented |
+| New dependency | <DEPENDENCY_POLICY_DOC>, the licence inventory, the install path |
+| Component re-architected or replaced | The architecture doc section, the entry point's current-state block, the plan or roadmap item it closes |
+| Component retired | Every document that names it (search, do not recall), plus a superseding note on the doc that replaces it |
+| Bug class discovered | `FAILURE_PATTERNS.md` entry **and** the paired `SHIP_CHECKLIST.md` item, in the same change |
+| Rule or standing directive issued | `RULES.md` (or the host's equivalent) in the same working chunk it was issued - a directive that exists only in a conversation is a bug |
+| Decision made | One decision record, and the superseding marks in both directions |
+| <CHANGE_KIND> | <DOC_SURFACES> |
+
+---
+
+## 3. How this gets enforced
+
+Pick at least one mechanism; prose alone decays.
+
+- **Pull-request template line.** One required line: "docs touched: <paths>" or
+  "no documentation impact, because <reason>". Cheap, and it makes the skip
+  explicit rather than invisible.
+- **A mechanical pairing check.** Where a kind has a machine-detectable
+  signature - a new route decorator, a new entry in a registry, a new file
+  under a known directory - a test can assert the paired doc surface also
+  changed. Start with the one kind that has bitten you.
+- **Review posture.** The reviewer rejects against this table by name, which is
+  only possible because the table lists files rather than intentions.
+
+| Mechanism | Covers which kinds | Enforced by |
+|---|---|---|
+| <MECHANISM> | <KINDS> | <TEST_OR_TEMPLATE_OR_REVIEW> |
+
+---
+
+## 4. Cross-references
+
+- `SHIP_CHECKLIST.md` - the pre-ship gate that asks whether this map was walked
+- `FAILURE_PATTERNS.md` - the registry half of the bug-class row above
+- `BEST_PRACTICES.md` - the standards this map keeps honest
+- `docs/decisions/` - where a ruling lands, in both directions

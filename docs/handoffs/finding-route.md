@@ -59,6 +59,14 @@ Researcher -> second researcher pass -> Architect direct
            -> the human queue
 ```
 
+**The contradiction case routes differently.** A finding or a new requirement
+that **contradicts something already recorded** - a live decision, an accepted
+criterion, a standing rule - skips the researcher hop and goes to the Architect,
+or to the Adjudicator where a live `DEC-NNNN` is one of the two. Quote **both
+texts verbatim, side by side**, in section 2's statement; do not summarise
+either, and do not layer the new one on top and move on. Silently keeping both
+is the `conflicting_decisions` ambiguity class, manufactured at the source.
+
 Escalation is **time-driven, not attempt-driven**. Every hop writes
 `question_escalated` with a reason, so the trace shows the full path when
 something took six hours.

@@ -1,4 +1,25 @@
-# EngTeam Wall Kit — the turnkey AI dev team blueprint
+# The AI Engineering Organization — Blueprint & Drop-in Kit
+
+**A complete engineering organization run by LLM agents — architecture,
+product, project management, development, quality, security, compliance,
+metrics and deployment — auditable end to end, and governed by the humans it
+amplifies.** The status wall is just its visible surface.
+
+> [!CAUTION]
+> **Read this before adopting: this is a kit and blueprint for a complete
+> engineering team run by AI — and that is precisely why this notice exists.**
+>
+> The author does **not** endorse using it to replace human decision makers,
+> builders, architects, designers, project or program managers, engineering
+> leaders, or any other role — specifically or arbitrarily. Every gate in
+> this kit that routes to "the engineer" exists because a human owns that
+> call, and removing the human removes the safety property, not just the
+> person.
+>
+> **The recommendation:** review this kit and blueprint with your existing
+> team, and use these tools to help that team deliver and support quality,
+> secure, scalable, enterprise-grade products — an amplifier for the people
+> accountable for the work, not a substitute for them.
 
 A standalone, dependency-free scaffold that drops into an empty repository — or
 an existing one — and stands up a **turnkey engineering organization run by LLM
@@ -56,12 +77,14 @@ written procedure.
 | PMO / metrics analyst | **Foreman** + Courier + the wall | Measured status, integrity, cost; rebalance recommendations |
 | Solution architect | **Architect** | Domain design, arcs + stories, requirements sign-off, rulings |
 | Governance board | **Adjudicator** | Tie-breaks, decision conflicts, contested trade-offs |
+| Security & compliance authority | **Warden** (exactly one, singleton-enforced) | Guardrail corpus; architecture sign-off on in-scope arcs; data-use verdicts (dev + product); delivery audit — blocks autonomously, never grants |
 | Analysts | **Researchers** (N, parallel) | Evidence with sources, options with costs |
 | Engineers | **Builders** (N, parallel) | Implementation in leased scopes, tests owed |
 | Release engineer | **Integrator** (a hat) | Rebase, safety proof, gates last, one PR at a time |
 | QA / code review | **Reviewer** + external lanes | Cold diff read, mutation protocol, DoD gate |
-| Security | A cross-cutting lane | SAST + secrets, gated network, consent-gated installs |
+| Security | A cross-cutting lane | The lane the Warden audits: SAST + secrets, gated network, consent-gated installs |
 | Project management | State, not a head | The wall's arcs/stories/bugs, SLA ladder, decision log |
+| Metrics | Measured, never self-reported | Harness token actuals, CI wall-clock, ledger-derived utilization, shard timings |
 
 Full mapping with DDD alignment: `docs/diagrams/ORG_MAPPING.md`. The same
 system as sessions, hooks and state — with what runs parallel vs sequential:
@@ -191,9 +214,10 @@ these are files.
 |---|---|---|
 | `templates/CLAUDE.md.template` | `CLAUDE.md` | Entry point: what the project is, current state, doc index, pointer to the rules. |
 | `templates/RULES.md.template` | `RULES.md` | The binding rules. Part 1 is yours to write; Part 2 ships as-is. |
-| `templates/FAILURE_PATTERNS.md.template` | `FAILURE_PATTERNS.md` | Append-only registry of bug classes, seeded with seven general ones. |
+| `templates/FAILURE_PATTERNS.md.template` | `FAILURE_PATTERNS.md` | Append-only registry of bug classes, seeded with seventeen general ones. |
 | `templates/SHIP_CHECKLIST.md.template` | `SHIP_CHECKLIST.md` | The pre-ship gate, including gates-run-last and the budget check. |
 | `templates/BEST_PRACTICES.md.template` | `BEST_PRACTICES.md` | The coding standards the whole roster and any hosted reviewers judge against. |
+| `templates/DOCS_MAP.md.template` | `DOCS_MAP.md` | Change kind to doc surfaces: which docs must update in the same pull request. |
 | `templates/BUDGETED_DOCS.md.template` | `BUDGETED_DOCS.md` | Which documents feed model prompts, their budgets, and measured headroom. |
 | `templates/EVAL_RECORD.md.template` | `docs/decisions/EVAL-*.md` | One per technology evaluation: bench, disqualifiers, verdict, re-eval triggers (docs/TECH_EVALUATION.md). |
 
@@ -296,6 +320,7 @@ repository has grown some of these under names of its own. Find them:
 | Coding standards | `BEST_PRACTICES.md`, a style guide, a reviewer config | One shared body of criteria every reviewer judges against |
 | Decision log | `docs/decisions/`, ADRs, a decisions page | One record per ruling, superseded rather than rewritten |
 | Prompt budgets | usually nothing | Declare and measure what feeds model prompts |
+| Docs map | a "docs discipline" note, a PR-template line, usually nothing | Say which doc surfaces move with which change kind, in the same change |
 
 **2. Map, do not duplicate.** For each file in `templates/`, if the project
 already has the equivalent, write a **stub at the kit's expected location** that
@@ -321,8 +346,8 @@ If the host's documents do not carry them, adding them there is the first
 change - not a second rulebook.
 
 Only where nothing exists do you copy the template and fill it. A project with
-no failure registry should get `FAILURE_PATTERNS.md` on day one; the seven
-seeded classes apply to any agent crew.
+no failure registry should get `FAILURE_PATTERNS.md` on day one; the seeded
+classes apply to any agent crew.
 
 **3. Install the machinery alongside.** `.wall/` and `tools/wall/` are new
 directories and collide with nothing. The agent roster in `.claude/` is the one
@@ -351,7 +376,7 @@ item usually belong in the host's rules appendix as environment seams.
 |---|---|
 | Entry-point doc | Add a "mandatory reading" block pointing at the rules, failure registry and checklist. Do not replace the doc. |
 | Standing rules | Verify the three non-negotiables are present; add the missing ones **there**. Stub `RULES.md` as a pointer. |
-| Failure registry | Keep it; add any of the seven seeded classes that can happen here, in its existing format. |
+| Failure registry | Keep it; add any of the seventeen seeded classes that can happen here, in its existing format. |
 | Ship checklist | Keep it; ensure gates-run-last and the budget check are items in it. |
 | Coding standards | Keep it, and check it against the seeded honesty rules - a standards file that lets a surface report a state it did not establish is missing the class these exist to stop. Add the missing rules **there**; register it in the budget table. |
 | Decision log | Keep it; adopt the front-matter contract so the contradiction check can read it. |
@@ -362,6 +387,26 @@ item usually belong in the host's rules appendix as environment seams.
 MAX3 is the reference adoption: an existing repository with its own rules,
 registry and checklist, where the kit's job was mapping and filling gaps rather
 than installing a second set of standards.
+
+### Looking ahead: more than one adopting repository
+
+Nothing below is needed for the first adoption. It is written down now because
+the second one is where these get decided badly by default.
+
+- **Shared rules cross repositories additively.** A rule learned in one adopter
+  is offered to the others; consolidating two rule sets never deletes a
+  sibling's rule to make the merge tidy. A rule that does not apply is declined
+  with a reason, which is a different artifact from a rule that vanished.
+- **Every inbound cross-repository item is answered: adopted, reworded, or
+  declined-with-reason.** Those are the three answers. **Silence is not one of
+  them** — an unanswered item is indistinguishable from an item nobody received,
+  so the sender learns nothing and sends it again.
+- **A sync verdict is never UNKNOWN.** Comparing a shared block across repos
+  produces "same", "differs" or "absent here" — a comparison that cannot decide
+  is a broken comparison, and it is fixed rather than reported.
+- **A hash pin proves no local edit, not fleet agreement.** Pinning a governed
+  shared block locally is worth doing and is honest only with that caveat
+  attached: it says nobody changed this copy, not that the copies match.
 
 ---
 
@@ -433,6 +478,35 @@ frontend/theme/          tokens, primitives, preview
 sample/make_sample.py    fixture generator, zero model calls
 tests/                   scaffolding and integrity tests
 ```
+
+---
+
+## Skills
+
+**Skills and role sheets activate by themselves.** Project skills at
+`.claude/skills/*/SKILL.md` and agent definitions at `.claude/agents/*.md` are
+discovered by Claude Code the moment the kit lands in the repository — there is
+nothing to register, install or declare. `/adopt`, `/wave` and
+`/reviewer-integration` work on the next session, and a session that is already
+open picks them up when it next starts.
+
+| Skill | What it does | When to use it | First-time setup |
+|---|---|---|---|
+| `/adopt` | Parses an existing repository's documents **by function**, writes pointer stubs at the kit's expected locations, and consolidates duplicates with the engineer ruling on every conflict | Adoption day zero, and any time the host's docs and the kit's expectations drift apart | None — auto-discovered |
+| `/wave` | Runs a full build wave: dispatch against disjoint scopes, mediated questions, serial integration through the one PR slot, close-out and wave report | Whenever you are working the backlog rather than making one hand edit | None, but the wall must exist — run `wall run-once` first |
+| `/reviewer-integration` | Adds or removes an external review lane, baselines its config into the shared criteria, and runs the findings roll-up | Wiring up a hosted reviewer, or at wave close for the `learn` pass | None — though adding or removing a lane is itself an engineer decision |
+
+**Hooks are NOT automatic, by design.** A hook executes code on session events,
+so the platform requires you to opt in explicitly: copy the entries from
+`.claude/hooks/hooks.json.example` into `.claude/settings.json` (this project)
+or `~/.claude/settings.json` (every project on this machine). Without them
+nothing breaks — the ledger degrades honestly: terminal events become
+best-effort agent writes and `wall doctor` reports orphan runs rather than
+pretending the ledger is complete (`.claude/hooks/README.md`).
+
+Optionally, copying a skill directory into `~/.claude/skills/` makes it
+available in every repository — sensible for `/adopt`, which is how you arrive
+at a repository, and not for `/wave`, which assumes a wall is already there.
 
 ---
 

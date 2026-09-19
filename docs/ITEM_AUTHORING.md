@@ -147,6 +147,19 @@ keep the adjustment from invalidating in-flight work invisibly:
 5. **Superseded criteria stay visible.** Strike-through or a `superseded_by`
    note on the item, not deletion — the trace from "why was this built this
    way" back to "the criterion said so at the time" must survive the amendment.
+6. **A new requirement that contradicts a recorded one is quoted beside it and
+   escalated — never silently layered, deleted, or read in whichever direction
+   suits the work in flight.** The amendment record carries both texts verbatim,
+   side by side, and the contradiction goes to the Architect (or the Adjudicator
+   where a live `DEC-NNNN` is involved, rule 4) before either is acted on. The
+   failure this prevents is not disagreement; it is a reader who cannot tell
+   which sentence is current, because the new one was appended and the old one
+   left standing. Two requirements that both read as binding produce work that
+   satisfies one of them and is rejected against the other.
+7. **Superseding marks are written in BOTH directions.** The superseded
+   criterion names what replaced it, and the replacement names what it replaced.
+   A one-way mark leaves the other surface confidently current, which is the
+   same defect as no mark at all for anyone who lands there first.
 
 ## 6. The research loop — how questions leave an item and how answers return
 

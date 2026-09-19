@@ -205,6 +205,18 @@ A builder is not done when its tests pass. Minimum gate:
 - [ ] **SAST and secrets lane** read, and every finding fixed or refuted with
       proof; a secrets finding blocks and the credential is rotated (section 5)
 - [ ] **Test durations recorded**, and no shard map hand-edited (section 6)
+- [ ] **Registered where the system describes itself** — the new capability
+      appears in the host's system/topology map and in its diagnostics or health
+      registry, with an **honest stub status** if it is not lit yet. A component
+      nothing can see is a component nobody can find when it fails.
+- [ ] **Telemetry covers its failures and its contention, not only its wins.**
+      A degrading `try/except` still emits; a path that waits on a busy resource
+      says so. Wins-only telemetry is not done — it produces a surface that goes
+      quiet at exactly the moment it is needed.
+- [ ] **Performance and swap changes carry a measured baseline** and adopt only
+      on a measured win: the target metric improves **and** the named guard
+      metric holds, both measured on the real target environment before and
+      after (`docs/TECH_EVALUATION.md`). "It should be faster" is not a result.
 - [ ] Lint and typecheck clean
 - [ ] CI green (or fast-track route confirmed — see FAST_TRACK.md)
 - [ ] `.wall/items/<id>.json` updated
@@ -317,7 +329,10 @@ Two corollaries the wave added:
   was updated left the wall claiming "in CI" on a merged PR, and the next
   unrelated unit inherited the resulting red. Item state flips at **merge**
   time. An item claiming an open PR that the host says is merged or closed is an
-  integrity flag, checked every sweep.
+  integrity flag, checked every sweep. **A tracker or status document naming an
+  open PR the host says is merged is the same integrity class** — the wall's
+  item state and a living doc's prose are two surfaces making the same claim,
+  and only one of them was being checked (section 9, step 8b).
 
 ---
 
@@ -390,6 +405,18 @@ from the check runs; say whether that was the full pyramid or a draft-scoped
 subset. The Maestro flips ready and merges, and the bookkeeping follows the merge
 immediately (section 8, G9).
 
+**8b. The post-merge propagation pass.** Item state is not the only thing that
+goes stale at merge. Every merge fires **one bounded sweep of the living
+documents** -- roadmap and arc trackers, status sections, the entry point's
+current-state block, anything that names this work as upcoming or in flight --
+landing as **one docs change per merge**, not one per document and not a backlog
+item for later. Bounded means exactly that: the sweep touches only what this
+merge invalidated, and a surface it cannot update honestly is named rather than
+guessed at. This makes "the tracker still says in progress after it landed" a
+checked class instead of an accident somebody notices a month later. The map of
+which surfaces a change kind touches is the host's `DOCS_MAP.md`
+(`templates/DOCS_MAP.md.template`).
+
 ---
 
 ## 10. Hosted reviewer lanes
@@ -421,6 +448,52 @@ Waiting on a lane that cannot answer is indistinguishable, from the outside, fro
 a stalled unit.
 
 **One writer per thread** -- section 6.
+
+### Review-meter economics
+
+A review lane is a metered resource, and the meter is spent by *our* actions as
+often as by the lane's. Six rules, each one measured:
+
+**A green lane check proves the check RAN, not that the diff was READ.** A
+vendor reported `success` on a run that had bounced off its own rate limit
+without reading anything. So the pass is established from **proof signals**, in
+this order: **posted findings are proof** (the lane demonstrably saw the diff);
+**an explicit attestation phrase is weaker proof** (it is the lane's own claim,
+accepted only when the lane is known to emit it on a real read); **anything
+else is UNKNOWN** -- a bare green check run, an empty comment, a status with no
+body. Unknown is never upgraded to pass. Record which of the three you had.
+
+**Never move the PR head while a review is in flight.** A push restarts the
+lane's work and re-queues it behind whatever else is running: one cosmetic
+amend mid-review was measured at roughly sixty times the latency of waiting.
+The corollary is the serialization rule (WALL_STANDARDS section 5) applied to
+review rather than to CI.
+
+**Batch fixes into one push.** N fix commits are N metered reviews of
+overlapping diffs. Collect every finding from the round, apply them together,
+push once, and say in the reply which findings that push addresses.
+
+**Record each lane's meter SHAPE, not only its limit.** A **throttle** reopens
+on its own after a window -- so naming it and continuing is correct, and it will
+answer later. A **hard stop** (quota exhausted for the period, plan cap) does
+not reopen -- so the PR must proceed without that lane and the wave report says
+the review did not happen. Treating a hard stop like a throttle produces a unit
+waiting on an answer that is never coming; treating a throttle like a hard stop
+discards a review that was thirty seconds away. The shape is recorded when the
+lane is added (`.claude/skills/reviewer-integration/SKILL.md`).
+
+**Never spend money to recover a self-inflicted review restart.** Buying
+capacity to undo a push we should not have made converts a process error into a
+recurring cost and removes the feedback that would have stopped it. The correct
+response is the rule above, applied next time.
+
+**Attribute the waste: ours, the partner's, or the infrastructure's.** Each
+needs a different response and they are routinely confused. *Ours* (a mid-review
+push, an unbatched fix series) becomes a rule. *The partner's* (a lane that
+charges for a read it did not perform) becomes a posture line and, if it
+recurs, a lane-configuration question for the engineer. *Infrastructure's* (a
+dropped event, a provider outage) becomes a retry or a liveness check. An
+unattributed "we burned the quota" teaches nobody anything.
 
 **Every real finding leaves a prevention behind**: the rule, the regression test,
 and the doc line that stop the class recurring. A finding closed without one is a

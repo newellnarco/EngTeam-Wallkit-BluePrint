@@ -32,7 +32,11 @@ grader keeps making a mistake the others already learned.
    cost). Trigger scope is a cost decision the engineer confirms -- reviewing
    every synchronize on a busy repo is a measured waste (the reference
    deployment cut a lane from every-push to open/ready and saved ~1,200
-   runner-minutes/month).
+   runner-minutes/month). **Record the lane's meter SHAPE beside its metering:
+   a throttle reopens after a window, a hard stop does not reopen until the
+   period rolls** -- the two demand opposite reactions, and a lane whose shape
+   is unrecorded gets waited on when it will never answer (WORKFLOW section 10,
+   review-meter economics).
 3. **Import its rules INTO the shared criteria -- not beside them.** Diff the
    reviewer's imported rules/policies against the standards file. A rule the
    body lacks is added *to the body* (with the lane named as its source); a
@@ -105,6 +109,47 @@ at once:
 
 Run `learn` at wave close (SESSION_LIFECYCLE section 3) over the wave's accumulated
 findings; the wave report links the ledger entries it graduated.
+
+### The roll-up -- every N merged pull requests
+
+Graduating findings one at a time fixes instances. The roll-up is what finds
+the *shape* of what this repo keeps getting wrong, and it only works on a
+cadence, because a pattern is not visible inside a single PR.
+
+1. **Cadence.** Every **N merged pull requests** (default **10**; set it in
+   config so it is one number, not a habit). Missing a roll-up is recorded, not
+   skipped silently -- the next one covers the wider range.
+2. **Collect ALL findings, including the ones that lost.** Applied, declined,
+   and **false-positive** alike. A corpus of only-accepted findings measures
+   the lanes' agreeableness, not the code's defects, and it hides the noise
+   axis entirely.
+3. **Pareto by category.** Group into defect categories, sort by count, and
+   read the top of the list. The vital few categories are where a prevention
+   pays for itself; the long tail is where a prevention costs more than the
+   defect.
+4. **Promote the vital few** through the normal graduation path (step 2 above):
+   rule in the shared body, `FAILURE_PATTERNS.md` entry, regression test,
+   checklist line.
+5. **Reviewer noise is a lane-configuration trigger, not a rule.** A category
+   dominated by false positives from one lane does NOT become a standard --
+   writing a rule to appease a mis-scoped grader teaches the crew a fiction.
+   It becomes a lane-config tuning task (`baseline <lane>`), and if the lane
+   cannot be tuned, an engineer question about keeping it.
+6. **A category recurring across TWO consecutive roll-ups escalates to a
+   structural closer.** Recurrence after a prevention means the prevention was
+   advisory; the escalation is something mechanical -- a lint rule, a CI gate,
+   a type, a deleted affordance -- that makes the class impossible rather than
+   discouraged.
+7. **Track the cost axis beside the quality axis.** Count, per roll-up:
+   **review rounds per merged PR**, **review restarts we caused** (a push while
+   a review was in flight), and **rate-limit or quota hits per lane**. Quality
+   findings tell you what to fix; these three tell you whether the review
+   system itself is getting cheaper or more expensive, which nothing else
+   measures.
+
+The roll-up's output is one section appended to the findings ledger: the date,
+the PR range, the category table, what was promoted, what was declined as
+noise, and the three cost numbers.
 
 ## Boundaries
 

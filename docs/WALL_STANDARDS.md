@@ -194,6 +194,27 @@ replacing it.
 
 Item ids stay human-typeable: `ARC-01`, `ST-104`, `BG-021`.
 
+Four lifecycle rules keep an item's history readable after the fact:
+
+- **Bugs only move UP the lanes.** A bug that was admitted is worked, fixed or
+  explicitly closed with a reason - it is never parked back into the backlog to
+  make a board look calm. A defect demoted to "someday" is a defect nobody
+  decided about, and the decision is the only artifact worth having.
+- **An item flips to in-progress the moment work starts, with its pull-request
+  number attached.** Not when the first commit lands, not at review. An item
+  that reads as unclaimed while an agent is inside it is how two units pick up
+  the same work, and the pull-request number is what makes the claim checkable
+  against the host.
+- **The FIRST pull-request number recorded on an item is permanent.** Later
+  pull requests are appended; the first one is never overwritten by the one that
+  happened to merge. It is the anchor that makes the item's history
+  reconstructible, and an overwritten first number silently deletes everything
+  that happened before the rewrite.
+- **Shipped status is DERIVED from the merge log, never asserted.** An agent
+  saying a thing shipped is a claim; the host saying the pull request merged is
+  evidence. The courier computes the flip from the merge, which is also why the
+  integrity flag below can exist at all.
+
 **The shipping event fires at merge, not at bookkeeping time.** A merge that
 outruns its own bookkeeping leaves the wall claiming an open pull request that
 GitHub says is merged - and in the reference deployment the resulting stale
@@ -302,6 +323,20 @@ in the same job:
 
 Checks 4, 6 and 7 catch an agent or a process misbehaving rather than a file
 being malformed, which is the whole point.
+
+**Check-in cadence for in-flight pull requests.** Event delivery reports
+failures reliably and success unreliably: a webhook can be dropped entirely
+under rapid pushes, and a run that finishes green sometimes announces itself to
+nobody. So the belt-and-suspenders is a **fixed, short re-check interval** that
+sweeps every open pull request, re-arming silently whether or not anything
+changed. Fixed and short, because the failure it covers is silence, and a long
+interval simply means a longer stall: a lengthened cadence was measured as the
+dominant source of dead wall-clock in a wave, with green checks sitting
+unnoticed. The config key is `ci_checkin_minutes` in `.wall/config/wall.json`,
+advisory default **10**. The discipline around it matters as much as the number:
+**poll only on the timer, and wait on events otherwise** - a session that polls
+because it is curious converts a cheap timer into an expensive loop, and a
+session that waits on events alone stalls forever the first time one is dropped.
 
 Because shards are not committed, the test reads whatever shards are present in
 the working tree plus, optionally, the fetched telemetry branch. It must pass on

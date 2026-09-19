@@ -187,6 +187,28 @@ A unit is done when all of these are true:
       events.
 - [ ] <PROJECT_SPECIFIC_DOD_ITEM>.
 
+## 2.12 A standing directive is recorded in the same working chunk
+
+When the owner issues a rule, a threshold or a correction mid-session, it is
+written into the surface that binds - this file for a rule, the configuration
+for a threshold, a decision record for a ruling - **in the same working chunk it
+was given**, not at session close and not "next time we touch that file".
+
+A directive that exists only in a conversation is a bug with a known outcome:
+the session that heard it ends, and the next one re-learns the rule by breaking
+it. The handoff report is not the binding surface either; it is a handoff, and
+the next session is required to vet it rather than obey it.
+
+The same rule covers a *changed* requirement. It updates every surface that
+carries the old one, and where the new requirement contradicts a recorded one,
+the two are **quoted side by side and escalated** - never silently layered,
+never deleted, and never read in whichever direction suits the work in flight.
+Superseding marks are written in **both** directions, so a reader landing on
+either surface can tell which is current without reading both.
+
+*Why:* a rule given out loud and obeyed for an afternoon is indistinguishable,
+the following day, from a rule that was never given.
+
 ---
 
 ## Appendix - environment seams

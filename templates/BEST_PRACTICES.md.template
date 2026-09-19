@@ -139,7 +139,113 @@ the state format and resolve key-first with the ordinal as a clamped fallback.
 *Check:* reorder the collection in a test and assert restored state still points
 at the same item.
 
-**3.7 <PROJECT_SPECIFIC_HONESTY_RULE>.** <Add yours here as they are learned.
+**3.7 A swallowed exception is judged by what the CALLER now believes.** The
+question is never "is this handler reasonable here"; it is "what does the code
+one level up conclude from the value this handler returned". A handler that
+returns an empty list makes the caller print "no problems"; one that returns the
+previous value makes the caller render stale data as current. Decide the
+caller's belief first, then write the handler that produces it. *Check:* for
+every broad `except`/`catch` in the diff, write the sentence the caller will now
+say out loud. If that sentence is not true, the handler is the defect.
+
+**3.8 A boolean named for an observation must not be consumed as a
+conclusion.** `saw_no_errors`, `file_missing`, `queue_empty` record what was
+observed; `is_healthy`, `never_ran`, `work_is_done` assert what is true. One is
+derived from a look that may not have happened. When an observation flag is read
+at a call site as though it settled the question, the failure is silent and
+total. *Check:* grep the flag's call sites. Any use where a failed or skipped
+observation and a genuine negative produce the same branch is this class; split
+into three states (section 3.1) or rename the flag to what it actually saw.
+
+**3.9 An empty lookup is evidence of absence only if the query could have
+HIT.** A search against the wrong namespace, an unmigrated table, a path that
+does not exist, or an identifier scheme the store never used returns zero rows
+and looks exactly like "there is nothing there". Absence is only meaningful
+against a query proven capable of a positive. *Check:* every "nothing found"
+branch is paired with a positive control - a test that the same query shape
+returns a known row from the same source. Without the control, report unknown.
+
+**3.10 A probe that cannot reach its subject returns UNKNOWN, never a claim
+about the subject.** Unreachable, timed out, not installed, no permission: each
+is a fact about the probe, not about the thing probed. Reporting "not running"
+because the check could not connect converts a broken instrument into a
+diagnosis. **The mirror is equally binding:** an empty answer from a source that
+WAS reached is a real answer and must not be downgraded to unknown, or every
+true negative disappears into noise. *Check:* two tests per probe - subject
+unreachable yields unknown; subject reachable and genuinely empty yields the
+empty answer, distinctly.
+
+**3.11 A liveness or timeout budget is a measurement, and its timeout branch
+must not equal its absence branch.** A budget is set from the measured worst
+observed response plus headroom - never from a round number that felt generous,
+and never from the happy-path average. Cold start, first-load and
+contended-resource paths are part of the measurement. Separately: "the answer
+did not arrive in time" and "there is no answer" must land in different
+branches, because collapsing them turns a slow dependency into a confidently
+reported absence. *Check:* record the measured worst case beside the constant,
+and assert in a test that a timeout and a genuine empty produce different
+outcomes.
+
+**3.12 One root of trust per resource; a sentinel that means two things gets
+read as the safer one.** When two files, two flags or two fields can each
+answer "is this enabled / present / current", they will disagree, and the reader
+picks whichever it checked first. Likewise a single sentinel value pressed into
+two meanings - `0` for "off" and for "unset", `null` for "absent" and for "not
+yet computed" - is resolved by every reader in the direction that lets work
+continue. *Check:* name the one authoritative source in the code and make every
+other surface derive from it; give each meaning its own representable value.
+
+**3.13 Any sentence of the form "run this on the target machine" must name the
+automation channel that cannot carry it, or it is a defect in the plan.** A
+crew with access to a machine automates the work AND ships the result back; a
+plan that hands the owner a command has either found a genuine gap - which is
+then stated, with the channel that is missing - or has skipped the design step.
+The owner is asked to LOOK at a result, not to produce one. *Check:* grep plans,
+runbooks and guard messages for "please run", "on the box", "you will need to",
+and for each hit either name the channel and the reason it cannot carry the
+work, or automate it.
+
+**3.14 A one-time or migration script exits non-zero on every path where the
+work did not complete.** Runners trust the exit code and stamp a success marker
+from it. A script that returns 0 from a dependency-absent skip, a
+nothing-to-do-yet branch, or a caught-and-logged failure is recorded as applied
+on every machine and never runs again - so the fix ships nowhere and the
+registry says it shipped everywhere. *Check:* enumerate the script's exit paths
+and assert the code for each; verify idempotency explicitly before trusting a
+re-run, because "safe to re-run" is a property nobody tested.
+
+**3.15 Bind every test double to the live signature of what it stands in for.**
+A fake written from the call site you just typed, rather than from the class it
+replaces, passes every test and every mutation, then raises on its first real
+call. Mutation testing cannot catch an invented API, because both the code and
+the double are wrong in the same direction. *Check:* build doubles against the
+real signature and the real field set, taken from the production definition at
+test time. The one-line smell test: a keyword argument that appears only at its
+own call site was invented.
+
+**3.16 A fixture that builds its own schema is a second implementation.** A
+hand-rolled record shape inside a test drifts toward whatever the test needs,
+and then the suite is green against a structure production does not produce.
+Import the production definition and construct from it. *Check:* no test
+declares the fields of a type the code under test owns.
+
+**3.17 A mutation anchor is unique, and the assertion it kills has nothing else
+to be true about.** An anchor matched in two places may edit the wrong one, and
+an anchor matched nowhere changes nothing while reading exactly like "the code
+is fine". Separately, an assertion satisfied by a longer name containing the
+short one, by an `or` branch, or by a second copy of the same string elsewhere
+in the output survives deletion of the thing it is named after. *Check:* assert
+the anchor occurs exactly once (count, not membership), and before accepting a
+red, ask what ELSE could make this assertion true and remove that too.
+
+**3.18 Test a guard through the seam that actually runs.** A test that calls the
+helper directly proves the helper works; it proves nothing about the caller that
+was supposed to consult it, and the common defect is a guard that is correct and
+unwired. *Check:* the regression test enters through the public path the
+incident came in on, with the guard's inputs arranged, not through the private
+function the fix happened to touch.
+
+**3.19 <PROJECT_SPECIFIC_HONESTY_RULE>.** <Add yours here as they are learned.
 Every entry names the check that catches the next one.>
 
 ---
@@ -168,6 +274,62 @@ like.>
 When one of these actually bites, it graduates: write the incident into
 `FAILURE_PATTERNS.md` with its check, and add the matching item to
 `SHIP_CHECKLIST.md`, in the same change.
+
+---
+
+## 4.5 Root cause, not repair
+
+Numbered 4.5 deliberately: it slots between the bug-class list and the style
+rules without renumbering anything that other documents cite.
+
+A repair makes this instance go away. A root cause explains why the instance
+was possible, and its fix removes the possibility. Five rules make the
+difference checkable rather than a matter of how thorough somebody felt.
+
+- **The whys are CHAINED.** Each level answers the previous level's *answer*,
+  not the original symptom. Five restatements of one observation is not an
+  analysis; it is the same sentence five times in different words.
+- **A level that names a person, a moment, or an amount of attention is not a
+  cause.** "It was missed in review", "the author was rushing", "nobody
+  noticed" are all the same non-cause: they describe who was standing there.
+  Keep going until the level names a property of the system - a missing gate, a
+  representable-but-invalid state, an interface that permits the wrong call.
+- **Start the chain at the earliest observable symptom**, not where it was
+  noticed. The place a failure surfaced is usually the last honest component in
+  the chain, and analysing from there produces a fix in the wrong module.
+- **Detection is luck and is listed under prevention, never under cause.** "It
+  was caught by an unrelated test" is a statement about fortune. The prevention
+  section says what would have caught it *deliberately*, and whether that check
+  now exists.
+- **An accepted limitation names WHO owns closing it and WHAT would close
+  it.** Without both, "accepted" is deferral wearing acceptance's name, and it
+  will be rediscovered as a new defect by somebody who was not in the room.
+
+*Check:* read the chain bottom-up. If the last level does not name something
+that could be changed in the codebase, the analysis stopped early.
+
+---
+
+## 4.6 Verification fires on events, not on doubt
+
+The cheapest checks are the most reliably skipped, because "I am fairly sure"
+is free and running the check is not. Doubt is the wrong trigger: it is highest
+where the work is unfamiliar and lowest where the work is routine, which is
+exactly backwards from where defects land. So each check is bound to a
+mechanical event in the work itself.
+
+| When this happens | This check runs, without being asked |
+|---|---|
+| You wrote a rule, guard or policy | Run it over the **whole existing population**, not the one case that prompted it. A rule is a claim about every member. |
+| You wrote a matcher, parser or classifier | Drive it with **one must-reject and one must-accept**. A matcher tested only on the case it was written for is a restatement of that case. |
+| You wrote a comment claiming a guarantee | Land the guarantee in the **same edit** - the assertion, the type, the test. A comment is not an enforcement mechanism. |
+| A fix failed twice | Re-diagnose the **model**, not the patch. Two failed attempts means the explanation is wrong; a third patch against the same explanation is a coin toss. |
+| A reviewer says something is already fixed | **Verify that claim too.** It has the same standing as any other unverified finding, and it arrives when you most want it to be true. |
+| You changed a derived or generated artifact by hand | Regenerate it with its tool and diff. A hand-edit that happens to be correct today still removes the generator as the source of truth. |
+
+*Check:* each row above is falsifiable in review - the reviewer can ask for the
+population run, the two matcher cases, or the re-diagnosis, and the absence of
+one is a finding rather than a preference.
 
 ---
 

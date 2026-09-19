@@ -288,6 +288,20 @@ The recurring shape is the derived artifact: appending one test that imports a
 new package can stale a generated matrix or shard map that passed ten minutes
 ago.
 
+**When the same derived-artifact drift recurs, it graduates out of the
+checklist.** A checklist item that is forgotten three times is not a discipline
+problem, it is a design telling you where the automation belongs: move the
+regeneration into a pre-commit hook or an on-mainline job so the stale state
+cannot be committed at all, and the class becomes impossible rather than
+remembered. The graduating hook **degrades to a warning, never blocks** -- a
+gate that can wedge a commit gets disabled within a week, and then nothing runs.
+The reciprocal rule is about repair cost: **a CI failure caused only by a
+derived artifact is repaired mechanically -- regenerate, push, re-gate on the
+cheap lane** -- never by re-running the full pyramid to re-prove code that did
+not change. Confirm the failure really is derived-only by reading which check
+failed and on which paths; a derived-file red beside a source-file red is a
+source-file red.
+
 ---
 
 ## 9. What the Reviewer rejects

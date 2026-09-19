@@ -48,7 +48,18 @@ In order. Each step exists because skipping it produced a measured failure.
    designated branch, this session adopts it (drive it to done per the
    transplant procedure's tail) or asks — it never opens a second one beside
    it, and never pushes while that PR's checks are running.
-8. **Survey the backlog** and answer the startup questions below. Only then
+8. **Vet the handoff against ground truth before acting on any of it.** The
+   previous session's wave report and any handoff document are *claims*, not
+   evidence — written by a session that could not see what happened after it
+   ended, and sometimes stale before it was saved. Every claim that would change
+   this session's behaviour is checked against the repository, CI and the merge
+   log: does that branch still exist, did that PR merge, is that blocker still
+   blocking, does that file still say what the report says it says. **Trust the
+   repo over the doc**, and correct the doc where they disagree. A measured
+   case: a session spent its opening hour working around a blocker the report
+   described, which had been resolved by the merge immediately after the report
+   was written.
+9. **Survey the backlog** and answer the startup questions below. Only then
    dispatch.
 
 ## 2. Startup questions
@@ -101,7 +112,22 @@ A close is a procedure, not an exit. In order:
    The report is the handoff; anything only in this session's memory is lost
    by design, so the report is written as if the author will never be asked a
    follow-up.
-7. **Escalations left open are surfaced, not abandoned.** Every unanswered
+   **The report supersedes and deletes its predecessor.** One current copy
+   exists, at one path — the previous wave's report is replaced, not archived
+   beside it under a dated name. Two reports that both look current is how a
+   session reads the older one and acts on a picture that is two waves out of
+   date; if something in the old report must survive, it is carried forward into
+   the new one, which is also the moment it gets re-vetted (section 1, step 8).
+7. **Every standing directive the engineer issued this session is written into
+   the rules or the config, in the same working chunk it was issued.** A
+   directive that exists only in the conversation is a bug: the session that
+   heard it ends, and the next one re-learns the rule by breaking it. "Written
+   down" means the binding surface — `RULES.md` (or the host's equivalent) for a
+   rule, `.wall/config/wall.json` for a threshold, a `DEC-NNNN` for a ruling —
+   never the wave report alone, which is a handoff and not an authority. Doing
+   it at session close is too late; the rule is "same chunk", and this step is
+   the audit that it happened.
+8. **Escalations left open are surfaced, not abandoned.** Every unanswered
    `human_required` ask appears in the wave report's top section with what it
    blocks, so the engineer sees the queue without opening the wall.
 

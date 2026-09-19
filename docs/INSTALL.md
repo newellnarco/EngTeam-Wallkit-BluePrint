@@ -263,6 +263,34 @@ remote one is strictly longer.
 `wall verify`, `doctor_checks`, and the SessionStart detection. It returns
 `None` for "cannot tell", never `0` and never a guess.
 
+### The two-cadence split, for any job with a metered half
+
+A periodic job that has a **free local half** and a **metered remote half** --
+rendering a view locally versus reconciling against a hosted service's API --
+is split into two cadences rather than run whole on the fast one. The local half
+runs **every tick**, offline-safe, zero API calls, so the surface a human opens
+is always current even with no network. The metered half runs only when the
+subject **actually moved** (a real fetch landed, a head advanced, a state
+changed), and never on a no-op tick.
+
+Three properties make the metered half safe to leave running unattended:
+
+- **A minimum interval batches bursts.** Ten merges in four minutes are one
+  sweep, not ten. The interval is configuration, not a constant somebody tuned
+  once.
+- **A sentinel range, not a sentinel point.** The job records the last point it
+  successfully swept **to**, and the next run sweeps from there. A skipped or
+  failed sweep leaves the sentinel untouched, so the next real run covers the
+  missed range automatically -- self-healing, with no retry loop.
+- **A within-interval skip is a skip, not a failure.** It does not advance the
+  sentinel and it does not retry; retrying every tick against an exhausted quota
+  is how a helpful sync job becomes the reason the quota is exhausted. Measured
+  in the reference deployment: a two-minute sweep sharing the owner's API token
+  consumed the hour's budget, and splitting the cadences ended it.
+
+The same shape applies to any partner-metered periodic work -- issue sync,
+status mirroring, dashboard reconciliation -- not only to the ledger.
+
 ---
 
 ## The failure mode to design for

@@ -135,6 +135,22 @@ wall live and course-corrected twice mid-wave, so the snapshot is part of the
 loop, not decoration). Write it atomically, then run Courier so the wall reflects
 the transition immediately; the timer is the fallback, not the trigger.
 
+Two rules about what a report costs:
+
+- **Report in TRANSITIONS, not narration.** A line earns its place by recording
+  a state change -- dispatched, merged, blocked, answered. Prose about work that
+  is still in progress buys nothing the wall does not already carry, and it is
+  paid for on every cycle by every reader. If a bullet would still be true next
+  cycle, it is not a transition.
+- **Never commit or push an in-flight builder's working-tree files -- including
+  when a hook demands it.** A stop hook or a tidy-the-tree prompt that wants
+  everything committed is asking this session to ship unvalidated mid-build work
+  past the owning unit's own gate, under this session's identity, with no
+  mutation evidence and no gates run. **Decline, and say why in the report**, so
+  the refusal is visible rather than looking like a hook that silently did not
+  fire. Measured: one such hook-driven commit carried a builder's half-finished
+  surface into a pull request nobody had reviewed.
+
 ---
 
 ## 7. Degrade paths

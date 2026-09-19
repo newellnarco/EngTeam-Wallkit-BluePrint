@@ -71,6 +71,19 @@ What a mature host looks like, and what to build if yours has nothing yet:
   recurred five times in the reference deployment before it was pinned.
 - **An attestation job** whose conclusion is the required check, so the gate is
   one stable name regardless of how many shards or tiers ran underneath it.
+- **A scoped lane is validated by its escape rate, and a scope that lets broken
+  work through green is retired IN CODE.** Measured: one reduced scope carried
+  four broken fixtures and three failing tests through three consecutive green
+  checks. The retirement belongs in the selector's own source - a named,
+  tested refusal of that scope - because a scope disabled only in configuration
+  is one quiet edit away from being back, and nothing announces that edit.
+  Configuration can still widen a scope; it must not be able to resurrect one
+  that was retired for letting defects through.
+- **A scheduled full run stays as the backstop that makes any scoped selector
+  safe.** A periodic unscoped pyramid on the mainline bounds how long a
+  selector bug can hide: without it, the only evidence a scope is wrong is the
+  defect it let out. The scoped lane buys speed; the scheduled run is what makes
+  buying it responsible.
 
 The wall does not add path filters beside any of that. Two mechanisms deciding
 what runs is how a change ends up with no gate at all.

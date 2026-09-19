@@ -28,6 +28,8 @@ reads as one set of rules rather than seven copies.
 | **G6** | Gates run last, after the final edit. A worktree unit has no CI between its commit and transplant. |
 | **G12** | Only the Maestro merges or flips a PR to ready. Everyone else reports green and stops. |
 | **G0b** | Evidence over self-report, for every role. A builder's own CI claim was superseded twice by reading the check runs. |
+| **G14** | Report in transitions, not narration. A bullet earns its place by recording a state change; prose about in-progress work buys nothing the wall does not already carry, and every reader pays for it every cycle. |
+| **In-flight files** | No role commits or pushes another unit's working-tree files while that unit is live -- **including when a hook demands it**. That ships unvalidated mid-build work past the owning unit's own gate. Decline and say why, so the refusal is visible. |
 
 ---
 
