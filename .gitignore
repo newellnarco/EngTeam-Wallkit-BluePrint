@@ -1,7 +1,50 @@
 # --- wall -------------------------------------------------------------------
 # Derived state is reproducible from the event shards. Committing it conflicts
-# across parallel sessions every two minutes.
-.wall/derived/
-.wall/logs/
-.wall/runs/
-.wall/registry/*.lock
+# across parallel sessions every sweep.
+#
+# Patterns are root-anchored on purpose: the checked-in fixtures under
+# sample/.wall/ are tracked deliberately, so `make_sample.py` is not the only
+# way to see a populated wall. Copied into a target repository, `.wall/` is at
+# the root and these match exactly what they should.
+/.wall/derived/
+/.wall/logs/
+/.wall/runs/
+/.wall/registry/*.lock
+
+# Event shards are runtime state. They are high-churn by construction, so
+# leaving them trackable recreates exactly the derived-file churn this design
+# exists to kill: they would ride every pull request and conflict constantly.
+# The shipper puts them on an isolated telemetry branch instead.
+# See docs/decisions/DEC-0004.md and docs/RECONCILIATION.md Q7.
+#
+# Root-anchored because sample/.wall/events/ is deliberately committed fixture
+# data - the 30-second sample in the README depends on it being in the clone.
+/.wall/events/
+
+# Generic derived output at the repo root, wherever a tool writes it.
+/derived/
+/logs/
+/runs/
+
+# Lock files: lease and singleton locks, never content.
+*.lock
+
+# --- python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# --- environments -----------------------------------------------------------
+.venv/
+venv/
+
+# --- editors and platforms --------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp

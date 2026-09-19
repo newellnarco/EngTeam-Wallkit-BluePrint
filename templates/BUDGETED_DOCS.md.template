@@ -1,0 +1,100 @@
+<!--
+TEMPLATE: BUDGETED_DOCS.md
+WHAT THIS IS  The register of documents that are fed into model prompts, each
+              with a declared budget, a measuring command, and the last
+              measured headroom.
+WHY IT EXISTS A standards file that grows past a reviewer's context limit takes
+              every review down with it, and the growth arrives from several
+              units at once (docs/RECONCILIATION.md, G10 "the context-budget
+              ratchet is real").
+HOW TO USE    Copy to the repo root as BUDGETED_DOCS.md. Add a row for every
+              document any tool loads into a prompt. Fill every <PLACEHOLDER>.
+              Re-measure and update the row in the SAME change that grows a
+              counted document - that requirement is part of the definition of
+              done.
+-->
+
+# BUDGETED_DOCS.md
+
+> Any document that feeds a model prompt declares a budget and carries its last
+> measured headroom. Referenced by `CLAUDE.md` and by `SHIP_CHECKLIST.md`
+> section G.
+
+---
+
+## Why this exists
+
+A context document is not free. Some of them are loaded automatically:
+
+- by agent sessions, as standing instructions;
+- by hosted review tools, as custom instruction files;
+- by in-repository tooling that builds prompts from files on disk.
+
+Each consumer has a hard limit. When a document crosses it, the consumer does
+not degrade - it **fails**, and it fails on whatever change happened to be in
+flight, which is usually not the change that grew the document.
+
+Growth is also distributed: several units in a wave each add a paragraph to the
+same counted section, none of them large, and the sum crosses the line. That is
+why the budget lives in a register rather than in anyone's head.
+
+---
+
+## The register
+
+| Document | Consumer | What is counted | Budget | Last measured | Headroom | Measured on |
+|---|---|---|---|---|---|---|
+| `<PATH_TO_DOC>` | <WHICH_TOOL_OR_SESSION_LOADS_IT> | <whole file / named sections> | <LIMIT_WITH_UNITS> | <MEASURED_VALUE> | <REMAINING> | <YYYY-MM-DD> |
+| `<PATH_TO_DOC>` | <CONSUMER> | <SCOPE> | <LIMIT> | <MEASURED> | <REMAINING> | <YYYY-MM-DD> |
+
+Units are whatever the consumer actually limits - characters, tokens, bytes.
+Record the unit, not a conversion; a converted number is an estimate wearing a
+measurement's clothes.
+
+---
+
+## Measuring
+
+```
+<BUDGET_CHECK_COMMAND>
+```
+
+Requirements for that command:
+
+- It reports the **measured** number, not a pass/fail alone. The number is what
+  goes in the table.
+- It is runnable locally and in CI, with the same result.
+- It fails when a document exceeds its budget, and **warns** when headroom
+  falls below <WARNING_THRESHOLD>.
+- It reads the budgets from one place - this file, or a configuration file this
+  file points at - so the register and the gate cannot disagree.
+
+---
+
+## Rules
+
+1. **Grow a counted document, measure it in the same change.** Record the new
+   number in the table and in the change's report. "It is only a paragraph" is
+   how the ratchet works.
+2. **A warning is a finding, not a note.** Below the threshold, either trim in
+   the same change or file the trim as a work item with an owner.
+3. **Carving out beats trimming prose.** When a document is mostly reference
+   material that agents look up rather than read, move that material to a
+   separate file and link it. The reference stays; the prompt shrinks.
+   *(The reference deployment carved a large index table out of its entry-point
+   document for exactly this reason, and added a size test so the table could
+   not drift back.)*
+4. **Ratchet the size.** Once a document is trimmed, add a test that fails if
+   it grows past the new ceiling. Without the ratchet, the next wave refills it.
+5. **A new prompt-loading tool adds a row.** If you teach something to read a
+   document into a prompt, that document is now budgeted.
+
+---
+
+## History
+
+Append a line whenever a budget or a ceiling changes, with the reason.
+
+- `<YYYY-MM-DD>` - <document> budget set to <VALUE> because <REASON>.
+- `<YYYY-MM-DD>` - <document> trimmed from <BEFORE> to <AFTER>; ratchet test
+  added at <CEILING>.

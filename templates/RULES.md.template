@@ -1,0 +1,199 @@
+<!--
+TEMPLATE: RULES.md
+WHAT THIS IS  The binding rules for this repository, in two parts: hard rules
+              the owner writes, and operating rules the crew follows.
+WHY IT EXISTS Rules buried inside a changing status document get skimmed and
+              drift; carving them out is what keeps them readable and citable
+              (docs/RECONCILIATION.md Part 3, "the context documents that make
+              the next wave start where the last one ended").
+HOW TO USE    Copy to the repo root as RULES.md. Part 1 is YOURS - write the
+              hard rules in your own words and delete the sample ones you do
+              not want. Part 2 ships mostly as-is: those rules are measured
+              failure responses, not preferences. Replace every <PLACEHOLDER>.
+-->
+
+# RULES.md - the binding rules for <PROJECT_NAME>
+
+> **Meta-rule.** Part 1 changes only when the owner changes it, in writing, in
+> this file. An agent may *propose* a change by opening a question; it may
+> never edit Part 1. Part 2 changes when a measured failure teaches us
+> something, and every change cites the incident.
+
+---
+
+# Part 1 - the hard rules
+
+These are inviolable. A change that violates one is not a tradeoff to discuss;
+it is work to throw away. Keep the list short enough to memorize.
+
+**1. <RULE_TITLE>.** <One paragraph. State the rule, then the single sentence
+that says why it exists. Example shape: "Everything runs locally by default.
+A remote call is a deliberate, named, reversible exception - because the thing
+we are protecting is <WHAT>.">
+
+**2. <RULE_TITLE>.** <...>
+
+**3. Honest state.** A component reports ready, ok, or available only at its
+genuine capability. A stub says it is a stub, in the data and on the screen. A
+failed or malformed read is never rendered as a healthy zero. Silence is not
+success.
+
+**4. Provenance on every claim.** <Anything the system asserts carries where it
+came from and how confident it is. Adjust to your domain or delete.>
+
+**5. Reversibility.** Every automated change ships with the way to undo it: a
+flag that disables it, a documented rollback, or both. A change that cannot be
+reversed needs the owner's explicit say-so before it lands.
+
+**6. <RULE_TITLE>.** <...>
+
+*(Add or remove rules freely. Six to twelve is the range that stays read.)*
+
+---
+
+# Part 2 - operating rules
+
+These govern how work moves. They came from measured failures; each cites one.
+
+## 2.1 One pull request in the pipeline at a time
+
+Work is built in parallel; it is **integrated in series**. One designated
+branch, one open pull request, one set of checks running.
+
+- Do not push to a branch whose checks are still running. A push cancels the
+  in-flight run and restarts the meter.
+- Do not open a second pull request while one is in review or in CI.
+- Units built in parallel are **transplanted** onto the moved base one at a
+  time, in the merge order the coordinator sets.
+
+*Why:* concurrent heads cancel each other's runs and burn the review lane's
+quota with nothing to show. The reference deployment measured eleven cancelled
+runs across seventy-seven minutes on a single pull request before adopting this.
+
+## 2.2 Identity is per-invocation, never shared configuration
+
+**Agents never write `git config`.** Repository-level git configuration is
+shared mutable state: one agent's write lands on another agent's in-flight
+commit.
+
+Every commit sets identity on the invocation instead:
+
+```
+git -c user.name="<AGENT_DISPLAY_NAME>" -c user.email="<AGENT_EMAIL>" commit ...
+```
+
+or the equivalent `GIT_AUTHOR_NAME` / `GIT_AUTHOR_EMAIL` /
+`GIT_COMMITTER_NAME` / `GIT_COMMITTER_EMAIL` environment variables.
+
+The same rule covers every other shared mutable surface in a shared tree:
+**temp files are keyed by agent key** (`commitmsg-<agent_key>.txt`, not
+`commitmsg.txt`), and no agent reads a temp file it did not write.
+
+*Why:* observed directly - a configuration write changed a sibling's commit
+authorship, and a sibling overwrote a shared commit-message file between write
+and use, so a commit briefly carried the wrong unit's message.
+
+## 2.3 Merge authority is the coordinator's, and stays human-side
+
+Only the top-level session flips a pull request out of draft and merges it.
+Builders report green and stop.
+
+A check that reads green is not necessarily the check that gates the merge.
+Before merging, confirm the **name** of the green check is the one branch
+protection requires - a reduced or draft-scoped run can be green and still not
+be the full gate.
+
+*Why:* this caught two would-have-been-early merges in the reference
+deployment's first wave, both on draft-scoped checks that read green.
+
+## 2.4 Gates run last
+
+Static analysis, generated-file checks, budget checks and the test suite run
+**after** your final edit, not before it. A gate run before the last change
+proves nothing about what you are shipping.
+
+*Why:* a unit shipped a stale generated file exactly this way.
+
+## 2.5 Evidence over self-report
+
+Status comes from the repository, the tests and the checks - not from an agent
+describing itself. A run that claims it is working, past its deadline, with no
+terminal record, is **stale**, whatever it said about itself.
+
+Before accepting any agent's report of a check result, read the check.
+
+## 2.6 Scope is declared, and it is a ceiling
+
+Each unit of work declares its file surface before it starts and touches
+nothing outside it. Something worth fixing outside your surface is **filed**,
+not fixed. An out-of-scope fix is how two units collide in one tree.
+
+## 2.7 Questions escalate; they do not get guessed
+
+When a change requires a decision the brief does not contain, stop and raise a
+question against the item. Continue only on work that does not depend on the
+answer. Record the answer in the decision log - one file per ruling - so it is
+not re-litigated.
+
+## 2.8 Review threads have exactly one owner
+
+The unit that owns the pull request owns its review threads. The coordinator
+takes a thread only by telling that unit first.
+
+Verify a finding before accepting **or** declining it, and prove the
+disagreement when you decline - a reproduction, a counterfactual test, a
+citation. A suggested fix may be declined in favour of a better one that is
+shown to be better.
+
+*Why:* two agents sharing one platform identity answered the same review thread
+minutes apart, producing a contradictory double reply.
+
+## 2.9 Metered lanes are named, not waited on
+
+A review lane that is rate-limited, quota-exhausted or slower than
+<WAIT_BUDGET_MINUTES> minutes is **named in the report and proceeded past**.
+Never push an empty commit to re-trigger one; that spends the meter and pushes
+the window further out.
+
+The price of skipping a reviewer is that its job is now yours, in full: edge
+cases tested, every found defect regression-tested, every test mutation-checked
+(revert the fix, confirm the test fails, restore), and everything run locally
+before the push.
+
+## 2.10 Subagents do not schedule, and do not persist
+
+A subagent ends its run and reports. It does not register timers or check-ins:
+those fire into the parent session, so the agent that scheduled one waits
+forever while its wake-up wakes somebody else.
+
+Only the coordinator schedules. Persistence lives on disk, not in an agent.
+
+## 2.11 Definition of done
+
+A unit is done when all of these are true:
+
+- [ ] The acceptance in the brief is met, and demonstrated - not asserted.
+- [ ] Tests cover the new behaviour **and** its failure branch; each new test
+      is mutation-checked.
+- [ ] Every found defect has a regression test landing with its fix.
+- [ ] Nothing outside the declared file surface changed.
+- [ ] Generated or derived files are regenerated by their tool, never hand-edited.
+- [ ] If a budget-counted context document grew, its budget check was run and
+      the measured number recorded (see `BUDGETED_DOCS.md`).
+- [ ] Gates ran last and are green.
+- [ ] The wall reflects reality: the item's state, the pull request number, the
+      events.
+- [ ] <PROJECT_SPECIFIC_DOD_ITEM>.
+
+---
+
+## Appendix - environment seams
+
+Known ways this repository's environment bites agents. Add to it; every entry
+saves somebody an hour.
+
+- **<SEAM_NAME>** - <symptom> - <what to do instead>. Example shape: a working
+  copy created for isolation has no virtual environment, so anything resolving
+  an interpreter relative to the checkout fails phantom-ly; resolve
+  interpreters by injection instead.
+- <SEAM_NAME> - <symptom> - <what to do instead>.

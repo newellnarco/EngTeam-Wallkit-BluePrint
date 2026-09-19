@@ -1,113 +1,127 @@
 # OPEN_QUESTIONS.md
 
-Decisions still needed before this becomes normative. Grouped by what they block.
+What is still undecided, and what has been decided so it is not relitigated.
+
+Settled entries are one line each, pointing at the record. The reasoning lives
+in `docs/RECONCILIATION.md` Part 1 and, for the ones with lasting consequences,
+in `docs/decisions/`.
 
 ---
 
-## Blocking: verify the repo structure
+## Open
 
-Everything in `WALL_STANDARDS.md` marked *(inferred)* was reconstructed from the
-five `max3-*` skill files, not from reading the tree. GitHub blocks automated
-fetching and the local checkout was not reachable from the design session.
+Nothing. The sixteen questions the kit was designed around are all answered.
 
-| # | Question | Blocks | How to answer |
-|---|---|---|---|
-| 1 | Is `tools/` shipped to users, or repo-only? | Where `tools/wall/` lives | `git ls-files tools/` |
-| 2 | Does root `pyproject.toml` scope `backend/`, or the whole repo? | Where `test_wall_integrity.py` lands | Read `pyproject.toml` |
-| 3 | Exact `TREE_INTEGRITY_LEDGER.txt` section format | Wall integrity test must match | First 40 lines |
-| 4 | Current workflow triggers | Writing `paths-ignore` + the no-op companion check | `.github/workflows/*.yml` |
-| 5 | `DROP_PROTOCOL.md` §5 verbatim | Arc→drop mapping | Read it |
+When a new one appears, add it here - the question, what it blocks, and how it
+would be answered - and **resolve it before it becomes a convention by
+default**. An unanswered question that work quietly routes around is how an
+assumption ends up built into six places at once.
 
----
-
-## Blocking: the ledger boundary
-
-**6. Do `.wall/config/**` and `agents.md` belong in `TREE_INTEGRITY_LEDGER.txt`?**
-
-Argument for: roster and config drift is exactly the kind of silent change the
-ledger exists to catch.
-
-Argument against: `agents.md` changes whenever an agent is claimed or released —
-far more often than a drop. Per-drop hashing may be too coarse, and a ledger that
-fails on every sweep trains you to ignore the one test that catches real drift.
-
-The honest alternative is treating the roster like leases: committed but
-unledgered. `WALL_STANDARDS.md` currently puts it **in** the ledger. Low
-confidence.
-
-**7. Does `.wall/` live in the MAX3 repo, or its own repo?**
-
-Inside MAX3 is simpler to install and co-locates the audit trail with the code it
-describes. A separate repo makes the cross-repo budget view honest but adds a
-second thing to keep in sync. Recommendation: start inside MAX3, split if a
-second project appears. Easier to choose now than to migrate the ledger later.
+Moving one out: write the one-line answer into Settled below, pointing at the
+record, and if it has lasting consequences give it a file in
+`docs/decisions/`.
 
 ---
 
-## Blocking: routing and gates
+## Settled
 
-**8. Fast-track destination — straight to main, or auto-merge PR?**
-Straight to main is faster and fewer minutes. Auto-merge PR keeps a uniform audit
-surface and survives branch protection cleanly. `max3-docs-push` currently merges
-to main.
+### Repository structure
 
-**9. Must an arc close with a drop, or can arcs close without shipping?**
-Determines whether `DROP_PROTOCOL.md` §5 fires on every arc completion.
+1. **Is `tools/` shipped, or repository-only?** Shipped - the reference
+   deployment *is* a clone, and the box runs scripts straight from the tree, so
+   `tools/wall/` is correct **and** is live one pull after merge.
+   RECONCILIATION Q1; `WALL_STANDARDS.md` section 1.
+2. **Does the root package manifest scope one directory or the whole
+   repository?** One root manifest, source under a single package directory, so
+   the wall's system test lands beside its siblings in the system tier.
+   RECONCILIATION Q2.
+3. **What is the integrity ledger's format?** There is no ledger file any more -
+   it was collapsed into a manifest derived from the tracked file list and
+   auto-synced per commit. RECONCILIATION Q3; `WALL_STANDARDS.md` section 2.
+4. **What are the workflow triggers?** No `paths-ignore`. A docs-only detect job
+   plus tier scoping by draft state, static literal job names, and an
+   attestation job whose conclusion is the merge gate. The kit defers to it.
+   RECONCILIATION Q4; `FAST_TRACK.md`.
+5. **Does a release protocol fire per arc?** Releases are historical; work ships
+   as named pull-request arcs. The shipping event carries the merged pull-request
+   number. RECONCILIATION Q5; `WALL_STANDARDS.md` section 4.
 
-**10. Researcher network access.** The original outline has researchers searching
-GitHub and the internet. The stated operating preference is local-only without
-permission. Needs an explicit allowlist, or researchers are scoped to repo and
-local docs. **Decide before the first run.**
+### The ledger boundary
 
----
+6. **Do configuration and the roster belong in the integrity ledger?**
+   Dissolved by 3 - every tracked file is covered automatically, so nobody
+   decides. RECONCILIATION Q6.
+7. **Does `.wall/` live in the target repository, and are shards committed?** In
+   the target repository, but shards are **gitignored** and ship to an isolated
+   telemetry branch via an isolated index. No pull request ever carries a shard.
+   RECONCILIATION Q7; `docs/decisions/DEC-0004.md`.
 
-## Blocking: cost shape
+### Routing and gates
 
-**11. Builder model tiering — keep all-Opus, or tier by task class?**
-All-Opus builders are roughly 3–5× a tiered scheme, and builders are the dominant
-cost line. Budget is advisory so this will not stop anything, but the history you
-accumulate will be dominated by whichever choice is in place when you start.
-Decide before real data lands.
+8. **Fast-track destination - default branch, or pull request?** A pull request,
+   always. Fast-track is a route, not a destination. RECONCILIATION Q8;
+   `docs/decisions/DEC-0005.md`.
+9. **Must an arc close with a release?** No. Arcs close without shipping
+   ceremony. RECONCILIATION Q9.
+10. **Researcher network access?** Config-gated, default `none`, with
+    `allowlist` and `session-default` available - and the Researcher states
+    which mode it ran under in its findings. RECONCILIATION Q10;
+    `docs/decisions/DEC-0006.md`.
 
-**12. Where do budget limits come from?**
-`.wall/config/wall.json` currently holds them as static numbers. Alternatives: a
-live quota call, or manual monthly entry. Affects how honest the Ledger tab is.
+### Cost shape
 
----
+11. **Builder model tiering?** Tier by task class. Measured: all-strongest-model
+    builders ran 400,000 to 720,000 tokens per unit, roughly three million
+    across six units. RECONCILIATION Q11; `docs/decisions/DEC-0007.md`.
+12. **Where do budget numbers come from?** Limits are static configuration;
+    **actuals come free from the harness** - tokens, tool uses and duration
+    arrive with every completion and are recorded into the `run_end` event.
+    Nothing is estimated for the dominant line. RECONCILIATION Q12;
+    `docs/decisions/DEC-0008.md`.
 
-## Non-blocking, worth deciding
+### Non-blocking
 
-**13. Name binding — role slot or agent instance?**
-Binding to a role slot means builder-1 is always Desmond, which is better for
-cross-session reporting and for talking about the crew naturally. Binding to the
-instance is more honest that subagent invocations share no memory. Current
-implementation binds to the instance and reuses names after release.
+13. **Name binding - role slot or instance?** Instance. Subagent invocations
+    share no memory, and slot binding presents continuity that does not exist.
+    RECONCILIATION Q13; `docs/decisions/DEC-0009.md`.
+14. **What serves the wall?** The host's server if it already has one - register
+    the kit's files with it; otherwise the kit's stdlib server. Either way, bind
+    `127.0.0.1` explicitly and send no-cache headers on the polled JSON.
+    RECONCILIATION Q14; `INSTALL.md`.
+15. **Frontend styling system?** Plain CSS with theme tokens. `theme.css` plus
+    `primitives.css` is the right shape; keep. RECONCILIATION Q15.
+16. **What are the real screens?** Sixteen or more panels, with the wall served
+    beside them as standalone HTML. The kit's wall is the generalization of that
+    page. RECONCILIATION Q16.
 
-**14. What serves `127.0.0.1:8123`?** A `.bat`, a PowerShell one-liner, something
-in the app? Needed to fold the server into the install adapter so the timer and
-the server come up together.
+### Settled during design
 
-**15. Frontend styling system.** Tailwind, CSS modules, styled-components? Decides
-whether `frontend/theme/primitives.css` is useful or noise. The token layer in
-`theme.css` works regardless.
-
-**16. What are MAX3's actual screens?** `preview.html` invents plausible ones.
-Real screens would test whether the type scale and density hold up.
-
----
-
-## Settled during design
-
-For the record, so they are not relitigated:
-
-- Courier is a script, not an agent. A model consolidating the ledger could
-  silently drop or paraphrase records; the audit trail must be reproducible.
+- Courier is a script, not an agent - a model in the merge path can silently
+  drop or paraphrase records, and the audit trail must be reproducible.
+  `docs/decisions/DEC-0001.md`.
 - Maestro is the top-level session, not a subagent, because subagents cannot
-  spawn subagents.
-- Event shards stay **out** of the tree-integrity ledger. They change by design
-  every minute.
-- `derived/` is gitignored. Committing it conflicts across sessions every two
-  minutes.
-- Keys are identity; names are reusable labels.
+  spawn subagents. Confirmed live. `docs/decisions/DEC-0002.md`.
+- Derived output is gitignored. Committing it conflicts across sessions every
+  sweep.
+- Keys are identity; names are reusable labels. `docs/decisions/DEC-0003.md`.
 - Budget is advisory. Nothing stops work.
-- Foreman runs Sonnet 5.
+- One machine-wide timer, not one per repository.
+  `docs/decisions/DEC-0010.md`.
+
+### Settled by the first live wave
+
+- Evidence outranks self-report, including an agent's report of its own checks.
+  `docs/decisions/DEC-0011.md`.
+- The Integrator is a first-class role - a hat a builder assumes - because the
+  transplant procedure drifted every time it was re-typed.
+  `docs/decisions/DEC-0012.md`.
+- Agents never write repository-level version-control configuration, and every
+  agent temp file is keyed by agent key. Both were observed corrupting a
+  sibling's work.
+- Subagents do not schedule. A check-in registered by a subagent fires into the
+  parent session.
+- Gates run last, after the final edit.
+- Merge authority stays with the coordinator, and the green check's **name**
+  must be the one branch protection requires.
+- Review threads have exactly one owner.
+- Prompt-loading documents carry a measured budget and a headroom warning.

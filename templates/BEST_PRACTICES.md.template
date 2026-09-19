@@ -1,0 +1,203 @@
+<!--
+TEMPLATE: BEST_PRACTICES.md
+WHAT THIS IS  The per-repository coding standards: one shared body of criteria
+              that the whole roster and any hosted reviewers read, so every
+              reviewer grounds its findings in the same rules.
+WHY IT EXISTS Three copies of a standard - in a role sheet, in a review
+              config, in somebody's head - drift, and then two reviewers
+              disagree for reasons neither can cite (docs/RECONCILIATION.md,
+              G7 "review-lane behavior needs a written posture per lane").
+HOW TO USE    Copy to the repo root as BEST_PRACTICES.md. Fill every
+              <PLACEHOLDER>. The honesty rules in section 3 ship as-is: each
+              one is a measured failure class, not a preference. Add to them
+              as your own classes appear; do not trim them to make a diff pass.
+              This file feeds model prompts - read section 0 before it grows.
+-->
+
+# BEST_PRACTICES.md - coding standards for <PROJECT_NAME>
+
+> The single body of criteria for this repository. Agents write to it,
+> reviewers judge against it, and a finding that cannot be traced to a rule
+> here (or to `FAILURE_PATTERNS.md`) is an opinion, which is allowed to lose to
+> a proven better answer.
+
+---
+
+## 0. This file is metered
+
+It is loaded into model prompts - by agent sessions, by hosted review tools that
+read instruction files, and by any in-repository tooling that builds prompts
+from disk. Each of those has a hard limit, and crossing it does not degrade the
+consumer, it **fails** it, on whatever change happens to be in flight.
+
+So this file carries a declared budget and a measured headroom, registered in
+[`BUDGETED_DOCS.md`](BUDGETED_DOCS.md).
+
+- **Budget:** <LIMIT_WITH_UNITS>, consumer <WHICH_TOOL_OR_SESSION>.
+- **Measure with:** `<BUDGET_CHECK_COMMAND>`.
+- **If you extend this file, measure it in the same change** and record the
+  number. Growth here arrives from several units at once, each adding a
+  paragraph, none of them large.
+- Reference material that agents look up rather than read belongs in its own
+  file with a link from here. Carving out beats trimming prose.
+
+---
+
+## 1. Scope and precedence
+
+Where two rules could both apply, this is the order:
+
+1. `RULES.md` - the owner's hard rules. Nothing here overrides them.
+2. `FAILURE_PATTERNS.md` - a registered class outranks a general principle,
+   because somebody already paid for it.
+3. This file.
+4. Local convention in the file you are editing. Match the surrounding code
+   rather than importing a style it does not use.
+
+A rule that is genuinely wrong for a case is **cited and argued**, not silently
+skipped. Record the outcome in `docs/decisions/` so the next change inherits it.
+
+---
+
+## 2. Architecture invariants
+
+The structural properties this codebase is arranged around. Each one is
+falsifiable - a reviewer can point at a line and say it is violated.
+
+- **<INVARIANT_NAME>.** <State it as a property, not an aspiration. Example
+  shape: "Module X never imports from module Y; the dependency runs one way and
+  a cycle is a design error, not a lint warning.">
+- **<INVARIANT_NAME>.** <...>
+- **<INVARIANT_NAME>.** <...>
+
+For each, say **how it is enforced**: a test, a lint rule, a review check, or
+"by convention only" - and prefer the first three, because an invariant with no
+gate is a comment.
+
+| Invariant | Enforced by |
+|---|---|
+| <INVARIANT_NAME> | <TEST_OR_LINT_OR_REVIEW> |
+| <INVARIANT_NAME> | <TEST_OR_LINT_OR_REVIEW> |
+
+---
+
+## 3. Honesty discipline
+
+These ship seeded because each is a measured failure class rather than a taste.
+They are all one idea in different costumes: **a surface must not be able to
+report something it did not establish.**
+
+**3.1 A status or diagnostic never returns green on an empty, failed or
+malformed read.** Three states, never two: **ok**, **problem**, **unknown**. A
+read that throws, times out, returns nothing, or returns something unparseable
+yields `unknown` and renders distinctly. Wrapping a read in a broad handler that
+returns an empty collection converts "could not look" into "looked, found
+nothing wrong" - and the failure becomes invisible exactly when it matters.
+*Check:* make the source unreadable in a test and assert the surface does not
+read green.
+
+**3.2 Honest absence, measured zero and failure are three different things.**
+"No records exist", "the measurement ran and the answer is 0", and "the
+measurement did not run" must be distinguishable in the data, not only in a log
+line. A renderer that maps all three to `0` is lying in two of the three cases.
+Carry the distinction in the type - an optional value, a status field, a
+sentinel that is not a number - and never let a default fill it in silently.
+
+**3.3 A fallback whose output can equal its input is not a fallback, for
+anything that produces variety.** If a generator of distinct values - names,
+keys, ids, sampled variants, colours, orderings - can fall back to a constant,
+the feature has two indistinguishable states: working, and not running at all.
+Either raise, or return something **visibly marked** as a fallback and record it
+as such. *Check:* empty the generator's source and assert it refuses or marks;
+then assert two successive calls against a populated source differ.
+
+**3.4 Two verbs that reach the same end state share the same preconditions.**
+If `archive()` and `close()` both end with the record closed, they validate the
+same things, emit the same records, and refuse in the same cases. A second path
+to a state is where the guard gets forgotten - one route checks permission and
+the other does not, and the difference is invisible until somebody takes the
+other route. *Check:* when you add a path to an existing state, list every
+existing path to it and diff their preconditions line by line.
+
+**3.5 Platform-varying spellings are derived in tests, never hardcoded.**
+Exception class names, path separators, line endings, locale-formatted numbers,
+temp directory layouts and error message text vary by platform and by version. A
+test asserting a literal spelling passes where it was written and fails
+somewhere else, which reads as a real defect and costs somebody an afternoon.
+Derive the expected value from the same source the code uses - catch the
+exception type rather than matching its name, join paths rather than writing a
+separator, compare parsed values rather than formatted strings.
+
+**3.6 Persisted positions use durable keys, never bare ordinals.** State that
+points into an ordered collection stores the identity of the thing - a name, a
+slug, a stable id - not index 7. An ordinal is meaningful only relative to a
+list that will be reordered, and when it is, nothing errors: the system simply
+resumes somewhere else. Where an ordinal must be kept for compatibility, version
+the state format and resolve key-first with the ordinal as a clamped fallback.
+*Check:* reorder the collection in a test and assert restored state still points
+at the same item.
+
+**3.7 <PROJECT_SPECIFIC_HONESTY_RULE>.** <Add yours here as they are learned.
+Every entry names the check that catches the next one.>
+
+---
+
+## 4. Recurring bug classes - check every diff for these
+
+Distinct from `FAILURE_PATTERNS.md`, which is the append-only registry of what
+already shipped and failed. This is the shorter working list a reviewer scans
+**every** diff against, whether or not the class has bitten this repository yet.
+
+**4.1 The sibling sweep.** A diff that adds a guard, validator, escaper or
+normalizer almost always leaves siblings behind. Grep the module for every call
+site with the same shape and confirm each one uses it. Reviewing only the lines
+in the diff is how a fix ships to one of four call sites.
+
+**4.2 The untested test.** A test that passes against the bug proves nothing -
+a probe sitting outside the code path, an assertion on a value the change cannot
+affect, a mock that answers before the logic runs. Revert the fix, confirm the
+test **fails**, restore. If it did not fail, the test is the defect.
+
+**4.3 <BUG_CLASS>.** <Symptom -> what to grep for -> what a clean diff looks
+like.>
+
+**4.4 <BUG_CLASS>.** <...>
+
+When one of these actually bites, it graduates: write the incident into
+`FAILURE_PATTERNS.md` with its check, and add the matching item to
+`SHIP_CHECKLIST.md`, in the same change.
+
+---
+
+## 5. Style and structure
+
+- **Naming:** <CONVENTION>.
+- **Module layout:** <CONVENTION>.
+- **Error handling:** <CONVENTION - and note that a broad catch that swallows is
+  section 3.1's failure, not a style choice>.
+- **Logging:** <CONVENTION - level meanings, what must never be logged>.
+- **Comments:** explain why, not what. A comment restating the line is
+  maintenance debt; a comment naming the constraint that made the line
+  non-obvious is the most valuable thing in the file.
+- **Dependencies:** <POLICY - what may be added, and who approves it>.
+
+---
+
+## 6. Before you push
+
+The full gate is [`SHIP_CHECKLIST.md`](SHIP_CHECKLIST.md); testing requirements
+are [`docs/TESTING_STANDARDS.md`](docs/TESTING_STANDARDS.md). This is the short
+list for a routine change:
+
+- [ ] Read the diff as a reviewer would, whole files rather than hunks - a
+      windowed view invents defects at its own edges.
+- [ ] Section 3 walked: nothing reports a state it did not establish.
+- [ ] Section 4 walked: sibling sweep done, every new test mutation-checked.
+- [ ] Nothing outside the declared file surface changed.
+- [ ] Derived and generated files regenerated by their tool, never hand-edited.
+- [ ] Tests meet [`docs/TESTING_STANDARDS.md`](docs/TESTING_STANDARDS.md).
+- [ ] **Gates ran last**, after the final edit: `<LINT_COMMAND>`,
+      `<TYPECHECK_COMMAND>`, `<TEST_COMMAND>`.
+- [ ] If this file or another budget-counted document grew, its budget was
+      measured and the number recorded (section 0).
+- [ ] You ran it. In this session. Not "should pass".

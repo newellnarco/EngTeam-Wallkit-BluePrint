@@ -1,0 +1,115 @@
+<!--
+TEMPLATE: CLAUDE.md
+WHAT THIS IS  The entry point every agent session reads first: what the project
+              is, where it stands today, and where the binding rules live.
+WHY IT EXISTS The wall kit assumes a session can orient itself in one file
+              without reading the tree (docs/WORKFLOW.md, "Dispatch").
+HOW TO USE    Copy to the repo root as CLAUDE.md, replace every <PLACEHOLDER>,
+              delete this comment block and any section that does not apply.
+              Keep it SHORT. This file is loaded into agent context on every
+              run and into some hosted reviewers' prompts - see
+              BUDGETED_DOCS.md before letting it grow.
+-->
+
+# CLAUDE.md - instructions for AI assistants working on <PROJECT_NAME>
+
+> If you are an agent writing or modifying code in this repository, read this
+> file before writing anything, then read [`RULES.md`](RULES.md) in full.
+> This file is the **entry point** - current state, roadmap, doc index.
+> It is **not** the rules; the rules are in `RULES.md` and change only by the
+> owner, in writing.
+
+---
+
+## Mandatory reading before any change
+
+1. [`RULES.md`](RULES.md) - the hard rules and the operating rules. Binding.
+2. [`FAILURE_PATTERNS.md`](FAILURE_PATTERNS.md) - append-only registry of bug
+   classes that already shipped and failed here. Check your change against it.
+3. [`SHIP_CHECKLIST.md`](SHIP_CHECKLIST.md) - the pre-ship gate. Walk every
+   item; gates run LAST, after your final edit.
+4. [`BUDGETED_DOCS.md`](BUDGETED_DOCS.md) - if you extend a budget-counted
+   context document, run its budget check and record the measured number.
+
+---
+
+## What this project is
+
+<ONE_PARAGRAPH: what the software does, who it is for, what it is NOT. Name the
+deployment shape - single process / service / library / site - and the one
+constraint that most often surprises people.>
+
+Canonical design document: <PATH_TO_DESIGN_DOC_OR_NONE>. If that document and
+this file disagree, this file is wrong; flag it.
+
+---
+
+## Current state
+
+**As of <YYYY-MM-DD>, at <BRANCH_OR_TAG>.**
+
+| Area | State |
+|---|---|
+| <SUBSYSTEM_1> | <lit / partial / stub / planned> - <one line> |
+| <SUBSYSTEM_2> | <lit / partial / stub / planned> - <one line> |
+| <SUBSYSTEM_3> | <lit / partial / stub / planned> - <one line> |
+
+Test counts: <N> <unit>, <N> <integration>, <N> <system>. Refreshed by
+<WHICH_COMMAND_OR_JOB>.
+
+### Shipped recently
+
+- **<ITEM_KEY>** - <one line: what landed, and the PR number>.
+- **<ITEM_KEY>** - <one line>.
+
+### In flight
+
+- **<ITEM_KEY>** - <what is open, who owns it, what unblocks it>.
+
+### Known issues, currently open
+
+- **<SYMPTOM>** - <cause if known; the workaround; the item key tracking it>.
+
+---
+
+## Roadmap
+
+The live work surface is the wall (`.wall/items/`, rendered at
+`.wall/derived/wall.html`). This section is the human-readable summary of it,
+not a second source of truth. When the two disagree, the wall is right.
+
+1. **<NEXT_ARC>** - <goal, and the acceptance that closes it>.
+2. **<FOLLOWING_ARC>** - <goal>.
+
+---
+
+## Doc index
+
+Every `.md` in this repository that an agent should know about. Add a row when
+you add a doc; a doc with no row here is a doc nobody will read.
+
+| Doc | Purpose |
+|---|---|
+| [`RULES.md`](RULES.md) | The binding rules. Hard rules plus operating rules. |
+| [`FAILURE_PATTERNS.md`](FAILURE_PATTERNS.md) | Bug classes that already cost us. |
+| [`SHIP_CHECKLIST.md`](SHIP_CHECKLIST.md) | Pre-ship gate. |
+| [`BUDGETED_DOCS.md`](BUDGETED_DOCS.md) | Which docs feed model prompts, and their budgets. |
+| [`docs/decisions/index.md`](docs/decisions/index.md) | Decision log. One file per ruling. |
+| <PATH> | <one line> |
+
+---
+
+## Conventions
+
+- **Branches:** <BRANCH_CONVENTION>. Every change rides a pull request.
+- **Commits:** <COMMIT_CONVENTION>.
+- **Item keys:** <KEY_CONVENTION, e.g. ARC-01 / ST-104 / BG-021>.
+- **Tests:** <WHERE_TESTS_LIVE> - <HOW_TO_RUN_THEM>.
+- **Lint and static gates:** <COMMANDS>.
+
+---
+
+## When you are unsure
+
+<ORDERED_FALLBACK: e.g. read RULES.md, then the decision log, then ask on the
+wall via a question event. Never guess and never widen your own scope.>

@@ -1,0 +1,195 @@
+<!--
+TEMPLATE: FAILURE_PATTERNS.md
+WHAT THIS IS  An append-only registry of bug CLASSES that have already shipped
+              here and failed, each with the check that catches the next one.
+WHY IT EXISTS Agents do not carry memory between runs, so the only defence
+              against paying twice for the same mistake is a document the next
+              run must read (docs/WORKFLOW.md, "Definition of done").
+HOW TO USE    Copy to the repo root as FAILURE_PATTERNS.md. The seeded entries
+              below are GENERAL classes observed while building agent crews;
+              keep the ones that can happen to you, delete the rest, and add
+              your own as they occur. Fill every <PLACEHOLDER>.
+              Append only. Never rewrite or reorder an existing entry - it is a
+              record of something already paid for.
+-->
+
+# FAILURE_PATTERNS.md
+
+> Append-only registry of bug classes that shipped and failed. Every entry is a
+> contract: check your change against this list before declaring it ready.
+> Referenced by `CLAUDE.md`; reading it is mandatory before a ship.
+
+## Format
+
+```
+ID            stable, never reused: F-<SCOPE>-<NNN>
+Title         one line
+Discovered    when and where it first hurt
+Symptom       what the failure looks like from outside
+Root cause    the actual mistake
+Check         the gate that catches the next one, automated where possible
+Command       the exact command, when there is one
+```
+
+Add an entry **and** the corresponding item in `SHIP_CHECKLIST.md` at the same
+time. An entry with no check is a story, not a defence.
+
+---
+
+## F-REVIEW-001 - a reviewer reports its own truncation boundary as a defect
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** An automated reviewer reports that a file is truncated,
+  malformed, or missing its closing block - at exactly the point where the diff
+  it was given stops. The file on disk is complete and parses.
+- **Root cause:** The reviewer's input is a windowed or truncated diff, not the
+  file. It has no way to distinguish "the content ends here" from "my view of
+  the content ends here", so it describes the edge of its own window as a
+  property of the code.
+- **Check:** Before accepting any "file is truncated / unterminated / missing"
+  finding, parse the file on disk and say so in the reply. Make the refutation
+  mechanical rather than a matter of opinion: a check that parses every
+  shipped script or source file turns this class into a passing gate instead of
+  a recurring argument.
+- **Command:** `<PARSE_ALL_SOURCES_COMMAND>` (e.g. a test that compiles or
+  parses every file of the affected type and fails if any does not).
+- **Note:** taught by the MAX3 reference deployment, where the same false
+  "truncated file" finding was refuted twice across consecutive pull requests
+  before the parse gate was added.
+
+---
+
+## F-IDENT-001 - a variety generator silently falls back to one identity
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** Something that is supposed to produce distinct values - names,
+  keys, colours, sampled variants, display labels - produces output that looks
+  fine but is the same value over and over, or one default value for every
+  caller. Nothing errors.
+- **Root cause:** The generator's real source (a registry, a pool, a config
+  list) was missing or empty, and the code fell back to a hardcoded default
+  instead of failing. A fallback that returns a *valid-looking* value hides the
+  fact that the feature is not running at all.
+- **Check:** Every fallback path in a generator either (a) raises, or (b)
+  returns a value that is visibly marked as a fallback and is recorded as such
+  in the output. Add a test that empties the source and asserts the generator
+  refuses or marks, rather than quietly succeeding. Then add a test that two
+  successive calls with a populated source differ.
+- **Command:** `<TEST_COMMAND_FOR_THE_GENERATOR>`
+- **Note:** the general case of any "silent default" - the failure is not the
+  default, it is that the default is indistinguishable from real output.
+
+---
+
+## F-GUARD-001 - a guard names a remediation it never performs or files
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** A check fails, logs a message of the form "run X" or "this
+  should be regenerated", and returns. Nobody runs X. The condition persists
+  for days and is discovered by a later, unrelated failure.
+- **Root cause:** The guard treats *naming* the remediation as doing something.
+  A message with no actor is not a remediation; it is a wish. Especially true
+  in an agent crew, where the reader of the log may be a process that is about
+  to exit.
+- **Check:** A guard that detects a fixable condition must do exactly one of
+  three things, and say which: **perform** the remediation, **file** it as a
+  tracked work item, or **fail** loudly enough to stop the pipeline. Review
+  every message containing "please run", "should be", or "consider" and
+  reclassify it.
+- **Command:** `<GREP_FOR_WISHFUL_GUARD_MESSAGES>` (e.g. grep the codebase for
+  the phrases above and audit each hit).
+- **Note:** MAX3's standing form of this rule is blunter - if a sentence of the
+  form "run this on the box" appears, name the channel that cannot carry the
+  work; if there is none, the sentence is a defect in the plan.
+
+---
+
+## F-STATE-001 - persisted ordinal instead of a durable key
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** After a release that inserts, removes or reorders items in an
+  ordered collection (a curriculum, a menu, a pipeline, a migration list),
+  saved state points at the wrong thing. Nothing errors; the system simply
+  resumes at a different place than it stopped.
+- **Root cause:** The state file stored a position - index 7 - rather than the
+  identity of the thing at that position. The ordinal is only meaningful
+  relative to a list that has since changed.
+- **Check:** Persisted references are durable identifiers: names, slugs,
+  stable ids. Where an ordinal must be kept for compatibility, version the
+  state format and write a loader that resolves name first, falls back to the
+  old ordinal, and clamps. Test the migration with a mutation: reorder the
+  collection in the test and assert the restored state still points at the same
+  item.
+- **Command:** `<STATE_ROUNDTRIP_TEST_COMMAND>`
+- **Note:** MAX3 hit this when a learning frontier persisted as a bare index
+  into a ladder that later gained a rung.
+
+---
+
+## F-STATUS-001 - status renders green on a failed or malformed read
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** A dashboard, health endpoint or status line shows ok, healthy,
+  or zero problems while the underlying source is unreachable, empty, or
+  unparseable. The failure is invisible precisely when it matters.
+- **Root cause:** The read is wrapped in a broad exception handler that returns
+  an empty collection or a default object, and the renderer treats "no problems
+  found" and "could not look" as the same state.
+- **Check:** Three states, never two: **ok**, **problem**, **unknown**. A read
+  that fails yields unknown and renders distinctly (and, for a polled surface,
+  stale past a threshold). Add a test that makes the source unreadable and
+  asserts the surface does NOT read green.
+- **Command:** `<STATUS_DEGRADE_TEST_COMMAND>`
+- **Note:** the sibling of F-SCHED-001 below - both are "absence of signal read
+  as absence of problem".
+
+---
+
+## F-IDENT-002 - shared mutable version-control configuration between agents
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** A commit carries the wrong author, or a commit message belonging
+  to a different unit of work. Sometimes only one commit in a series.
+- **Root cause:** Repository-level version-control configuration and shared
+  scratch files are global to the working tree. One agent writing
+  `git config user.*`, or a well-known temp filename, lands on a sibling's
+  in-flight operation. File leases protect *files*; they do not protect the
+  tree's shared mutable settings.
+- **Check:** Agents never write repository configuration. Identity is set per
+  invocation (`git -c user.name=... -c user.email=...` or the
+  `GIT_AUTHOR_*` / `GIT_COMMITTER_*` environment variables), and every temp
+  file is keyed by agent key. Grep the crew's instructions and tooling for
+  `git config` and for unkeyed temp filenames.
+- **Command:** `<GREP_FOR_GIT_CONFIG_WRITES>`
+- **Note:** observed directly during MAX3's first multi-agent wave, on a pull
+  request whose first commit took a sibling's identity.
+
+---
+
+## F-SCHED-001 - a silent scheduled lane is indistinguishable from a quiet one
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** A timer, cron entry, scheduled job or background loop stops
+  firing. Nothing reports an error, because nothing runs to report one. The
+  surface it feeds keeps showing its last value, which looks exactly like a
+  calm period.
+- **Root cause:** The design has a success signal and a failure signal but no
+  **liveness** signal. Absence of events is ambiguous between "healthy and
+  idle" and "dead".
+- **Check:** Every scheduled lane writes a heartbeat on every run, successful
+  or not; every surface fed by one renders the heartbeat's age and goes
+  visibly stale past a threshold; and something checks that age on session
+  start and surfaces it rather than letting a frozen view be read as truth.
+- **Command:** `<HEARTBEAT_AGE_CHECK_COMMAND>`
+- **Note:** this is the failure mode the wall kit's courier heartbeat and the
+  wall's `generated_at` staleness rule exist to make impossible.
+
+---
+
+## <F-SCOPE-NNN> - <next class, appended when it happens>
+
+- **Discovered:** <YYYY-MM-DD>, <PR_OR_ITEM>
+- **Symptom:** <what it looked like>
+- **Root cause:** <the actual mistake>
+- **Check:** <the gate that catches the next one>
+- **Command:** <the exact command>

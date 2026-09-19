@@ -2,10 +2,11 @@
 
 A route for doc-only changes: no CI, no reviewer dispatch, fewest GitHub minutes.
 
-**This is not a new concept.** `max3-docs-push` already classifies changed files
-into doc and source buckets and blocks on source. Fast-track promotes that rule
-from skill prose into config so Courier, CI and the agents read one definition
-instead of three copies drifting apart.
+**This is not a new concept.** Most repositories already classify changed files
+into doc and source buckets somewhere - a push script, a skill, somebody's head -
+and block on source. Fast-track promotes that rule from prose into config so the
+courier, CI and the agents read one definition instead of three copies drifting
+apart.
 
 ---
 
@@ -15,16 +16,15 @@ Routed on the changed file set alone, computed from `git diff --name-only`.
 **Never asserted by an agent.** If agents can self-declare their route, every
 builder eventually discovers that calling its work a doc skips the gates.
 
-- Every path matches the allow list → fast-track.
-- Any path falls outside it → full track.
+- Every path matches the allow list -> fast-track.
+- Any path falls outside it -> full track.
 
 No mixed mode, no partial credit.
 
 ```json
 {
   "fast_track": {
-    "allow": ["**/*.md", "docs/**/*.docx", "TREE_INTEGRITY_LEDGER.txt",
-              "MANIFEST.sha256"],
+    "allow": ["**/*.md", "docs/**/*.docx", "MANIFEST.sha256"],
     "deny":  ["frontend/src/**", "backend/**/*.py", "**/*.bat", "**/*.ps1",
               ".github/workflows/**", "tools/**", ".wall/config/**",
               "**/CLAUDE.md"]
@@ -34,35 +34,53 @@ No mixed mode, no partial credit.
 
 **Deny beats allow, always.** Three entries are worth defending:
 
-- `.github/workflows/**` — a builder editing CI to turn its own tests green is
+- `.github/workflows/**` - a builder editing CI to turn its own tests green is
   the classic escape hatch. It is code.
-- `**/CLAUDE.md` — it matches `**/*.md`, so the allow glob would fast-track it,
+- `**/CLAUDE.md` - it matches `**/*.md`, so the allow glob would fast-track it,
   but it changes the behavior of every future agent. It is code.
-- `tools/**` — wall tooling can corrupt the ledger. Not a doc.
+- `tools/**` - wall tooling can corrupt the ledger. Not a doc.
 
-Mixed changesets **split** rather than get an exception, which is what
-`max3-docs-push` already tells the user to do. `wall fast-track` offers the
+Mixed changesets **split** rather than get an exception, which is what a good
+push routine already tells you to do by hand. `wall fast-track` offers the
 split: stage the doc-only subset, fast-track it, leave the rest on the full track.
 
 ---
 
-## Skipping CI without lying about it
+## CI scoping belongs to the host repository
 
-The cheapest skip is the one where the run never starts. Path filters beat
-`[skip ci]` in the commit message, because with `paths-ignore` GitHub does not
-queue a job at all — zero minutes, and no queued-then-cancelled noise.
+**This section used to specify the plumbing. It no longer does.** The original
+design was `paths-ignore` on the documentation globs, plus a companion workflow
+on the inverse paths reporting the same check name so branch protection would
+not block forever on a check that never ran. That design is **superseded**
+(`docs/RECONCILIATION.md` Q4): the reference deployment does not use
+`paths-ignore` at all, and what it does instead is both cheaper and harder to
+get wrong.
 
-```yaml
-on:
-  push:
-    paths-ignore: ['**/*.md', 'docs/**', '.wall/events/**']
-```
+What a mature host looks like, and what to build if yours has nothing yet:
 
-**The catch:** a required status check that never runs blocks the merge forever
-under branch protection. Pair the filter with a companion workflow on the
-*inverse* paths that does nothing but report success under the same check name.
-It runs in a few seconds and unblocks the merge honestly, rather than you
-disabling protection or force-merging.
+- A **detect-docs-only job** that computes the change class from the file set,
+  in the workflow rather than in a filter.
+- **Tier scoping by state** - a draft head runs a reduced but honest set of
+  tiers; marking ready fires the full pyramid.
+- **Static literal job names.** A skipped job's name is rendered before most
+  contexts exist, so a name computed from an expression renders as raw
+  expression text, and a merge gate matching on name cannot find it. That class
+  recurred five times in the reference deployment before it was pinned.
+- **An attestation job** whose conclusion is the required check, so the gate is
+  one stable name regardless of how many shards or tiers ran underneath it.
+
+The wall does not add path filters beside any of that. Two mechanisms deciding
+what runs is how a change ends up with no gate at all.
+
+**What the wall contributes instead** is the classification above - one
+definition of the route, read by the courier, the agents and any host job that
+wants it - and the honesty rule that goes with it: the route is computed from
+the file set and is never asserted by the agent doing the work.
+
+One consequence to carry into every merge: a reduced or draft-scoped run can
+report green without being the gate. Confirm the **name** of the green check is
+the one branch protection requires before merging. That check caught two
+would-have-been-early merges in a single wave.
 
 ---
 
@@ -92,7 +110,7 @@ against the old version, and fast-track gives no signal.
 
 Cheap fix without breaking the fast path: fast-track as normal, but if the path
 matches `docs/architecture/**` or `docs/decisions/**`, also emit a `doc_impact`
-event naming the affected arcs. No review, no CI, no delay — one event write,
+event naming the affected arcs. No review, no CI, no delay - one event write,
 surfaced on the wall as a flag for the Foreman to raise.
 
 ---
@@ -110,8 +128,18 @@ the wrong route you want the matching rule named, not to reverse-engineer globs.
 
 ---
 
-## Open
+## Settled: the destination is a pull request
 
-Straight to main, or a PR that auto-merges once the no-op check reports? Straight
-to main is faster and fewer minutes; auto-merge PR keeps a uniform audit surface
-and survives branch protection cleanly. `max3-docs-push` currently merges to main.
+Straight to the default branch was the cheaper option and it lost. Fast-track is
+a **route**, not a destination: every change rides a pull request, opened as a
+draft under the owner's identity, merged by the coordinator once the scoped
+checks are green (`docs/decisions/DEC-0005.md`).
+
+A uniform audit surface is worth more than the seconds saved - one procedure to
+learn, one place to look for what happened, and nothing special to remember when
+a change turns out to be less doc-only than it looked. It also survives branch
+protection cleanly, which the direct-push route does not.
+
+What fast-track still saves is most of the cost: no reviewer dispatch, no
+architect sign-off, no test authoring, and whatever CI reduction the host's own
+scoping gives a documentation change.
