@@ -95,6 +95,8 @@ you add a doc; a doc with no row here is a doc nobody will read.
 | [`RULES.md`](RULES.md) | The binding rules. Hard rules plus operating rules. |
 | [`FAILURE_PATTERNS.md`](FAILURE_PATTERNS.md) | Bug classes that already cost us. |
 | [`SHIP_CHECKLIST.md`](SHIP_CHECKLIST.md) | Pre-ship gate. |
+| [`docs/ENGINEERING_STANDARD.md`](docs/ENGINEERING_STANDARD.md) | The method: root cause to requirement to test to code, the done-definition, the Bindings zone. |
+| [`OWNER_DECISIONS.md`](OWNER_DECISIONS.md) | What is off on purpose, and the irreversible-surfaces register. |
 | [`BUDGETED_DOCS.md`](BUDGETED_DOCS.md) | Which docs feed model prompts, and their budgets. |
 | [`docs/decisions/index.md`](docs/decisions/index.md) | Decision log. One file per ruling. |
 | <PATH> | <one line> |

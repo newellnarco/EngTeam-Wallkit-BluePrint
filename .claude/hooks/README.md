@@ -96,6 +96,70 @@ The scrubber is **defence in depth, not a guarantee.** `.wall/runs/` and
 
 ---
 
+## Two SessionStart patterns the kit documents but does not ship
+
+The kit ships **facts-layer hooks only** -- scripts that record what happened
+and can never change what happens. A session-start script does the opposite: it
+runs commands, installs things and injects text into the model's context, and
+what those commands are is the host's business, not the kit's. So these two are
+documented as patterns with fragments, and you write the script.
+
+**Pattern A -- instruction injection.** One hook emits the repository's standing
+boot routine as `additionalContext` on **every** session, so the owner says only
+"new session" and the routine is already in context. Keep it in its own script,
+separate from provisioning: provisioning is often guarded to remote or container
+sessions, and the instructions must land on local ones too.
+
+```
+INSTRUCTIONS="$CLAUDE_PROJECT_DIR/.claude/SESSION_INSTRUCTIONS.md"
+[ -f "$INSTRUCTIONS" ] || exit 0
+# emit {"hookSpecificOutput":{"hookEventName":"SessionStart",
+#       "additionalContext": <file contents>}} as JSON on stdout
+```
+
+One source of truth: the routine lives in a human-editable file and the hook
+reads it. A routine inlined into the script is a copy that drifts from the
+document everyone else edits.
+
+**Pattern B -- the provisioning skeleton, with an honesty accumulator.** A fresh
+container or clone needs dependencies, data files and hooks before any gate can
+run. Two properties are load-bearing, and both are about lying rather than about
+provisioning:
+
+```
+DEGRADED=""
+note()    { echo "[session-start] $*"; }
+degrade() { DEGRADED="${DEGRADED:+$DEGRADED, }$1"; note "DEGRADED: $1"; }
+
+# step 0, BEFORE any failable step: install the version-control hooks
+bash scripts/setup-git-hooks.sh && note "git hooks installed" \
+  || degrade "git hooks install failed"
+
+# then each provisioning step, wrapped the same way:
+#   <cmd> && note "<what> ok" || degrade "<what> failed"
+
+if [ -n "$DEGRADED" ]; then
+  note "provisioning INCOMPLETE -- degraded: $DEGRADED"
+  exit 1
+fi
+note "ready"
+```
+
+- **Hook install is step 0**, before anything that can fail. A provisioning
+  abort must never skip it, or the session's first commit ships a stale derived
+  artifact and spends a full pipeline cycle finding out
+  (`docs/GIT_HOOKS.md` section 1).
+- **A masked failure reports "provisioning INCOMPLETE" and exits non-zero.**
+  Every step is wrapped in `ok || degrade` so one failure does not abort the
+  rest, and the accumulator is what stops the script claiming ready anyway.
+  **Status lies at provision time surface as mystery failures an hour later**,
+  by which point nobody connects the two.
+
+A provisioning hook may legitimately exit non-zero; the facts-layer hooks above
+never may. That is the line between the two kinds.
+
+---
+
 ## Why these are self-contained
 
 Each script duplicates about sixty lines of helpers instead of importing a

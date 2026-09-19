@@ -263,6 +263,28 @@ remote one is strictly longer.
 `wall verify`, `doctor_checks`, and the SessionStart detection. It returns
 `None` for "cannot tell", never `0` and never a guess.
 
+### Credentials for a tick that nobody is sitting in front of
+
+Two lessons that only appear once the ship runs unattended, and that look like
+network failures until somebody checks:
+
+- **A job running as a machine or service account reads the MACHINE credential
+  store, not the logged-in user's.** Priming only the user's store leaves every
+  background tick unauthenticated while every hand-run command works perfectly,
+  which is the most misleading pair of symptoms in this document. The primer
+  fills **both** stores, and the verification is running the tick as the
+  account it will actually run as.
+- **A headless tick sets its version-control helper to non-interactive**
+  (`GCM_INTERACTIVE=never`, `GIT_TERMINAL_PROMPT=0`, or the host equivalent) so
+  an expired token **fails fast with an exit code** instead of blocking on a
+  prompt no one will ever answer. An unattended job waiting on a dialogue is
+  indistinguishable from a slow one, and the two-minute sweep is the wrong
+  place to discover the difference.
+
+The local gate that runs on a developer's machine -- the hooks, their named
+escape hatches, the line-ending pinning, and the baseline ratchet for adopting
+a new check -- is `docs/GIT_HOOKS.md`.
+
 ### The two-cadence split, for any job with a metered half
 
 A periodic job that has a **free local half** and a **metered remote half** --

@@ -58,6 +58,13 @@ guard to **exist**, to **run**, and to have a **mutation proving it can fail**
 (`docs/TESTING_STANDARDS.md` section 4.1, the probe roster). A class-guard
 nobody can watch go red is a sentence about intentions.
 
+**Every class guard carries a `VARIANT:` fixture** - a form of the class that
+has **never occurred here yet**, written from the shape of the class rather
+than from the entry. A detector fixtured only from the registry can only find
+what the registry already knows, which makes it a regression test for one bug
+wearing a class guard's name. The variant fixture is what makes it a guard
+over the family.
+
 Adding a `> class-guard:` line to an existing entry is the **one** amendment
 the append-only rule permits: it adds a defence without rewriting the record.
 
@@ -435,3 +442,118 @@ time. An entry with no check is a story, not a defence.
 
 > class-guard: <named assertion that fails when any member of this class
 > recurs - required once the class has recurred and entered the digest>
+
+---
+
+## Inherited classes - paid for elsewhere, not yet bitten here
+
+The entries above are the seeded set: classes that shipped and failed, in the
+format every new entry follows. The four below arrive from the wider corpus and
+have **not** happened in this repository yet, which is why they sit apart
+rather than being filed as history that never occurred. They carry the same
+fields and the same obligations.
+
+**On first occurrence here, an inherited class is promoted**: it moves up into
+the seeded set with its real `Discovered` line, and on its second occurrence it
+enters the recurring-classes digest like any other. Until then, treat them as
+what they are - checks worth running against a diff, written by somebody else's
+outage.
+
+### F-NATIVE-WHEEL-001 - an unpinned transitive dependency ships a bad native artifact
+
+- **Discovered:** inherited, not yet observed here
+- **Symptom:** The process dies with **no stack trace in the host language** -
+  no exception, no error line, often no log at all. It happens on first real
+  use rather than at import, so every install check and every fast test passed
+  first. Evidence exists only in the operating system's crash record.
+- **Root cause:** A transitive dependency nobody selected floated onto a new
+  major carrying a broken native artifact for this platform. The dependency was
+  unpinned because it was never chosen, and the failure mode is invisible to
+  the language's own error handling.
+- **Check:** Treat a transitive dependency that ships native code as a **direct
+  major** when it moves majors. Arm a native-crash handler to a file at
+  start-up so the dead process names its killer. **A crash that survives a
+  forced reinstall of the suspect package is a bad artifact, not a corrupt
+  install**: pin below the offending major, record the pin with its lifting
+  condition, file the upstream issue. Any dependency change gets the cold soak
+  (`docs/UPGRADE_DISCIPLINE.md`) - the real application running long enough to
+  leave the import path, because import-succeeds is not the bar.
+- **Command:** <DEPENDENCY_TREE_AND_PIN_CHECK_COMMAND>
+
+> class-guard: <assertion that no transitive native dependency is unpinned
+> across a major boundary>
+> VARIANT: a dependency whose native artifact loads fine and fails only on a
+> second platform - the class is "native failure outside the language's error
+> handling", not "the crash we saw".
+
+### F-FLOOR-001 - a floor is a guard with an expiry date
+
+- **Discovered:** inherited, not yet observed here
+- **Symptom:** A check that passed for months stops meaning anything. Nothing
+  turns red: the assertion is still true and has simply stopped being
+  informative, so a regression walks straight through it.
+- **Root cause:** The guard was written as `>= N` over a collection that grows.
+  The day the population passed `N` the check became unconditionally true. The
+  same shape covers any bound the data grows past - a cap sized for today's
+  volume, a timeout tuned on an empty dataset, a sample size that was most of
+  the set when it was chosen.
+- **Check:** A bound over a growing collection is expressed **against the
+  population**, not as a constant: assert the relationship (every member, the
+  exact count, the delta against a recorded baseline) rather than a floor
+  somebody picked. Where a literal is genuinely right, it carries the reason it
+  cannot drift.
+- **Command:** <GREP_FOR_NUMERIC_BOUNDS_OVER_COLLECTIONS>
+
+> class-guard: <assertion that no guard over a growing collection uses a bare
+> numeric floor>
+> VARIANT: a percentage threshold that becomes unreachable as the denominator
+> grows - the shape is a constant compared against something that moves, in
+> either direction.
+
+### F-SUBSTR-001 - a substring where an identity is required
+
+- **Discovered:** inherited, not yet observed here
+- **Symptom:** A check that looks right accepts something it should refuse, or
+  a lookup matches a neighbour. It is most often found when a name gains a
+  suffix, a host gains a subdomain, or a path gains a sibling with a longer
+  name.
+- **Root cause:** An identity - a host, a path, a name, an id - was matched
+  with `includes` / `startswith` / `endswith` instead of being parsed and
+  compared. Substring containment is not equality and does not respect the
+  boundaries of the thing it is matching, so it is correct for the examples
+  somebody tried and wrong for the family.
+- **Check:** Parse, then compare. A host is compared as a parsed host, a path
+  as a resolved path, an id as an id. Where a prefix match is genuinely
+  intended, it is written with the separator included and fixtured with the
+  nearest wrong neighbour.
+- **Command:** <GREP_FOR_SUBSTRING_MATCHES_ON_IDENTIFIERS>
+
+> class-guard: <assertion that identity comparisons parse rather than contain>
+> VARIANT: a case-folded or unicode-normalised form that compares equal to a
+> different identity - the class is "compared by a weaker relation than
+> identity", not "used includes()".
+
+### F-REAP-001 - not-serving read as dead, and cleanup deleting state it does not own
+
+- **Discovered:** inherited, not yet observed here
+- **Symptom:** A supervisor restarts something that was alive, or two copies of
+  a single-instance process run at once, or a lock file vanishes and a second
+  worker starts against state the first is still writing.
+- **Root cause:** Two halves of the same mistake. A supervisor treated **not
+  serving** as **dead** - a port that did not answer during start-up, a health
+  check that timed out - without positive liveness evidence. And a failure or
+  cleanup path deleted lifecycle state (a lock, a pid file, a claim) that it
+  could not prove it owned, on the assumption that a stale one was the only
+  explanation.
+- **Check:** Liveness is **positive evidence** (the process exists, the claim
+  is held, the heartbeat is fresh), never the absence of a response. A cleanup
+  path deletes only state it can prove it wrote - an owner token, a pid it
+  started, a claim it holds - and otherwise reports and stands down. An
+  always-on process stands down under a foreground lock rather than competing
+  for the resource.
+- **Command:** <SUPERVISOR_LIVENESS_AND_OWNERSHIP_TEST>
+
+> class-guard: <assertion that no cleanup path unlinks lifecycle state without
+> an ownership check>
+> VARIANT: a cleanup that runs at start-up rather than on failure - the class
+> is "deleting state whose owner was assumed", not "the reaper".

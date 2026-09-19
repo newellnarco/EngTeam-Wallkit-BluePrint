@@ -70,6 +70,20 @@ timers on Linux VMs, the scheduled task on Windows VMs. Two VM-specific notes:
   image installs the courier timer; applying the image is the consent"), so
   the SessionStart detect-only rule still reads coherently on cloned VMs.
 
+**If anything here is supervised, it obeys the never-reap discipline.** A
+supervisor may never treat **not serving** as **dead** without positive
+liveness evidence — a port that does not answer during start-up is a port that
+does not answer, not a corpse — and no failure or cleanup path may delete
+lifecycle state (a lock, a pid file, a claim) it cannot prove it owns. Three
+conventions come with it: restart-on-crash on everything **except** the
+supervisor itself, which is the one process that must not resurrect its own
+bad state; an always-on process stands down under a foreground lock rather
+than competing for the resource a human is using; and starting without a login
+needs all three of delayed start after networking, an explicit network
+dependency, and a machine account — with any one missing, services start and
+cannot reach anything until somebody logs in. The registry seed is
+`F-REAP-001`.
+
 ## 3. Kubernetes (scaled cloud)
 
 Kubernetes replaces the machine-wide timer with a **CronJob** and the local

@@ -54,6 +54,25 @@ Everything that entered the system since the last cycle.
 - **BLOCKED ON THE HUMAN** -- call these out first; they are the only thing in
   the report that cannot progress without someone reading it
 
+## VETTED -- don't re-litigate
+
+Only what was **verified this cycle** and would otherwise be re-derived or
+second-guessed by whoever picks this up. Every line names the evidence, because
+the next session is required to vet this report rather than obey it -- and a
+claim with no evidence pointer is a claim it has to redo.
+
+- **Diagnosed:** `<X>` was diagnosed as `<Y>` -- verify on `<the evidence>`,
+  don't re-diagnose. <One line on what it cost to find.>
+- **Trap:** `<the reconcile flips key Z back -- work the child key instead>`.
+- **Refuted:** `<the finding that looked real and was not>` -- refuted by
+  `<the check>`, so it is not a finding if it comes back.
+- **Ruled out:** `<the candidate cause>` -- ruled out on `<evidence>`, which is
+  not the same as solved; the open chain is `<item>`.
+
+This section is for settled things. Anything still open belongs in NEW or in
+the next queue, and an inconclusive diagnosis stays inconclusive here rather
+than becoming a cause because it was written down.
+
 ---
 
 ## Export

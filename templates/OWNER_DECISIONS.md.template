@@ -142,3 +142,47 @@ Only the owner decides. A session may **draft** a proposed entry and put it on
 the human queue with its reason and a candidate lifting condition; it may not
 add one, widen one, or extend one to a neighbouring subject. A crew that can
 write its own suppressions has no findings.
+
+---
+
+## 7. The irreversible-surfaces register
+
+Numbered 7 deliberately: it is the other register the owner keeps, and it lives
+beside the decisions rather than in a file of its own so there is one place to
+look before touching something that does not come back.
+
+**Rigour scales with irreversibility.** Most work is cheap to undo - a branch, a
+change, a revert - and that reversibility is what makes speed safe. The
+surfaces below are the exceptions, and the standard's weight belongs there
+(`docs/ENGINEERING_STANDARD.md`, Mindset; the `<IRREVERSIBLE>` binding points
+here).
+
+**The membership test is one question: can a revert restore it?** State that is
+not in version control does not come back with the code - accumulated learning,
+production data, a message already sent, a payment taken, a credential
+published, a header a client has already pinned, a record a third party now
+holds.
+
+| id | surface | why a revert does not restore it | the probe that reports after a change |
+|---|---|---|---|
+| IR-001 | <EXACT_SURFACE> | <WHAT_PERSISTS_OUTSIDE_VERSION_CONTROL> | <COMMAND_OR_CHECK_AGAINST_THE_REAL_SYSTEM> |
+| IR-002 | <EXACT_SURFACE> | <WHAT_PERSISTS_OUTSIDE_VERSION_CONTROL> | <COMMAND_OR_CHECK_AGAINST_THE_REAL_SYSTEM> |
+
+Four rules govern the register:
+
+**7.1 Before touching one, slow down deliberately** and say what cannot be
+undone. That sentence is written in the change, not felt.
+
+**7.2 After touching one, the evidence is a probe against the real system** -
+never the fact that a file changed, and never a green suite. **A green suite
+describes a runner; only the probe describes the world.** The probe command is
+part of the register, so nobody has to invent one under pressure.
+
+**7.3 An empty register is not an exemption - it is the first gap to close.**
+Every repository has at least one of these; a register with no rows means
+nobody has looked yet, and that is a finding about this file.
+
+**7.4 A surface here is not automatically off-limits.** This is not a
+suppression list and it is not a ban. It raises the evidence bar for changes
+that touch the surface, and the ship checklist reads it: a change touching a
+registered surface is not done until its probe has reported.

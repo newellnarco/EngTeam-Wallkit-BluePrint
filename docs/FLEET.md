@@ -56,6 +56,13 @@ only in that zone, so no second copy of the shared text exists to drift. **A
 local hash proves no local edit, not fleet agreement** - it says nobody changed
 this copy, not that the copies match.
 
+The kit's own candidate for that block is
+`templates/ENGINEERING_STANDARD.md.template`: everything above its Bindings
+zone is the shared body, and the zone is the only part an adopter writes. It is
+shaped this way because it already travelled a fleet - the method is what
+transplants, and one repository's finding numbers are what must not travel with
+it.
+
 ## 4. Delivery is a draft pull request, never a push
 
 An offer arrives in the receiving repository as a draft pull request, so it runs

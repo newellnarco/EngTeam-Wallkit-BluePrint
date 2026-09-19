@@ -6,7 +6,14 @@
     "Paths are relative to the repo root, which is the working directory hooks run in.",
     "On Windows use 'python' instead of 'python3'.",
     "Both scripts always exit 0 and never write to stdout, so they can never deny a",
-    "tool call or stop a session; see .claude/hooks/README.md."
+    "tool call or stop a session; see .claude/hooks/README.md.",
+    "",
+    "No SessionStart entry is configured here on purpose: the kit ships facts-layer",
+    "hooks only, and a session-start script runs host commands and injects host text.",
+    "The two patterns -- instruction injection, and the provisioning skeleton with its",
+    "DEGRADED accumulator and hook-install-as-step-0 -- are written out with fragments",
+    "in .claude/hooks/README.md. Add a SessionStart block here once you have written",
+    "the scripts, alongside the three blocks below."
   ],
   "hooks": {
     "PreToolUse": [

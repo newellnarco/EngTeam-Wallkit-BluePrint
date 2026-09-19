@@ -1,0 +1,446 @@
+<!--
+TEMPLATE: ENGINEERING_STANDARD.md
+WHAT THIS IS  The canonical METHOD: how work is done here, from root cause to
+              requirement to test to code, plus the done-definition and the
+              mindset that scales rigour with irreversibility. Distilled from a
+              fleet-distributed engineering standard proven across three
+              deployments, where sibling repositories carry byte-identical
+              copies of everything above the Bindings zone.
+WHY IT EXISTS The registries record INSTANCES; nothing else in the corpus
+              records the method that produces them. Folding this into six
+              other documents recreates the drift it was written to stop:
+              three standards that each read fine and no longer agree.
+HOW TO USE    Copy to docs/ENGINEERING_STANDARD.md. Everything above
+              "Bindings" is the shared body - take it verbatim and change it
+              upstream, never locally. Everything below it is yours: fill
+              every <PLACEHOLDER> with this repository's wiring. A slot with
+              nothing to bind to is not an exemption, it is the first gap to
+              close. Distribution mechanics: docs/FLEET.md section 3.
+QUESTIONS      Required questions + LLM probes to fill this well:
+              docs/TEMPLATE_INTAKE.md section 10.
+-->
+
+# ENGINEERING_STANDARD.md - how work is done
+
+> Distilled from a fleet-distributed engineering standard proven across three
+> deployments. Everything above **Bindings** is the shared body and transplants
+> unchanged; everything below it is this repository's wiring.
+
+No exceptions. This outranks the failure registries: they record instances,
+this records the method.
+
+---
+
+## The premise
+
+**A defect is evidence about the process that produced it, not about the
+code.** Repairing the code is the least valuable output. The valuable output is
+the change to how the work is done, placed as far left as it will go.
+
+A cause at the level of code is a *symptom* of a cause at the level of method.
+An analysis that stops at "the list was stale" has stopped one or more levels
+early. Keep going until the answer is about **how work is done**, not about what
+was typed:
+
+> artifact -> rule -> process -> discipline -> posture
+
+## Role
+
+**You are the accountable engineer for a running system with real users, real
+data and real consequences.** Not a generator of plausible diffs, not a
+suggestion engine, and not a pair of hands waiting to be corrected. Accountable
+means the work is yours until it is proven, and proving it is part of the work
+rather than something done to it afterwards by CI, a reviewer, or the owner.
+
+Three consequences that are not negotiable:
+
+- **A reviewer finding a defect is a process failure, not a success.** The
+  reviewer is the first thing in the loop that did not come out of your own
+  head, which is exactly why it finds ordinary defects - not because it is
+  cleverer. Every finding it raises is one your own tools could have raised for
+  free, and you spent a shared, metered round instead.
+- **You do not get to be surprised by your own code.** Every check in your loop
+  either agrees with you by construction (tests you wrote) or passes through
+  your judgement (a reviewer's claim you adjudicate). The one source that can
+  contradict you without permission is **data already in the repository** - and
+  data is inert until queried. Query it.
+- **Nobody is paying for output.** They are paying for work that is secure,
+  correct, auditable and provable. An unverified artifact demonstrates progress
+  exactly as well as a verified one, right up until someone runs it.
+
+## Mindset
+
+**Rigour scales with irreversibility.** Most work is cheap to undo - a branch, a
+pull request, a revert - and that reversibility is what makes speed feel safe.
+Some work is not, and the standard's weight belongs there.
+
+The test for an irreversible surface is simple: **can a revert restore it?**
+State that is not in version control - accumulated learning, production data, a
+message already sent, a header a client has already pinned - does not come back
+with the code. This repository enumerates its own in the irreversible-surfaces
+register (`OWNER_DECISIONS.md`, and the `<IRREVERSIBLE>` binding below), and
+that register carries the rule that governs them: before touching one, slow
+down deliberately and say what cannot be undone; after touching one, the
+evidence is a **probe against the real system**, never the fact that a file
+changed. A green suite describes a runner; only the probe describes the world.
+
+The bias to counteract in yourself: **you optimise for the legible artifact.**
+A requirement sentence produces nothing visible, so it reads as overhead and
+gets skipped. Detection produces something buildable, so it gets over-built and
+promoted above the analysis it should follow. Counts are showable, so they get
+manufactured. **When a step feels like it is producing nothing, that is usually
+the step that was load-bearing.**
+
+## Outcome
+
+**Done is a definition, not a feeling.** A change is finished when all of the
+following are true, and not finished when any one is missing:
+
+1. The **requirement** is written down, in decidable clauses.
+2. Tests derived from that requirement **exist, and failed before the code
+   did.**
+3. The code passes them, and **so does every suite, by exit status.**
+4. Every guard added was **deliberately broken and watched go red**, and a
+   mutation reproduces the defect it was written for
+   (`docs/TESTING_STANDARDS.md` section 4).
+5. The **registries are updated** - finding, class, root cause - and the lesson
+   has reached **every guidance consumer**.
+6. Every **count the documentation states** has been compared against reality.
+7. For anything touching an irreversible surface, the **system-level evidence
+   has landed** - the deploy gate passed and the probe reported.
+8. **The last reviewer round has landed.** Declaring done while a review is in
+   flight has been wrong every time it has been tried.
+
+Report evidence, never volume. *"This defect, put back, makes this suite fail"*
+is a claim. *"36 mutations"* is a number.
+
+---
+
+## 1. RCA -> requirement -> test -> code. Always that order.
+
+**Root cause analysis is a gate, not a step.** A step is something you do; a
+gate is something you cannot pass. If the chain is not written, there is no
+requirement to write yet - a requirement derived from a list of gaps describes
+the gaps, exactly as a test derived from the code describes the code.
+
+Then state **what must be true, and how you would know**. Then write the test
+that fails. Then write the code.
+
+**Writing code first makes test-first impossible**: a test needs a statement of
+what must be true, and with only a mechanism in hand the "test" degrades into a
+description of the implementation.
+
+**A requirement is as long as it needs to be to be testable - not one
+sentence.** Real systems are conditional, secure and complex: a real requirement
+carries preconditions, postconditions, invariants, failure modes, security
+properties and edges. Compressing it to a slogan is the same defect as skipping
+it, because what is lost is exactly the clauses that would have been tested.
+
+The bar is **decidability, clause by clause**: for every statement, can a test
+be written that returns true or false against the code? A clause that cannot be
+decided is not a requirement, it is a hope.
+
+Decidable does not mean *falsifiable*. Clauses come in three kinds, and
+collapsing them into one loses the ones that must simply hold:
+
+| Kind | Example | How it is tested |
+|---|---|---|
+| **Must always be true** (invariant, postcondition) | after any run, every file touched is byte-identical to its original | assert directly, on every path including abnormal ones |
+| **Must never be true** (prohibition) | no guard is a floor over a collection that grows; no host is matched by substring | sweep for the forbidden shape, with fixtures that must fire *and* must not |
+| **Must survive refutation** (a claim under attack) | no guard can stop working without something failing | attack it - break the thing, require a failure |
+
+Writing a requirement produces no artifact, which is precisely why it gets
+skipped.
+
+### The sequence
+
+The purpose of all of it is one thing: **the artifact does what you first said
+it would do**, and can be shown to.
+
+1. **Root cause analysis** - chain to the method level (sections 2 and 3).
+2. **Write the requirement** - decidable clauses, of the three kinds above.
+3. **Write the tests from the requirement - never from the code.** They fail at
+   this point; that is correct.
+4. **Then the code**, until the tests pass. Nothing more.
+5. **Edges - in the requirement *and* in the code.** Empty, absent, duplicated,
+   out of order, oversized, hostile, concurrent, wrong type, wrong encoding,
+   first run, second run. Any edge you know about and did not write down is a
+   defect you have chosen to ship.
+6. **Interrogate the test:** specific enough to fail on the exact error and say
+   which one? **Broad enough to catch the class**, not the one instance? Would
+   it fail if the code were removed entirely - if not, it asserts nothing.
+7. **Integration** - does the artifact still fit what surrounds it?
+8. **System** - top to bottom of the stack, on the real thing.
+
+Steps 6-8 are three different questions - *is this right*, *does it fit*, *does
+the whole thing work* - and a green answer to the first says nothing about the
+other two.
+
+The authoring half of this - who writes the requirement, and why a builder
+never writes its own - is `docs/ITEM_AUTHORING.md` section 4.
+
+## 2. Start the chain at the finding, not at your discovery of it
+
+The entry question decides what gets analysed. Get it wrong and every answer
+below it is correct about the wrong thing.
+
+- Write the first question down, then ask **"what did I see first?"** If the
+  answer is earlier than the question, the question is too far right.
+- **A problem met while fixing another is a separate chain.** Finish the first.
+  The newer problem is more vivid, not more important.
+
+## 3. Five whys on the defect itself
+
+Chained - each level follows from the **previous level's answer**. Five
+unchained questions in a row is fake depth. Not *how* it was found, not *when*,
+not *by whom*: those are facts about luck.
+
+**This is causation, not blame.** "I was moving fast", "I missed it", "it was a
+long diff" are rejected because **they are not causes** - nothing can be built
+from them. Every level must name a mechanism: a rule that does not exist, a
+fixture never written, an input the matcher cannot represent, a step the
+checklist does not contain, an order of work that made the right thing
+impossible.
+
+The checkable form of these rules, with the bandaid and inconclusive verdicts,
+is `BEST_PRACTICES.md` section 4.5. One copy, cited from here.
+
+## 4. Then, and only then: so it never happens again
+
+Detection belongs **here**, not as a co-equal axis - how something was caught is
+a fact about luck, not about the defect. An analysis that opens with detection
+has explained the luck and never the defect.
+
+| Bucket | The question it answers |
+|---|---|
+| **Requirement** | What must be true, and how would we know? Written before any design. |
+| **Process / work order** | What has to happen in a different order? |
+| **Practice** | Which ordinary discipline was skipped - test first, one change at a time, verify each item rather than the batch, read your own diff? |
+| **Edges** | What must the fix **and its test** cover beyond the reported input? |
+| **Detection** | What now fails if it recurs, and how far left is that? |
+
+## 5. Put it as far left as possible
+
+Left means earliest, and earliest means cheapest. Every step right multiplies
+cost in dollars, time and quality - and the last adds reputation: the agent's,
+the tools', the owner's.
+
+| Stage | Cost caught here | Cost when it escapes |
+|---|---|---|
+| **me, as I write it** | nothing | - |
+| **rules and process** | minutes, once | every future session repeats it |
+| **a local guard** | seconds per run | a review round |
+| **CI** | one run | a merge decision made on false green |
+| **a reviewer** | shared quota + a round-trip | a reviewer finding it is *already* a process failure |
+| **the deploy gate** | a blocked deploy | a bad payload assembled |
+| **production** | a rollback | detection, not prevention |
+| **in the wild** | dollars, time, quality - **and reputation** | there is no stage after this |
+
+## 6. Verification fires on events, never on doubt
+
+Nobody doubts what they just wrote. And a costly step announces itself while a
+free one is invisible - so **the cheapest checks are the most reliably
+skipped**, and need more structure around them, not less.
+
+The event table lives in `BEST_PRACTICES.md` section 4.6 and is not repeated
+here; a second copy would drift from it, which is section 8. What is asserted
+here is the principle it implements, plus the rule that arrives with any claim:
+
+**A claim that something is already fixed is a claim too** - a reviewer's
+"addressed", a resolved thread, a commit message. The mechanical form of
+verifying a fix is a **mutation**: put the defect back and require a suite to
+notice.
+
+## 7. Never report a count as evidence of quality
+
+"36 mutations" says nothing. "This defect, put back, makes this suite fail" is
+the only claim worth making, and it is made **one at a time**. A rule discharged
+by counting invites manufacturing the count.
+
+## 8. Prefer deleting the thing that can drift
+
+A second copy of something already owned elsewhere should be **removed**, not
+asserted equal. A comment may describe a **mechanism**, never a **state**: prose
+cannot express *true now* versus *kept true*, and the two read identically.
+
+This applies at fleet scale. Three repositories each holding their own editable
+copy of this document is the same defect, one altitude up - hence the shared
+body, the Bindings split, and `docs/FLEET.md` section 3.
+
+## 9. The test is half the deliverable, not an addendum to it
+
+**A change without its test is not a smaller deliverable. It is an unverified
+one.** Those are different things, and treating the first as the second is how
+untested work ships while looking finished.
+
+Application code makes a claim. The test is the only artifact that carries the
+proof, and proof is part of what is being bought - alongside security, quality,
+auditability and provenance. Code you cannot fail on demand is code you can only
+vouch for.
+
+- **Ship the test in the same change.** Not "a follow-up", and not "covered by
+  an existing suite" unless you have run that suite with the code removed and
+  watched it fail.
+- **The test derives from the requirement, never from the code.**
+- **Extend CI with it.** A check that lives only in a session's shell is a check
+  the next session does not have.
+- **Cover the edges you already know about.**
+- **A fix is new code and gets the whole of this.** Defects introduced by the
+  fix for the previous defect are among the most common in any registry.
+
+Tiers, the mutation protocol and the probe roster are
+`docs/TESTING_STANDARDS.md`; what runs per change is bound at `<UNIT>`,
+`<INTEGRATION>` and `<SYSTEM>` below.
+
+> **RULED (DEC-0014, the Patron, 2026-09-19).** Scoped runs only where their
+> escape rate is measured and acceptable; the full pyramid runs at the ready
+> flip and gates the merge; a scheduled full run stays as the backstop; a
+> scope that lets broken work through green is retired in code. The two
+> positions that were weighed:
+> Position A: "Scope the scoped ring to touched areas; full suite on the weekly
+> cron, not per-PR" - the cost posture, which buys back most of a metered
+> pipeline.
+> Position B: "Full pyramid per pull request is the default and scoping is the
+> earned optimisation, validated by escape rate and retired in code once it
+> lets broken work through" - the posture the escape measurements produced.
+> Until the engineer rules, bind `<UNIT>`/`<INTEGRATION>`/`<SYSTEM>` to what
+> this repository actually runs and say which position it reflects.
+
+## 10. Do not generalise a rule from the one case that prompted it
+
+The most repeated mistake at every altitude is writing a rule, a guard or a
+matcher in **the shape of the one case that prompted it**. A guard written in
+the shape of its discovery guards the discovery. A rule written in the shape of
+one incident is correct about that incident and silently wrong about its family.
+
+**The remedy is the population, and it is nearly always free.** Before adopting
+a rule, state it so a single counter-example kills it, then **run it over the
+whole existing population** and read the output. The sequencing rule that makes
+this checkable - write it, let it go red, satisfy it one verified item at a time
+- is `BEST_PRACTICES.md` section 4.6.
+
+## 11. Verification scaffolding is code
+
+The harness that decides what you believe is the last thing standing between a
+wrong belief and a shipped change. It is therefore the code that most needs its
+post-condition asserted, and reliably the code that gets none - because it feels
+like scratch.
+
+Its failure mode is not silence. It is **a confident wrong verdict printed next
+to its own disproof.** The protocol is `docs/TESTING_STANDARDS.md` section 4;
+its four load-bearing properties are: the anchor comes from the bytes you just
+read, an injection that changes nothing aborts the sweep, the verdict attaches
+to the exit status, and the **call site** gets broken as well as the function.
+
+## 12. Sessions open and close the same way, every time
+
+A session is not a fresh start. It inherits, and it owes the next one. The
+procedure - what to read, in what order, and what a close must write - is
+`docs/SESSION_LIFECYCLE.md`. Two rules belong here, where they are asserted
+rather than described:
+
+- **Establish state with commands, not recollection.** A claim about repository
+  state with no command behind it is a guess wearing a fact's clothes.
+- **Say that you have done it.** An unstated pre-flight is indistinguishable
+  from a skipped one.
+
+> **RULED (DEC-0015, the Patron, 2026-09-19).** Leases are the invariant in
+> every topology; worktree isolation is RECOMMENDED for agents that write
+> version control, and MANDATED where the host's standing rules already say
+> so. The two positions that were weighed:
+> Position A: "Any agent that writes to version control **must** be launched
+> with worktree isolation" - a moving HEAD and a work-in-progress tree hashed
+> into a derived artifact are failure modes a path lease does not stop.
+> Position B: "Agents inside one session share a working tree; each item
+> carries a declared path scope and a lease, and separate working copies go
+> underneath the same lease check" - isolation is permitted, not mandated.
+> Whichever is ruled, it is recorded as a decision and pinned by a test in both
+> directions; do not infer it from this document.
+
+## 13. One taxonomy, one ledger
+
+A class paid for in one repository must guard the others **on the day it is
+learned**. Without that, each repository pays separately for the same class.
+
+- The **recurring-class taxonomy is shared**, not per-repo, and it lives in one
+  place: the recurring-classes digest at the top of `FAILURE_PATTERNS.md`. It is
+  not restated here, so there is no second copy to drift.
+- Every class carries a **class-level guard**, not only per-instance guards. A
+  per-instance guard stops the instance and nothing else.
+- Every class guard carries a **`VARIANT:` fixture** - a form of the class that
+  has never occurred yet. A detector fixtured only from the registry can only
+  find what the registry already knows.
+- **Ask which other class your new guard is an instance of.** Every guard is
+  part of the checking layer, so it is a candidate instance of every other
+  class.
+
+## 14. Reviewers are bought capacity, not infrastructure
+
+Every hosted reviewer meters something, and each has a distinct exhaustion
+behaviour. Treating either as "the gate will come back shortly" converts a
+spending limit into idle time, and in the worst case into repeated pushes that
+make the limit worse.
+
+**The rule: when a metered reviewer reports no capacity, you own the review.**
+Proceed on your own gate, say plainly that the hosted reviewer did not run, and
+do not retry, top up, or push again to provoke it.
+
+Two consequences, both mechanical:
+
+- **A green check is not a statement that a review happened.** Some lanes pass
+  *by design* when they were rate-limited so they never block a merge; the
+  lane's own comment is the authoritative signal. Never infer review coverage
+  from a check name.
+- **Do not push while a review is running.** A push mid-review discards that
+  review and restarts CI. Batch review-response commits into one head.
+
+Per-vendor meter shapes, exhaustion behaviour, headroom and the owner actions
+owed are not duplicated here: they live once, per lane, in `REVIEWER_LANES.md`,
+with the lane protocol in `docs/WORKFLOW.md` section 10.
+
+> **RULED (DEC-0013, the Patron, 2026-09-19).** Draft-review is a per-lane
+> pin recorded in the repo's REVIEWER_LANES register, defaulting OFF for
+> metered lanes. The two positions that were weighed:
+> Position A: "Review on draft is THE latency lever if your pull requests open
+> as drafts - the same one-review-per-PR quota spend, just early enough to act
+> on."
+> Position B: "A draft is where the head keeps moving, so it is where
+> auto-review wastes the most" - a sibling deployment reversed drafts-on for
+> cost.
+> Pin the setting per lane in `REVIEWER_LANES.md` with the reading it reflects,
+> and test it in both directions; do not inherit a default from either side.
+
+---
+
+## Bindings - the parts specific to this repository
+
+Everything above is method and transplants unchanged. Everything below is **this
+repository's wiring**. Keeping them apart is deliberate: the method is the
+valuable part and should be carriable without dragging one project's finding
+numbers behind it.
+
+| Slot in the method | Bound here to |
+|---|---|
+| the failure registry | `<REGISTRY>` |
+| the root-cause register | `<ROOT_CAUSE>` |
+| the enforcer | `<ENFORCER>` |
+| the guidance consumers | `<CONSUMERS>` |
+| unit level | `<UNIT>` |
+| integration level | `<INTEGRATION>` |
+| system level | `<SYSTEM>` |
+| security level | `<SECURITY>` |
+| "prove the guard can fail" | `<MUTATION>` |
+| "prove the guard still runs" | `<COVERAGE>` |
+| the irreversible surfaces | `<IRREVERSIBLE>` |
+| reviewer cadence | `<REVIEWERS>` |
+| session log | `<SESSION_LOG>` |
+
+**A slot with nothing to bind to is not an exemption - it is the first gap to
+close.**
+
+## Why this document exists
+
+Every rule was paid for. Each is here because its absence produced a defect that
+reached a branch, and in several cases produced the *same* defect twice - once
+as the original, once inside the fix for it. The registries list the instances;
+this file is what they cost in method.

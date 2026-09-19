@@ -99,6 +99,33 @@ Pick at least one mechanism; prose alone decays.
 
 ---
 
+## 3.5 The periodic full-tree audit
+
+Numbered 3.5 so the cross-references below keep their number. Everything above
+catches **new** drift, one change at a time, and it is the right mechanism for
+that. It cannot see slow rot: a canonical document several components behind
+reality, two binding documents that now contradict each other, an entry
+document that has become mostly history. None of that is introduced by a
+change, so no per-change gate fires on it.
+
+On a cadence - monthly, or at arc boundaries - run a deliberate audit:
+
+- **Survey axes, fanned out in parallel:** consolidation and dedup (what is now
+  said twice), index hygiene **in both directions** (documents missing from the
+  index, index rows pointing at nothing), canonical-document-versus-reality
+  drift, standing-rule re-evaluation, and technology re-evaluation feeding the
+  recorded re-eval triggers.
+- **Every finding becomes a work item.** This is the rule the whole exercise
+  turns on: **an audit whose findings live only in its own report changed
+  nothing**, and a second audit that rediscovers them has now cost twice.
+- **Oversized entry documents get split** - rules, history and index are three
+  documents wearing one name - and a retired subsystem's documentation is
+  archived with a pointer rather than deleted silently.
+- **Stated counts are compared against reality**, which is the one class of
+  drift a reader cannot detect by reading.
+
+---
+
 ## 4. Cross-references
 
 - `SHIP_CHECKLIST.md` - the pre-ship gate that asks whether this map was walked

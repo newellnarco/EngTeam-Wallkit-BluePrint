@@ -1,0 +1,113 @@
+<!--
+TEMPLATE: DESIGN_DOC.md
+WHAT THIS IS  The per-arc design document: the artifact an arc's stories cite
+              by section, carrying the intent, the boundary, the slice plan and
+              the rollback story.
+WHY IT EXISTS docs/ITEM_AUTHORING.md section 3 requires every arc to have one -
+              stories that cannot cite a design section fail the Builder's
+              source-mapping check on first contact - and nothing in the kit
+              shipped the shape of it, so each Architect invented a different
+              one and the citable sections moved between arcs.
+HOW TO USE    Copy to the host's design home (docs/architecture/<ARC>.md) when
+              an arc is designed, BEFORE its first story is written. Fill every
+              <PLACEHOLDER>. Update it in the same change when the build
+              diverges from the plan: a design describing an approach that was
+              abandoned is worse than no design, because stories still cite it.
+QUESTIONS      Required questions + LLM probes to fill this well:
+              docs/TEMPLATE_INTAKE.md section 11.
+-->
+
+# <ARC_NAME> - design
+
+> **Arc:** `ARC-<NN>` - **Status:** draft / agreed / building / closed -
+> **Architect session:** `<YYYY_MM_DD>` - **Risk tier:** in-scope / routine
+
+---
+
+## 1. Intent
+
+<One paragraph: what is true after this arc that is not true now. Written so a
+Reviewer who never saw the discussion can judge a diff against it.>
+
+## 2. Boundary - explicit non-goals
+
+<What this arc does NOT do, and which neighbouring surface it must not
+"improve" on the way past. The most common cross-Builder collision in practice
+is two stories both touching a surface neither owned; this line is what makes
+that a citable refusal rather than an argument.>
+
+## 3. Constraints
+
+<The non-negotiables that bound the solution: hard rules from RULES.md by
+number, latency or resource budgets, compatibility, licensing, privacy, "must
+not touch <SURFACE>". The design is judged against these, so list them where a
+reviewer can read them, not where they were remembered.>
+
+## 4. Chosen approach
+
+<The design, concretely: components touched or added, data model, control flow,
+interface shapes. Enough that a different session could build it without
+re-deriving the decisions. Diagrams welcome - ASCII or mermaid, in the file.>
+
+### Alternatives considered
+
+| Alternative | Why not |
+|---|---|
+| <OPTION_B> | <the reason, honestly - "we did not think of it" is a valid row> |
+
+## 5. Decisions in scope
+
+| Decision | What it constrains here |
+|---|---|
+| `DEC-<NNNN>` | <the clause of this design it binds> |
+
+Every decision that constrains this arc is listed, so the coordinator attaches
+them at dispatch instead of a Researcher rediscovering them mid-story.
+
+## 6. Declared data uses
+
+| Dataset / credential / external source | Used for | Development or product | Verdict |
+|---|---|---|---|
+| <DATA_SOURCE> | <what the story does with it> | <dev / product / both> | <pending - security sign-off> |
+
+An in-scope arc does not dispatch a story until the surfaces above carry a
+verdict. An empty table is a claim that this arc touches no data at all; make
+sure that is true before writing it.
+
+## 7. Slice plan
+
+Each slice is independently shippable and is **one pull request**. A slice that
+cannot state its own ship gate is two slices or one unfinished thought.
+
+| Slice | Story | Scope | Gate to ship |
+|---|---|---|---|
+| `:1` | `ST-<NNN>` | <smallest useful substrate, with its tests> | <gates green> |
+| `:2` | `ST-<NNN>` | <wire into the live path, behind a flag> | <flag default off until the probe reports> |
+| `:3` | `ST-<NNN>` | <surface, docs, the doc-map rows> | <the surfaces in DOCS_MAP moved> |
+
+Dependencies between slices are stated here, not implied by the order:
+`<ST_NNN>` needs `<ST_NNN>`'s interface.
+
+## 8. Test plan
+
+<Which tiers get what, per docs/TESTING_STANDARDS.md: the unit seams, the
+integration surfaces, the system or contract pin that must never drift, and the
+end-to-end flow that proves it works. Name the regression this pins if the arc
+originates from a defect, and name the guard that is mutation-checked.>
+
+## 9. Rollback and reversibility
+
+<The flag that disables it, or the revert path. If it writes persistent state,
+how that state is migrated back. If it touches a surface a revert cannot
+restore, say so here and name the probe that reports after the change lands.
+A design without a rollback story is not done.>
+
+## 10. Open questions
+
+<Genuine judgment calls that need the engineer. Ask these BEFORE building the
+slices they gate, and build everything unblocked meanwhile. Each one names what
+it blocks, so nobody has to guess whether it is load-bearing.>
+
+| Question | Blocks | Asked | Answer / decision |
+|---|---|---|---|
+| <THE_QUESTION> | slice `:<N>` | `<YYYY_MM_DD>` | <DEC-NNNN when it lands> |

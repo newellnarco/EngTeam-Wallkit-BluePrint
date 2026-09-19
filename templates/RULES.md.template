@@ -209,6 +209,39 @@ either surface can tell which is current without reading both.
 *Why:* a rule given out loud and obeyed for an afternoon is indistinguishable,
 the following day, from a rule that was never given.
 
+## 2.13 If anything here runs unattended
+
+Only applicable where the crew drafts and lands its own changes with nobody
+watching. Delete this rule if it does not; do not soften it if it does.
+
+- The drafted change applies in a **throwaway working copy, never the live
+  checkout**. The directory something runs from and the directory something is
+  built in are different directories.
+- The **local gate runs first**, and a red gate aborts before anything is
+  pushed.
+- Merge only on **positively green completed** checks. **Fail closed:** could
+  not verify means block, never merge the unverified - absence of a red is not
+  a green.
+- Every action is audited and reversible, and a **documented kill switch**
+  exists that a human can reach without the crew's cooperation.
+
+---
+
+## Signature
+
+> The rules above bind agent sessions working in this repository until the
+> owner changes them here, in writing.
+>
+> **Owner:** <OWNER_NAME> - **Date:** <YYYY_MM_DD>
+> **Revisions from the template:** <WHAT_WAS_DELETED_OR_CHANGED>
+
+**An unsigned file reads as all-grants-off.** Where a rule grants latitude - an
+autonomy boundary, an override window, an unattended loop - the grant is only
+in force while this block carries the owner's name and a date. A grant that is
+no longer wanted is **deleted**, not ignored: a standing permission nobody
+intends to honour is the strongest sentence in the repository and the one
+nobody is watching.
+
 ---
 
 ## Appendix - environment seams

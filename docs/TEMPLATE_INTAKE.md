@@ -301,11 +301,74 @@ as a method, not a questionnaire about one product:
 *(`EVAL_RECORD.md.template` deliberately has no section here: it is filled
 per evaluation via `docs/TECH_EVALUATION.md`, not at adoption time.)*
 
+## 10. ENGINEERING_STANDARD.md.template — the method
+
+This template is required and is never thinned: everything above its Bindings
+zone is taken verbatim, and the adoption work is the zone itself. A repository
+that edits the shared body has started the third copy the document exists to
+prevent (`docs/FLEET.md` §3).
+
+**Required:**
+
+- Q10.1 What binds each Bindings slot — the failure registry, the root-cause
+  register, the enforcer, the guidance consumers, the unit/integration/system/
+  security levels, the two mutation slots, the session log? Name files and
+  commands, never "the tests".
+- Q10.2 **Which surfaces here are irreversible** — the ones where a revert does
+  not restore the state? Each becomes a row in the register
+  (`OWNER_DECISIONS.md` §7) with the **probe** that must report after a change
+  touches it. *(An empty answer is the first gap to close, not an exemption:
+  every shape has at least one — an appliance's captured traffic and any
+  active-mode packet it emits; a research repo's published citations and
+  anything already fetched under a licence; a feed product's writes to an
+  upstream and any content it has already redistributed; a resident app's
+  accumulated learning and the household data behind it.)*
+- Q10.3 Who are the **guidance consumers** — every surface a rule must reach to
+  count as landed? A lesson that reaches one of three graders has landed for
+  one of three.
+
+**LLM probes:**
+
+- "Which of the three parked conflicts does this repository need ruled?" The
+  template carries them as explicit markers rather than a silent default;
+  surface each to the engineer with both positions quoted, and record the
+  ruling as a `DEC-NNNN` before the first wave depends on it.
+- "Is there a slot with nothing to bind to?" — that is the intake's most
+  valuable answer, because it names a mechanism the repository does not have
+  yet rather than a document it has not filled in.
+- "Does anything else in this tree already claim to be the method?" A partial
+  standard in a contributing guide or a role sheet is a copy that will drift;
+  map it to this document and delete the overlap (the adopt skill's law).
+
+## 11. DESIGN_DOC.md.template — the per-arc design
+
+**Required:**
+
+- Q11.1 Where do design documents live here — one directory, named how? The
+  stories cite it by section, so the path shape is part of the contract.
+- Q11.2 Which sections does this repository add or strike? The slice plan, the
+  rollback story and the declared data uses are load-bearing (the first is what
+  makes one story one pull request; the second is what a design is not done
+  without; the third gates dispatch on in-scope arcs).
+- Q11.3 Who may mark an arc's design *agreed*, and what does agreement bind —
+  every criterion its stories cite, or only the approach?
+
+**LLM probes:**
+
+- Mine the last few completed arcs: "which decision did a Builder have to
+  re-derive mid-story?" Each one is a section the design should have carried.
+- "Has an arc ever shipped without a rollback story?" — if the answer is yes
+  and nothing broke, that is luck, and the section stays required anyway.
+- Shape contrasts: an appliance's design names the capture boundary and the
+  lab-versus-live split in its constraints; a research repo names licensing of
+  anything gathered; a feed product names the upstream's terms and rate limits,
+  because those bound the design before any code does.
+
 ---
 
 ## Using this document
 
-- **Empty repo:** run the nine sections as one batched question round (the
+- **Empty repo:** run the eleven sections as one batched question round (the
   one moment a batch beats a trickle — README empty-repo runbook step 2).
 - **Existing repo:** derive first. Most answers are already in the tree
   under other names; the questions become confirmations with evidence

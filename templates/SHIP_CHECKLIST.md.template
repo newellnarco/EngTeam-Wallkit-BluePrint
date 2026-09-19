@@ -72,6 +72,14 @@ Skipping a reviewer never licenses claiming it passed. A tool that returns
 - [ ] Failure and absence render as **unknown**, not as a healthy zero.
 - [ ] Persisted references are durable identifiers, not positions in a list
       that can be reordered.
+- [ ] **Dependencies:** no unaddressed major bump rides along. Each one was
+      bumped deliberately (migration read, usages grepped, rollback pin named)
+      or pinned deliberately with its lifting condition; the licence record
+      moved in the same change; the **cold soak** ran on the real application,
+      not just an import (`docs/UPGRADE_DISCIPLINE.md`).
+- [ ] **Irreversible surfaces:** if this change touches one registered in
+      `OWNER_DECISIONS.md`, its **probe against the real system has reported**.
+      A green suite describes a runner; only the probe describes the world.
 
 ---
 
@@ -126,6 +134,9 @@ Skipping a reviewer never licenses claiming it passed. A tool that returns
       file, so it is not re-litigated.
 - [ ] `CLAUDE.md` "Current state" reflects what this change actually leaves
       behind.
+- [ ] **Every count this change's documentation states was compared against
+      reality** - the number of checks, entries, panels, sources, rules. A
+      stated count is the one kind of drift a reader cannot detect by reading.
 
 ---
 
@@ -147,6 +158,9 @@ Skipping a reviewer never licenses claiming it passed. A tool that returns
       matches. A reduced or draft-scoped run is not the full gate.
 - [ ] Review threads answered by their owner only, each finding verified before
       being accepted or declined, with proof when declined.
+- [ ] **The last review round has landed.** Nothing is in flight. Declaring
+      done while a review is still running has been wrong every time it has
+      been tried, and the round it discards was already paid for.
 - [ ] The CI meter reading for this change is recorded in the report beside the
       result - what ran, and roughly what it cost. A run nobody can price is a
       run nobody can scope next time.

@@ -122,6 +122,22 @@ in for: the tests pass, each mutant goes red on cue, and the code raises
 one-line smell test: a keyword that appears only at its own call site is
 invented.
 
+**(g) Flaky is broken.** A test that passes and fails over the same code is not
+a weak test, it is a test whose result is not evidence — and it costs more than
+a missing one, because it trains everyone to re-run rather than to read. It is
+**fixed or quarantined with a work item the day it flakes**, never left in the
+suite cycling red-green-red. A quarantine with no item is a deletion with extra
+steps.
+
+**(h) Every defect the owner finds by hand converts into a guard.** The owner's
+own use is the tier no runner can reach — real hardware, real data, real
+"does this feel right" — and a fix that closes one of its findings with nothing
+but the fix leaves the tier exactly as loaded as it was. Each one closes with
+**more** than its repair: the regression pin, and a guard over the class so the
+next member is found by the suite. The trajectory is deliberate and
+measurable — owner-found becomes self-found — and a repository where it is not
+happening is one where the owner is the test suite.
+
 ---
 
 ## 4. The mutation-check protocol
@@ -161,6 +177,26 @@ and proves nothing, which is the same defect class as the tests it is checking.
 
 Restore on **every** path, including an interrupted run. A harness that can
 leave the tree modified is worse than none.
+
+Four properties of the harness itself, which is code and gets none of the
+attention code gets because it feels like scratch. Its failure mode is not
+silence; it is a confident wrong verdict printed next to its own disproof.
+
+- **Derive the anchor from the file, never from memory.** Read the line, then
+  mutate the bytes you just read. Recall holds meaning, not byte sequences, and
+  fault injection is a byte operation — an anchor typed from memory that
+  "worked" before was one where the two happened to coincide.
+- **An injection that changes nothing is an ERROR that aborts the sweep**,
+  never a row in the results. "Not caught" and "never applied" are
+  indistinguishable in the output and opposite in meaning, and the second one
+  reads as a clean bill of health for a probe that did not run.
+- **Attach the verdict to the exit status.** A sweep that prints its findings
+  and exits zero is decoration: nothing downstream can fail on it, so nothing
+  downstream does.
+- **Break the call site as well as the function.** A correct, well-fixtured,
+  unreachable function passes every mutation aimed at its body. Mutate the
+  wiring too, or the sweep proves the code is right about a question nobody
+  asks it.
 
 ### The table the Builder reports
 

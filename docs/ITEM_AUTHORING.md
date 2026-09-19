@@ -119,6 +119,30 @@ Every story carries, at authoring time:
 4. **State failure behaviour.** Half of all real ambiguities
    (`unspecified_edge_case`) are "and what happens when it's empty / missing /
    malformed". Say it, or expect the question.
+5. **The order is root cause -> requirement -> test -> code, and it is an
+   order, not a set.** For a bug, the chain is written before the criteria are:
+   criteria derived from a list of symptoms describe the symptoms. For a story,
+   the criteria are written before any code exists, because **a test derives
+   from the requirement, never from the code** — with only a mechanism in hand,
+   the "test" degrades into a description of the implementation, passes
+   immediately, and proves nothing. A Builder who has written code first can no
+   longer write a test-first; the author's ordering is what keeps that possible.
+6. **A criterion is as long as it needs to be to be decidable.** Compressing it
+   to a slogan is the same defect as omitting it, because what gets lost is
+   exactly the clauses somebody would have tested — the preconditions, the
+   failure modes, the security property, the edge. The bar is clause by clause:
+   can a test be written that returns true or false against the code?
+7. **Decidable is not the same as falsifiable — write all three kinds.**
+   Collapsing them loses the clauses that must simply hold:
+
+   | Kind | Reads like | How the Builder tests it |
+   |---|---|---|
+   | must always be true | an invariant or postcondition | assert directly, on every path including the abnormal ones |
+   | must never be true | a prohibition | sweep for the forbidden shape, with fixtures that must fire *and* must not |
+   | must survive refutation | a claim under attack | attack it: break the thing and require a failure |
+
+   The method these rules come from is `ENGINEERING_STANDARD.md` section 1;
+   this is its authoring half, and the two say the same thing on purpose.
 
 ## 5. Amending items — the design is living, the change is not silent
 

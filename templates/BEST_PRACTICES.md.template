@@ -323,6 +323,31 @@ difference checkable rather than a matter of how thorough somebody felt.
 - **An accepted limitation names WHO owns closing it and WHAT would close
   it.** Without both, "accepted" is deferral wearing acceptance's name, and it
   will be rediscovered as a new defect by somebody who was not in the room.
+- **A symptomatic remedy is APPLIED if it restores service, and RECORDED as a
+  bandaid, loudly** - restart it, clear the lock, re-run the job - with the
+  root left open as a work item. Nothing here says do not stop the bleeding;
+  it says do not file the tourniquet as a cure. **A bandaid presented as a fix
+  is the most expensive lie in the registry**, because it closes the incident,
+  removes the symptom that would have led to the cause, and leaves the class
+  live.
+- **Inconclusive is an honest verdict, and it comes with the evidence that
+  would decide it.** When no chain proves out, report "inconclusive, and here
+  is what would settle it" rather than the most plausible cause - a fabricated
+  cause produces a fix nobody can falsify. Then **pre-arm the missing
+  evidence**: the log line, the crash handler, the probe, the recorded exit
+  code that makes the NEXT occurrence decidable. A failure you cannot
+  attribute is a failure you will debug by hand twice.
+- **A recurring symptom family gets a written troubleshooting tree**: symptom
+  -> candidate causes -> the evidence that tells them apart -> the remedy per
+  cause. Diagnosis then reasons from evidence instead of replaying the one path
+  somebody remembers, and the tree is where the next person adds the branch
+  they just found.
+- **A surprising number is usually the MEASUREMENT, not the system.** Zero
+  accuracy, a metric cliff, content that vanished during a conversion: verify
+  the instrument before telling the story, because a broken measurement
+  produces a confident narrative about a system that is fine. And **never
+  report a metric without its baseline** - a number with nothing to compare it
+  to cannot be right or wrong, only quoted.
 
 *Check:* read the chain bottom-up. If the last level does not name something
 that could be changed in the codebase, the analysis stopped early.
@@ -346,6 +371,21 @@ mechanical event in the work itself.
 | A reviewer says something is already fixed | **Verify that claim too.** It has the same standing as any other unverified finding, and it arrives when you most want it to be true. |
 | You changed a derived or generated artifact by hand | Regenerate it with its tool and diff. A hand-edit that happens to be correct today still removes the generator as the source of truth. |
 
+Two rules about the population run itself, which is the row most often
+discharged on paper:
+
+- **A rule written and satisfied in the same session is suspect.** Write it,
+  let it go **red over the whole population**, then satisfy it one verified
+  item at a time. A rule that arrives already green was either shaped to fit
+  what is there or discharged by counting, and both read identically in a diff.
+  If burning the list down that way is too slow, the loop is too expensive -
+  fix the loop rather than batching past it.
+- **Scope is chosen for a reason about evidence, never about workload.** A
+  watermark, an exclusion or a date cutoff that makes a rule cheap has removed
+  the rule's ability to be validated: the members it would have failed on are
+  exactly the ones now outside it. State the reason the scope is right, or run
+  the wider one.
+
 *Check:* each row above is falsifiable in review - the reviewer can ask for the
 population run, the two matcher cases, or the re-diagnosis, and the absence of
 one is a finding rather than a preference.
@@ -358,7 +398,21 @@ one is a finding rather than a preference.
 - **Module layout:** <CONVENTION>.
 - **Error handling:** <CONVENTION - and note that a broad catch that swallows is
   section 3.1's failure, not a style choice>.
-- **Logging:** <CONVENTION - level meanings, what must never be logged>.
+- **Logging:** <CONVENTION - level meanings, what must never be logged>. Three
+  seeded rules, each a measured class rather than a taste:
+  - **Pre-arm the evidence for failures whose evidence lives outside your
+    logs.** A native crash or a killed subprocess writes nothing your logger
+    sees: arm the crash handler to a file at start-up, and capture the
+    subprocess stderr tail into the supervising line, not just its exit code.
+  - **A down dependency produces one line per interval, not sixty a second.**
+    Rate-limit repetitive failures and put a circuit breaker on pollers, or
+    the flood pushes the evidence out of the buffer it was written to.
+  - **A count in a log line comes from the live collection, never a literal.**
+    A hardcoded total drifts the day something is added and then misleads an
+    incident, which is the one moment the line is read closely.
+- **Hook bypass:** never `--no-verify`. It skips every hook invisibly and
+  leaves nothing greppable; each hook carries a **named** environment-variable
+  escape hatch instead, scoped to that hook (`docs/GIT_HOOKS.md`).
 - **Comments:** explain why, not what. A comment restating the line is
   maintenance debt; a comment naming the constraint that made the line
   non-obvious is the most valuable thing in the file.

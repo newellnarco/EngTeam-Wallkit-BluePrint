@@ -121,6 +121,27 @@ guess, and it is billed as one. Five rules follow from that, each earned:
   meter reading in the log after the fact changes nothing; the same number in
   the report is what makes the next scoping decision cheaper.
 
+Three levers that pay for themselves the day they are set, none of which is a
+decision about *what* to run:
+
+- **Scope the push trigger to the default branch and pull requests, never every
+  branch.** A pipeline that fires on every push of every work-in-progress
+  commit bills the whole pyramid for commits nobody has looked at yet — the
+  single biggest blowout in the corpus this kit was mined from. The work-in-
+  progress signal is the local gate; the hosted one is for a head somebody is
+  asking about.
+- **One concurrency group per branch, cancelling in progress.** Rapid pushes
+  then collapse to one run of the latest head instead of N runs of N heads,
+  most of which are already superseded. This is the setting that makes "never
+  push while checks are running" a discipline about *review* rather than about
+  billing.
+- **Cache dependency installs as SPLIT restore and save steps, with the save
+  after the install.** A single combined cache action loses the warm cache on
+  any cancel — including the cancel the concurrency group above just issued —
+  so a timed-out or superseded run leaves the next one paying full price. A
+  measured install can drop from tens of minutes to under a minute on a hit,
+  which makes it the largest single lever on the list.
+
 And the free lane is the point of all of it: **the local gate costs nothing and
 runs offline, so a hosted reviewer finding something the local gate would have
 caught is a registered process failure**, not a lucky catch.
