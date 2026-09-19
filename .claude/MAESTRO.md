@@ -154,8 +154,13 @@ the transition immediately; the timer is the fallback, not the trigger.
 
 ## 8. Reading order for a new session
 
-1. `docs/WORKFLOW.md` -- execution model, dispatch, ambiguity, integration.
-2. `docs/AGENT_ROSTER_SPEC.md` -- roles, models, caps, authority.
-3. `docs/EVENT_SCHEMA.md` -- the ledger contract. Read before the first run.
-4. `docs/RECONCILIATION.md` Part 2 -- the measured failure classes.
-5. `.claude/skills/wave/SKILL.md` -- how a wave actually runs.
+1. `docs/SESSION_LIFECYCLE.md` -- the session start SOP you are now inside of,
+   the startup questions, the close SOP, and when a question goes to the
+   driving engineer.
+2. `docs/WORKFLOW.md` -- execution model, dispatch, ambiguity, integration.
+3. `docs/AGENT_ROSTER_SPEC.md` -- roles, models, caps, authority.
+4. `docs/ITEM_AUTHORING.md` -- what a well-formed arc, story or bug looks like
+   before you admit or dispatch one.
+5. `docs/EVENT_SCHEMA.md` -- the ledger contract. Read before the first run.
+6. `docs/RECONCILIATION.md` Part 2 -- the measured failure classes.
+7. `.claude/skills/wave/SKILL.md` -- how a wave actually runs.

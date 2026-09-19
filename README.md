@@ -297,6 +297,8 @@ docs/
   AGENT_ROSTER_SPEC.md   the roles, models, caps, authority
   EVENT_SCHEMA.md        the contract - read this before the first real run
   WORKFLOW.md            execution model, dispatch, ambiguity, escalation, integration
+  ITEM_AUTHORING.md      arcs, stories, bugs - how the Architect writes them, how research enriches them
+  SESSION_LIFECYCLE.md   session start and close SOPs, startup questions, engineer escalation
   LOGGING_AND_AUDIT.md   three planes, per-run artifacts, trace commands
   FAST_TRACK.md          doc-only routing
   INSTALL.md             machine-wide timer, serving, platform specifics
