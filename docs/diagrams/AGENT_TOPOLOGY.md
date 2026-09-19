@@ -19,7 +19,19 @@ derived rather than asked.
 
 ## 1. Nodes and edges
 
+The rendered, blueprint-themed vector of this diagram (crisp at any zoom):
+[`assets/agent-topology.svg`](assets/agent-topology.svg).
+
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{
+  "background":"#10161d","fontFamily":"Segoe UI, Helvetica, Arial, sans-serif","fontSize":"18px",
+  "primaryColor":"#18212b","primaryTextColor":"#dce3e8","primaryBorderColor":"#3a4a58",
+  "secondaryColor":"#1e2833","tertiaryColor":"#0b1016",
+  "lineColor":"#9aa9b3","textColor":"#dce3e8",
+  "clusterBkg":"#0b1016","clusterBorder":"#c9962f",
+  "edgeLabelBackground":"#18212b","titleColor":"#c9962f",
+  "nodeTextColor":"#dce3e8"
+}}}%%
 flowchart TB
     subgraph HUMAN["Driving engineer (human)"]
         ENG["Engineer<br/><i>effort variables + product Q&amp;A answers;<br/>everything else is autonomous</i>"]
@@ -129,6 +141,15 @@ series, observe continuously.**
 ## 3. One item's journey (sequence view)
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{
+  "background":"#10161d","fontFamily":"Segoe UI, Helvetica, Arial, sans-serif","fontSize":"18px",
+  "primaryColor":"#18212b","primaryTextColor":"#dce3e8","primaryBorderColor":"#3a4a58",
+  "secondaryColor":"#1e2833","tertiaryColor":"#0b1016",
+  "lineColor":"#9aa9b3","textColor":"#dce3e8",
+  "clusterBkg":"#0b1016","clusterBorder":"#c9962f",
+  "edgeLabelBackground":"#18212b","titleColor":"#c9962f",
+  "nodeTextColor":"#dce3e8"
+}}}%%
 sequenceDiagram
     autonumber
     participant E as Engineer

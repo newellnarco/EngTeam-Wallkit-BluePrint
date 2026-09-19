@@ -1,12 +1,33 @@
-# wall kit
+# EngTeam Wall Kit — the turnkey AI dev team blueprint
 
-A standalone, dependency-free scaffold that drops into an empty repository - or
-an existing one - and gives a Claude Code session everything a first agent wave
-otherwise has to improvise: a role roster with written authority boundaries, an
-event ledger with integrity checking, a live wall, a closed-loop timer, dispatch
-and handoff and transplant procedures with the measured failure classes already
-encoded, and the context documents - rules, failure registry, ship checklist,
-decision log - that make the next wave start where the last one ended.
+A standalone, dependency-free scaffold that drops into an empty repository — or
+an existing one — and stands up a **turnkey engineering organization run by LLM
+agents**: architecture, project management, product management, design,
+development, quality, security and deployment as one written, auditable,
+closed-loop process. Quick entry (a sample wall renders in 30 seconds; a real
+deployment is an afternoon), driven end-to-end by an AI session, with the
+human engineer supplying effort variables, product answers and the handful of
+consent decisions no agent may make.
+
+It is built to answer the complaints engineers actually have about
+AI-assisted delivery:
+
+| Complaint | What the kit does about it |
+|---|---|
+| "Nobody supports it after it ships" | The loop never ends: waves, findings-to-rules graduation, a failure registry that makes wave N+1 smarter than wave N |
+| "AI code quality is a coin flip" | A cold-read reviewer, tiered tests with a mutation protocol that proves tests can fail, one shared body of criteria for every grader |
+| "It won't live past its author" | Everything is written state: ledger, decisions, briefs, wave reports — a new session (human or LLM) resumes from disk, not from memory |
+| "It doesn't scale" | Parallel leased builders, serial integration, measured capacity rebalancing; containers/VMs/Kubernetes covered |
+| "You can't audit what the AI did" | An append-only, byte-reproducible event ledger; every criterion cites its source; every decision is a record; `wall trace`/`why` |
+| "You can't undo it" | Append-only + supersession everywhere; rollback anchors before every force-push; consent prints before every system mutation |
+| "Security is an afterthought" | SAST + secrets in the definition of done, gated network, localhost-only surfaces, straight-to-sponsor security escalations |
+| "It can't pass compliance" (fintech, healthcare, e-commerce) | The mechanisms map onto the control families auditors ask about — segregation of duties, change control, traceability: `docs/COMPLIANCE_POSTURE.md` |
+
+Concretely, that is: a role roster with written authority boundaries, an event
+ledger with integrity checking, a live wall, a closed-loop timer, dispatch and
+handoff and transplant procedures with the measured failure classes already
+encoded, and the context documents — rules, failure registry, ship checklist,
+decision log — that make the next wave start where the last one ended.
 
 Everything here is stdlib Python, plain CSS and plain HTML. No dependencies, no
 network calls, no build step.
@@ -15,6 +36,50 @@ The design was originally done blind, against no real tree. It has since been
 reconciled against a production deployment and a seven-hour live agent wave;
 `docs/RECONCILIATION.md` is that record, and it is **binding** where it
 disagrees with anything else in this repository.
+
+---
+
+## The organization, on one page
+
+The kit is not just a status wall. It is a blueprint for an **autonomous
+engineering organization** — engineering, security, quality, metrics,
+architecture and design as one closed loop — where the driving engineer
+supplies effort variables and product answers, and everything else runs on
+written procedure.
+
+![The engineering organization mapped to kit roles](docs/diagrams/assets/org-mapping.svg)
+
+| Role (org term) | Kit carrier | Function |
+|---|---|---|
+| Product owner / sponsor | The driving engineer | Effort variables, product Q&A, ceilings, the human queue |
+| Engineering manager | **Maestro** (the session) | Dispatch, capacity within caps, merge authority, process |
+| PMO / metrics analyst | **Foreman** + Courier + the wall | Measured status, integrity, cost; rebalance recommendations |
+| Solution architect | **Architect** | Domain design, arcs + stories, requirements sign-off, rulings |
+| Governance board | **Adjudicator** | Tie-breaks, decision conflicts, contested trade-offs |
+| Analysts | **Researchers** (N, parallel) | Evidence with sources, options with costs |
+| Engineers | **Builders** (N, parallel) | Implementation in leased scopes, tests owed |
+| Release engineer | **Integrator** (a hat) | Rebase, safety proof, gates last, one PR at a time |
+| QA / code review | **Reviewer** + external lanes | Cold diff read, mutation protocol, DoD gate |
+| Security | A cross-cutting lane | SAST + secrets, gated network, consent-gated installs |
+| Project management | State, not a head | The wall's arcs/stories/bugs, SLA ladder, decision log |
+
+Full mapping with DDD alignment: `docs/diagrams/ORG_MAPPING.md`. The same
+system as sessions, hooks and state — with what runs parallel vs sequential:
+
+![Agent topology — hooks, session, pools, state, PR slot](docs/diagrams/assets/agent-topology.svg)
+
+Deep version with the concern-to-mechanism map: `docs/diagrams/AGENT_TOPOLOGY.md`.
+
+### The wall itself
+
+| | |
+|---|---|
+| ![STORIES tab — arcs with nested stories and bugs](docs/screenshots/wall-stories.png) | ![AGENTS tab — roster, models, tokens, integrity](docs/screenshots/wall-agents.png) |
+| STORIES — arc bands, story/bug nesting, literal status chips | AGENTS — keys, models (`requested -> routed`), cost, integrity flags |
+| ![A real 1143-item board overlaid through the import adapter](docs/screenshots/wall-overlay-reference.png) | ![Honest degrade — malformed snapshot banner](docs/screenshots/wall-degrade.png) |
+| The reference deployment's real board through `adapters/board_import.py` | Honest degrade: a malformed snapshot is a named banner, never a blank page |
+
+Light mode and the status-vocabulary fixture: `docs/screenshots/`.
 
 ---
 
@@ -81,6 +146,32 @@ a byte-identical ledger to an incremental run. Verified. That property is what
 makes the audit trail trustworthy, and it is why the courier is not an agent -
 and why shards ship to an isolated branch rather than riding pull requests
 (DEC-0004).
+
+---
+
+## The path: quick start to full implementation
+
+Every step is a real command or a written procedure; the right-hand column is
+where it is specified. Steps 0-2 take minutes; the rest is the operating
+rhythm.
+
+| # | Phase | What happens | Specified in |
+|---|---|---|---|
+| 0 | **See it work** | Render the sample wall from fake shards, 30 seconds, zero model calls | "Try it in 30 seconds" above |
+| 1 | **Deploy into the repo** | Copy `tools/wall/`, `docs/`, `frontend/theme/`, `.claude/`, `.gitignore`; empty repo fills templates, existing repo maps them | The two runbooks below |
+| 2 | **Start it** | `wall run-once` (works with nothing installed) -> `wall serve` -> the wall is live at `127.0.0.1:8123` | INSTALL.md |
+| 3 | **Close the loop** | `wall install --yes` (consent-gated) puts the one machine-wide timer on; `wall verify` proves it; shards + diagnostics ship off-box | INSTALL.md |
+| 4 | **Define the product** | Intake Q&A: effort variables + six product domains, derived from the repo first, asked second | PRODUCT_INTAKE.md |
+| 5 | **Author the work** | Architect designs arcs, writes citable stories; board seeded (or imported via `adapters/board_import.py`) | ITEM_AUTHORING.md |
+| 6 | **Run waves** | Session start SOP -> dispatch -> parallel build -> serial integration -> merge -> close SOP | SESSION_LIFECYCLE.md, WORKFLOW.md, `.claude/skills/wave/` |
+| 7 | **Wire the graders** | External reviewer lanes imported into one shared body of criteria | `.claude/skills/reviewer-integration/` |
+| 8 | **Tune on measurements** | Builder/researcher split, PR pacing, CI sharding — one knob per cycle | CAPACITY_REBALANCING.md, TESTING_STANDARDS.md |
+| 9 | **Let it learn** | Findings graduate to rules + tests + checklist lines; decisions accrete; the next wave starts smarter | FAILURE_PATTERNS + the `learn` loop |
+
+An LLM session can walk this path end-to-end on its own, asking the engineer
+only to run or verify the consent-gated steps: `docs/LLM_BOOTSTRAP.md`.
+Containers, VMs and Kubernetes: `docs/DEPLOYMENT_TARGETS.md`. Regulated
+industries: `docs/COMPLIANCE_POSTURE.md`.
 
 ---
 
@@ -301,6 +392,9 @@ docs/
   SESSION_LIFECYCLE.md   session start and close SOPs, startup questions, engineer escalation
   PRODUCT_INTAKE.md      the product-definition Q&A: derive from the repo first, ask second
   CAPACITY_REBALANCING.md  the measured knobs: builder/researcher split, PR pacing, CI sharding
+  LLM_BOOTSTRAP.md       the day-zero procedure an LLM session follows to stand all of this up
+  DEPLOYMENT_TARGETS.md  Docker, VMs, Kubernetes - who runs the timer, serves, ships
+  COMPLIANCE_POSTURE.md  the mechanisms in auditor language: SoD, change control, traceability
   LOGGING_AND_AUDIT.md   three planes, per-run artifacts, trace commands
   FAST_TRACK.md          doc-only routing
   INSTALL.md             machine-wide timer, serving, platform specifics

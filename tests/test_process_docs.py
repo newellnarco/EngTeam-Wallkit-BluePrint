@@ -305,3 +305,72 @@ def test_org_mapping_addresses_ddd_honestly():
     t = _text(ORG)
     for term in ("Ubiquitous language", "Bounded contexts", "Thin by design"):
         assert term in t
+
+
+# ------------------------------------------------- bootstrap / targets / compliance
+
+BOOTSTRAP = KIT / "docs" / "LLM_BOOTSTRAP.md"
+TARGETS = KIT / "docs" / "DEPLOYMENT_TARGETS.md"
+COMPLIANCE = KIT / "docs" / "COMPLIANCE_POSTURE.md"
+
+
+def test_bootstrap_has_all_phases_and_the_ask_ledger():
+    t = _text(BOOTSTRAP)
+    for h in ("Phase 0", "Phase 1", "Phase 2", "Phase 3", "Phase 4", "Phase 5",
+              "The ask/verify ledger"):
+        assert h in t, f"bootstrap missing {h}"
+
+
+def test_bootstrap_never_bypasses_the_consent_gate():
+    t = _text(BOOTSTRAP)
+    assert "ASK THE ENGINEER (run)" in t
+    flat = " ".join(t.replace(">", " ").split())
+    assert "Never schedule anything silently" in flat
+    assert "never work around a declined install" in flat
+
+
+def test_bootstrap_derive_do_not_reask():
+    t = _text(BOOTSTRAP)
+    assert "You ask; you do not assume" in t
+    assert "You derive; you do not re-ask" in t
+
+
+def test_deployment_targets_cover_docker_vm_k8s():
+    t = _text(TARGETS)
+    for h in ("## 1. Docker", "## 2. VMs", "## 3. Kubernetes"):
+        assert h in t
+
+
+def test_deployment_invariants_hold_on_every_target():
+    t = _text(TARGETS)
+    assert "One sweeper per checkout" in t
+    assert "concurrencyPolicy: Forbid" in t
+    assert "ClusterIP" in t
+    assert "never" in t and "0.0.0.0" in t  # host-wide publish forbidden
+    assert "applying the manifest" in t or "applying it is the engineer" in t.lower() or "manifest: applying" in t.lower() or "Consent** is the manifest" in t
+
+
+def test_compliance_maps_the_control_families():
+    t = _text(COMPLIANCE)
+    for fam in ("Segregation of duties", "Change management", "Audit trail",
+                "Traceability", "least privilege", "Reversibility",
+                "Independent review", "Security testing", "Data classification"):
+        assert fam in t, f"compliance posture missing {fam}"
+
+
+def test_compliance_is_honest_about_what_it_is_not():
+    t = _text(COMPLIANCE)
+    assert "not a certification" in t
+    assert "does not make a\nproduct compliant" in t or "does not make a product compliant" in " ".join(t.split())
+
+
+def test_readme_carries_the_turnkey_identity_and_visuals():
+    t = _text(README)
+    assert "turnkey" in t.lower()
+    for c in ("Complaint", "auditability" if "auditability" in t else "audit",
+              "docs/COMPLIANCE_POSTURE.md"):
+        assert c in t
+    assert "docs/diagrams/assets/org-mapping.svg" in t
+    assert "docs/diagrams/assets/agent-topology.svg" in t
+    assert "docs/screenshots/wall-stories.png" in t
+    assert "## The path: quick start to full implementation" in t

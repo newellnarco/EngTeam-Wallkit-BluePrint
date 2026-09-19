@@ -13,7 +13,18 @@ and state; this is the same system seen as a team.
 
 ## 1. The organization, as nodes and edges
 
+Rendered vector: [`assets/org-mapping.svg`](assets/org-mapping.svg).
+
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{
+  "background":"#10161d","fontFamily":"Segoe UI, Helvetica, Arial, sans-serif","fontSize":"18px",
+  "primaryColor":"#18212b","primaryTextColor":"#dce3e8","primaryBorderColor":"#3a4a58",
+  "secondaryColor":"#1e2833","tertiaryColor":"#0b1016",
+  "lineColor":"#9aa9b3","textColor":"#dce3e8",
+  "clusterBkg":"#0b1016","clusterBorder":"#c9962f",
+  "edgeLabelBackground":"#18212b","titleColor":"#c9962f",
+  "nodeTextColor":"#dce3e8"
+}}}%%
 flowchart TB
     subgraph SPONSOR["PRODUCT OWNER / SPONSOR  (the human driving engineer)"]
         PO["Sets effort variables + product definition (Q&amp;A)<br/>Answers the human queue - owns ceilings, scope, policy"]
