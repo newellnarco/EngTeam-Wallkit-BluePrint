@@ -1,0 +1,48 @@
+{
+  "_comment": [
+    "Copy the 'hooks' block into .claude/settings.json (shared, committed) or",
+    ".claude/settings.local.json (per-machine, gitignored). Merge it with any",
+    "hooks already configured -- this file is an example, not a drop-in replacement.",
+    "Paths are relative to the repo root, which is the working directory hooks run in.",
+    "On Windows use 'python' instead of 'python3'.",
+    "Both scripts always exit 0 and never write to stdout, so they can never deny a",
+    "tool call or stop a session; see .claude/hooks/README.md."
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/tool_use.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/tool_use.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/subagent_stop.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

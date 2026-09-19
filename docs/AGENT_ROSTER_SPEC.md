@@ -1,9 +1,33 @@
 # AGENT_ROSTER_SPEC.md
 
-Seven roles. What each owns, what it runs on, and where its authority stops.
+Eight roles. What each owns, what it runs on, and where its authority stops.
 
-Derived from `ORIGINAL_OUTLINE.md`, with two additions (Reviewer, Courier) and
-several boundaries tightened where the original left them implicit.
+Derived from `ORIGINAL_OUTLINE.md`, with three additions (Reviewer, Courier,
+Integrator) and several boundaries tightened where the original left them
+implicit.
+
+**The executable form is `.claude/`.** Each role below has a definition at
+`.claude/agents/<role>.md` that a session invokes directly. Maestro has no
+definition: it is the session itself, and its operating manual is
+`.claude/MAESTRO.md`. A wave runs through `.claude/skills/wave/SKILL.md`.
+
+---
+
+## Standing constraints on every role
+
+Measured in the first live wave (`RECONCILIATION.md` Part 2). Every agent
+definition carries the ones it needs; they are listed here once so the roster
+reads as one set of rules rather than seven copies.
+
+| Lesson | Rule |
+|---|---|
+| **G1** | No agent writes `git config`. It is repo-global and re-authored a sibling's in-flight commit. Identity is per invocation: `git -c user.name=... -c user.email=...` or `GIT_AUTHOR_*` / `GIT_COMMITTER_*`. |
+| **G2** | Every temp file an agent writes is keyed by its agent key. An unkeyed `commitmsg.txt` was overwritten between write and use. |
+| **G3** | No agent schedules itself. A subagent's timer fires into the parent session; a builder once waited forever on its own wake-up. Only the Maestro schedules. |
+| **G4** | Worktrees have no `.venv`. Interpreters are passed in, never resolved from the checkout. Seven phantom failures, chased three times independently. |
+| **G6** | Gates run last, after the final edit. A worktree unit has no CI between its commit and transplant. |
+| **G12** | Only the Maestro merges or flips a PR to ready. Everyone else reports green and stops. |
+| **G0b** | Evidence over self-report, for every role. A builder's own CI claim was superseded twice by reading the check runs. |
 
 ---
 
@@ -31,8 +55,12 @@ degrades gracefully when the pool is tight.
 | Tier | Model | Roles | Rationale |
 |---|---|---|---|
 | Authority | Fable 5.1 | Architect, Adjudicator | Deepest reasoning, lowest volume |
-| Execution | Opus 5 | Maestro, Builder (complex) | Dispatch and the work itself |
+| Execution | Opus 5 | Maestro, Builder (complex), Integrator | Dispatch and the work itself |
 | Verification | Sonnet 5 | Foreman, Reviewer, Researcher, Builder (mechanical) | Check and find out |
+
+The authority tier is written as `model: fable` in the definitions. On a host
+that does not resolve that alias, set `model: opus` -- **never** a
+verification-tier model, because the tier is the point.
 
 The ledger records `model_requested` and `model_used` separately, because Fable
 requests are occasionally routed to Opus 5 by safeguards.
@@ -71,6 +99,10 @@ finds a stale lock takes it over.
 ## Maestro — Opus 5
 
 **One per repo. This is the top-level Claude Code session, not a subagent.**
+There is deliberately no `.claude/agents/maestro.md`; the operating manual is
+`.claude/MAESTRO.md`. Confirmed the hard way (G0a): the first wave's spawned
+orchestrator found the `Agent` tool disabled inside itself and could only hand a
+dispatch plan back.
 
 Owns process and dispatch.
 
@@ -133,6 +165,29 @@ A `blocked` builder releases its slot. A `partial` builder keeps it.
 
 ---
 
+## Integrator -- Opus 5
+
+**Not a seat. A hat a Builder wears when the PR slot frees.** *(Not in the
+original outline; added from the first wave -- lesson G11.)*
+
+Between "built in a worktree" and "merged" there is a distinct job: rebase onto
+the moved `main`, resolve mechanical conflicts **by regenerating derived files
+with their tooling**, run the path-filtered safety proof before any
+force-with-lease, re-check budgets that other units moved, run the gates **last**,
+author the draft PR, and drive its review threads.
+
+The wave ran this five times by re-sending a long hand-written brief, and it
+drifted every time -- once mis-stating where a file lived. So it is a written
+role sheet (`.claude/agents/integrator.md`) plus an order form
+(`docs/handoffs/transplant-order.md`), and the same agent that built the unit
+assumes it. The procedure is WORKFLOW section 9.
+
+Authority stops in exactly the same place as the Builder's: **reports green,
+never merges, never flips ready** (G12). The Integrator consumes the single PR
+slot, not a builder slot, which is why it is a hat and not a cap line.
+
+---
+
 ## Reviewer — Sonnet 5
 
 **Capped per repo. Default 2.** *(Not in the original outline.)*
@@ -185,3 +240,13 @@ one thing that must be reproducible byte for byte.
 Singletons — Foreman, Maestro, Architect, Adjudicator — are enforced by the
 registry, not by the cap table. Researcher cap should track builders + 2; if the
 builder cap moves, move it too.
+
+**Integrator is absent from the cap table on purpose.** It is a hat a Builder
+puts on, and the thing it consumes is the single PR slot, which is already
+serialized. Giving it its own cap would imply two transplants can run at once;
+they cannot.
+
+Courier is a script and has no cap. It is listed on the agent grid as a non-LLM
+row -- runs and last-run time, zero tokens -- because an invisible bookkeeper is
+one whose failure is also invisible (G0c: it ran a whole wave as one Python file
+pushing an isolated branch, zero model calls).

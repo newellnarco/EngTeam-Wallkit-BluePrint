@@ -32,9 +32,31 @@ Subagents cannot spawn subagents. If Maestro is a subagent it cannot dispatch
 builders. So **the top-level Claude Code session is Maestro**, and everything
 else is a subagent it invokes.
 
-This breaks one link in the original outline. Researchers cannot take a question
-to the Architect and bring the answer back to the Builder directly — a subagent
-cannot call a sibling. Everything is mediated:
+This is not a design preference, it is a measured constraint (G0a). The first
+wave spawned an orchestrator as a subagent; it found the `Agent` tool disabled
+inside itself and could not dispatch anyone.
+
+### The degrade path when dispatch is unavailable (G0a)
+
+A session that cannot spawn must not stall, and must not quietly become the
+Builder. It runs the half of the loop it can run:
+
+1. Survey the backlog and the wall.
+2. **Vet** every candidate's status against ground truth, and fix drift.
+3. Export the snapshot so the wall is current.
+4. Hand back a **dispatch plan**, not a wish list: per unit, the item key, the
+   acceptance criteria, the **exact file surfaces shown to be disjoint** (the
+   lease check still applies), and the merge order for the single PR slot.
+5. **Say plainly that it could not spawn, and why.**
+
+The failure this prevents is a plan reported as a dispatch. The reader must be
+able to tell "four agents are working" from "here is what four agents should
+work on".
+
+### Everything is mediated
+
+Researchers cannot take a question to the Architect and bring the answer back to
+the Builder directly — a subagent cannot call a sibling:
 
 ```
 Builder (subagent)   → returns OPEN_QUESTION to Maestro
@@ -200,6 +222,22 @@ code. The Reviewer is the only agent that does.
 Cap rework at three rejection cycles, then escalate to Adjudicator, then to the
 human. Two parties who can both reject, with no cap, is an infinite loop.
 
+### Thread ownership is exclusive (G8)
+
+**The unit that owns the PR owns its threads. One writer per conversation** --
+the same rule decisions already follow, for the same reason.
+
+The coordinator and a builder both answered the same hosted-reviewer thread
+within minutes, under one shared platform identity, and double-replied. Under a
+shared identity a reader cannot tell two writers apart afterwards; it reads as
+one writer contradicting itself.
+
+A thread changes hands only through an explicit handshake: the requester tells
+the owner **before** posting anything, the owner acknowledges or is declared
+unreachable (its run has ended), and from the effective time the owner stops
+writing in that thread. The form is `docs/handoffs/review-thread-takeover.md`,
+and "it was faster" is not a listed reason.
+
 ---
 
 ## 7. Authority
@@ -217,18 +255,28 @@ When agents disagree, **evidence outranks rhetoric**. Tiebreak order:
 Two agents arguing, resolved by a third agent's judgment, ratifies whichever was
 more confident. Anchoring on tests and written decisions avoids that.
 
-| | Foreman | Maestro | Architect | Adjudicator | Builder | Reviewer | Researcher |
-|---|---|---|---|---|---|---|---|
-| Assign work | | ✔ | | | | | |
-| Write ledger/wall | ✔ | | | | | | |
-| Own requirements | | | ✔ | | | | |
-| Own process | | ✔ | | | | | |
-| Break ties | | | | ✔ | | | |
-| Edit source | | | | | ✔ | | |
-| Reject work | | ✔ | ✔ | | | ✔ | |
+| | Foreman | Maestro | Architect | Adjudicator | Builder | Integrator | Reviewer | Researcher |
+|---|---|---|---|---|---|---|---|---|
+| Assign work | | yes | | | | | | |
+| Write ledger/wall | yes | | | | | | | |
+| Own requirements | | | yes | | | | | |
+| Own process | | yes | | | | | | |
+| Break ties | | | | yes | | | | |
+| Edit source | | | | | yes | yes | | |
+| Reject work | | yes | yes | | | | yes | |
+| Rebase / force-push the PR ref | | | | | | yes | | |
+| Own a PR's review threads | | | | | | yes | | |
+| Merge / flip ready | | yes | | | | | | |
 
 Foreman never assigns work. Maestro never edits ledgers. Keeping those separate
 is what stops the observability layer from becoming a second control plane.
+
+The Integrator edits source only to land a unit that is already built: rebase
+resolution and derived-file regeneration. It is the only role that may force-push
+the designated ref, and only behind the safety proof in section 9. **Merge and
+ready-flip belong to the Maestro alone** (G12) -- that authority caught two
+would-have-been-early merges where draft-scoped checks read green but were not
+the full pyramid.
 
 ---
 
@@ -240,3 +288,117 @@ results and CI, with Courier reconciling claims against evidence.
 The clearest case, already implemented: a `run_start` with no terminal event past
 its deadline reclassifies the agent as `stale`, not `working` — regardless of
 what its last event claimed. A dead agent must never read as busy.
+
+Two corollaries the wave added:
+
+- **Read the evidence, do not accept the summary** (G0b). A builder's own
+  draft-CI report was superseded twice by reading the check runs directly. A
+  check-run name with its conclusion is evidence; "CI is green" is a claim.
+- **Bookkeeping cannot lag the merge** (G9). A PR merged before its item state
+  was updated left the wall claiming "in CI" on a merged PR, and the next
+  unrelated unit inherited the resulting red. Item state flips at **merge**
+  time. An item claiming an open PR that the host says is merged or closed is an
+  integrity flag, checked every sweep.
+
+---
+
+## 9. Integration: transplanting one unit through the single PR slot
+
+N units build in parallel worktrees; there is **one branch and one PR slot**. So
+every finished unit is transplanted, one at a time, and the transplant is its own
+procedure (G5). The wave executed it five times; by the third run it was handling
+two compactor-consumed-fragment conflicts and a placeholder-lease rejection
+exactly as written. Two more things it proved: the procedure must be a document
+(G11, G13), and the person running it is best served by being the unit's own
+Builder wearing the Integrator hat.
+
+Role sheet: `.claude/agents/integrator.md`. Order form:
+`docs/handoffs/transplant-order.md`. The steps, in order, because the order is
+the procedure:
+
+**0. Record the starting state.** The designated ref's SHA, `main`'s SHA, the
+unit's commit SHAs. These are the safety proof's inputs and the only rollback
+anchor.
+
+**1. Rebase onto the moved `main`.** It has moved. That is the normal case.
+
+**2. Resolve conflicts mechanically -- regenerate, never hand-merge.**
+
+- A **derived file** (manifest, generated matrix, compacted index, lockfile with
+  a generator): take either side, then **re-run the generator**. Never hand-merge
+  one and never resolve it by picking the side that looks right.
+- A **source file** is a real conflict: resolve with the unit's intent, then
+  re-run the unit's tests over the resolved region. A resolution that changes
+  behaviour the tests do not cover is a finding, not a judgement call.
+
+**3. The safety proof, before any push.** Force-with-lease protects against
+someone else's push, not against your own mistake. The proof is a diff you run
+and read:
+
+1. Designated ref vs `main`, **filtered to the unit's declared path scope** --
+   every hunk must be this unit's work.
+2. Designated ref vs `main`, **excluding** that path scope -- this must be
+   **empty**.
+3. Non-empty means the ref is carrying someone else's unmerged work, or a stale
+   copy of merged work, and the next push destroys it. **Stop, do not push,
+   report both SHAs and the exact paths.** That is a `blocked` outcome and the
+   Maestro's call.
+
+Push only then, with `--force-with-lease` carrying the SHA from step 0.
+
+**4. Re-check budgets (G10).** The rebase pulled other units' additions into the
+same budget-counted sections, so the unit's pre-rebase measurement is stale. Four
+units nearly blew one budget at once, each having measured only its own addition.
+Record the measured number and the headroom.
+
+**5. Gates LAST (G6).** After steps 1 to 4, immediately before the commit and the
+push. Never earlier. There is **no CI** between a worktree commit and this
+transplant, so the gate output is the only signal covering everything the
+transplant just did. Quote the output; a summary of a gate is not a gate.
+
+**6. Open the PR as a draft**, with the unit, the criteria and their sources, the
+gate output, the safety-proof result, and the budget numbers in the body.
+
+**7. Drive the review threads** -- section 10 for the lane postures, section 6
+for thread ownership.
+
+**8. Report green and stop (G12).** Check-run names **with conclusions**, read
+from the check runs; say whether that was the full pyramid or a draft-scoped
+subset. The Maestro flips ready and merges, and the bookkeeping follows the merge
+immediately (section 8, G9).
+
+---
+
+## 10. Hosted reviewer lanes
+
+Automated review lanes are useful and are not authorities. Measured across the
+wave's PRs, each lane needs a written posture (G7); without one, agents either
+obey a wrong finding or dismiss a right one.
+
+**Verify before accepting OR declining.** Both directions require checking the
+finding against the actual file. Accepting an unverified finding ships a change
+nobody needed; dismissing one unverified is how a real defect survives review.
+
+**Truncated-diff findings are a registered class.** A reviewer handed a truncated
+diff will report *its own truncation boundary* as a defect in the file -- "this
+file is truncated", "this function is unterminated". The same false finding was
+refuted twice in one wave. Refute it with a **parse proof**: read the real file,
+show the construct is complete, and quote the proof in the reply. **Never refute
+by assertion** -- an assertion is indistinguishable from an agent brushing off a
+finding it did not want.
+
+**Declining with a proven better fix is legitimate**, and it requires a
+**counterfactual test**: a test that fails under the suggested fix and passes
+under yours, or the reverse, shown in the reply. Three findings were closed this
+way. Without the counterfactual it is a preference, not a refutation.
+
+**Metered lanes are named, not waited on.** A quota-exhausted or rate-limited
+lane is recorded as unavailable in the wave report and does not hold the PR.
+Waiting on a lane that cannot answer is indistinguishable, from the outside, from
+a stalled unit.
+
+**One writer per thread** -- section 6.
+
+**Every real finding leaves a prevention behind**: the rule, the regression test,
+and the doc line that stop the class recurring. A finding closed without one is a
+finding you will receive again.
