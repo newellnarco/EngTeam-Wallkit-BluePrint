@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-19T22:03:31.459Z",
+  "generated_at": "2026-09-19T22:52:31.934Z",
   "repo": {
     "name": "atlas-core",
     "path": "/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kit/sample",
     "branch": "main"
   },
   "courier": {
-    "last_run_ms": 2,
+    "last_run_ms": 1,
     "events": 78,
     "shards": 3
   },
@@ -37,6 +37,30 @@
         "agent": "Nadia",
         "started": "2026-09-19T18:54:00.761Z",
         "item_id": "ST-121"
+      },
+      {
+        "run_id": "run_live_bld_a41f09",
+        "agent": "Desmond",
+        "started": "2026-09-19T21:36:00.761Z",
+        "item_id": "ST-106"
+      },
+      {
+        "run_id": "run_live_bld_2fc885",
+        "agent": "Theo",
+        "started": "2026-09-19T21:48:00.761Z",
+        "item_id": "ST-111"
+      },
+      {
+        "run_id": "run_live_res_d470af",
+        "agent": "Silas",
+        "started": "2026-09-19T21:51:00.761Z",
+        "item_id": "BG-021"
+      },
+      {
+        "run_id": "run_live_frm_4a91c2",
+        "agent": "Alistair",
+        "started": "2026-09-19T21:53:00.761Z",
+        "item_id": null
       }
     ],
     "duplicates": [
@@ -84,9 +108,18 @@
         "kind": "unassigned_past_sla",
         "question_id": "q_0051",
         "item_id": "ST-112",
-        "age_min": 54.5,
+        "age_min": 103.5,
         "sla_min": 5,
         "detail": "nobody picked it up"
+      },
+      {
+        "kind": "escalate",
+        "question_id": "q_0051",
+        "item_id": "ST-112",
+        "tier": "researcher",
+        "age_min": 103.5,
+        "sla_min": 60,
+        "detail": "open 104 min at tier 'researcher' -- escalate a tier"
       }
     ],
     "stale_claims": [
@@ -94,6 +127,26 @@
         "agent": "Nadia",
         "item_id": "ST-121",
         "since": "2026-09-19T18:54:00.761Z"
+      },
+      {
+        "agent": "Desmond",
+        "item_id": "ST-106",
+        "since": "2026-09-19T21:36:00.761Z"
+      },
+      {
+        "agent": "Silas",
+        "item_id": "BG-021",
+        "since": "2026-09-19T21:51:00.761Z"
+      },
+      {
+        "agent": "Alistair",
+        "item_id": null,
+        "since": "2026-09-19T21:53:00.761Z"
+      },
+      {
+        "agent": "Theo",
+        "item_id": "ST-111",
+        "since": "2026-09-19T21:48:00.761Z"
       }
     ]
   },
@@ -154,7 +207,7 @@
       "role": "builder",
       "model_requested": "claude-opus-5",
       "model_used": "claude-opus-5",
-      "status": "working",
+      "status": "stale",
       "item_id": "ST-106",
       "item_title": "Checkpointed tail reads per shard",
       "since": "2026-09-19T21:36:00.761Z",
@@ -198,7 +251,7 @@
       "role": "builder",
       "model_requested": "claude-sonnet-5",
       "model_used": "claude-sonnet-5",
-      "status": "working",
+      "status": "stale",
       "item_id": "ST-111",
       "item_title": "Atomic publish + heartbeat",
       "since": "2026-09-19T21:48:00.761Z",
@@ -220,7 +273,7 @@
       "role": "foreman",
       "model_requested": "claude-sonnet-5",
       "model_used": "claude-sonnet-5",
-      "status": "working",
+      "status": "stale",
       "item_id": null,
       "item_title": null,
       "since": "2026-09-19T21:53:00.761Z",
@@ -286,7 +339,7 @@
       "role": "researcher",
       "model_requested": "claude-sonnet-5",
       "model_used": "claude-sonnet-5",
-      "status": "working",
+      "status": "stale",
       "item_id": "BG-021",
       "item_title": "Find prior art on seq-gap recovery",
       "since": "2026-09-19T21:51:00.761Z",
@@ -747,30 +800,69 @@
         "used": 41200000,
         "limit": 60000000,
         "display": "41.2M",
-        "foot": "builders account for 78% of this"
+        "foot": "builders account for 78% of this",
+        "measured": null,
+        "used_total": 41200000.0,
+        "pct_remaining": 31.3,
+        "velocity_per_day": null,
+        "projected_exhaustion": null,
+        "pace": {
+          "verdict": "unknown",
+          "detail": "no usage source configured (match_model / counts)"
+        }
       },
       {
         "label": "Claude — Sonnet 5",
         "used": 12800000,
         "limit": 90000000,
         "display": "12.8M",
-        "foot": "researchers and review"
+        "foot": "researchers and review",
+        "measured": null,
+        "used_total": 12800000.0,
+        "pct_remaining": 85.8,
+        "velocity_per_day": null,
+        "projected_exhaustion": null,
+        "pace": {
+          "verdict": "unknown",
+          "detail": "no usage source configured (match_model / counts)"
+        }
       },
       {
         "label": "Claude — Fable 5.1",
         "used": 3100000,
         "limit": 20000000,
         "display": "3.1M",
-        "foot": "adjudicator runs routed to Opus by safeguards"
+        "foot": "adjudicator runs routed to Opus by safeguards",
+        "measured": null,
+        "used_total": 3100000.0,
+        "pct_remaining": 84.5,
+        "velocity_per_day": null,
+        "projected_exhaustion": null,
+        "pace": {
+          "verdict": "unknown",
+          "detail": "no usage source configured (match_model / counts)"
+        }
       },
       {
         "label": "GitHub Actions",
         "used": 1412,
         "limit": 3000,
         "display": "1,412 min",
-        "foot": "fast-track saved an estimated 240 min"
+        "foot": "fast-track saved an estimated 240 min",
+        "measured": null,
+        "used_total": 1412.0,
+        "pct_remaining": 52.9,
+        "velocity_per_day": null,
+        "projected_exhaustion": null,
+        "pace": {
+          "verdict": "unknown",
+          "detail": "no usage source configured (match_model / counts)"
+        }
       }
-    ]
+    ],
+    "period_start": "2026-09-01T00:00:00+00:00",
+    "period_end": "2026-10-01T00:00:00+00:00",
+    "pct_period_remaining": 36.8
   },
   "rollup_by_role": [
     {

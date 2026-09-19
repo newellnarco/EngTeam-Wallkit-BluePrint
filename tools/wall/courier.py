@@ -44,6 +44,142 @@ DEFAULT_BUDGET = {
 }
 
 
+# ----------------------------------------------------------- budget pacing
+
+def _budget_dt(s):
+    """Parse an ISO stamp; None on anything else. Zulu accepted."""
+    if not isinstance(s, str):
+        return None
+    try:
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _meter_usage(meter: dict, ev: dict) -> float | None:
+    """How much of THIS meter one run_end event consumed, or None if the meter
+    has no usage source configured (a static meter stays static, honestly)."""
+    match = meter.get("match_model")
+    if match:
+        model = (ev.get("model_used") or "").lower()
+        if match.lower() in model:
+            tok = ev.get("tokens") or {}
+            return float((tok.get("in") or 0) + (tok.get("out") or 0))
+        return 0.0
+    counts = meter.get("counts")
+    if counts in ("gh_minutes", "cost_usd"):
+        v = ev.get(counts)
+        return float(v) if isinstance(v, (int, float)) else 0.0
+    return None
+
+
+def enrich_budget(budget: dict, events: list[dict], now: datetime) -> dict:
+    """Balance, %-remaining, measured velocity and a projected exhaustion date
+    per meter, plus a pace verdict the rebalancing table consumes.
+
+    Everything here is measured or honestly absent -- a meter with no usage
+    source reads `unknown`, a meter with a source but no burn in the window
+    reads `idle` with no fabricated date, and `strict: true` (a hard list-price
+    cap) turns an early projected exhaustion into a mandatory `slow` rather
+    than an advisory one. Pure: no I/O, no clock reads -- `now` is passed in.
+    """
+    out = json.loads(json.dumps(budget))  # never mutate the caller's config
+    period_start = _budget_dt(out.get("period_start")) or now.replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0)
+    period_end = _budget_dt(out.get("period_end"))
+    if period_end is None:
+        period_end = (period_start.replace(year=period_start.year + 1, month=1)
+                      if period_start.month == 12 else
+                      period_start.replace(month=period_start.month + 1))
+    total_s = max((period_end - period_start).total_seconds(), 1.0)
+    pct_period_remaining = max(0.0, min(100.0,
+        (period_end - now).total_seconds() / total_s * 100.0))
+    window_s = min(7 * 86400.0, max((now - period_start).total_seconds(), 3600.0))
+    window_start = now.__class__.fromtimestamp(now.timestamp() - window_s, tz=now.tzinfo)
+
+    runs = []
+    for ev in events:
+        if ev.get("event") != "run_end":
+            continue
+        ts = _budget_dt(ev.get("ts"))
+        if ts is not None:
+            runs.append((ts, ev))
+
+    for m in out.get("meters", []):
+        limit = m.get("limit") or 0
+        measured = None
+        window_sum = None
+        probe = _meter_usage(m, {"event": "run_end"})
+        has_source = not (probe is None and not m.get("match_model")
+                          and m.get("counts") not in ("gh_minutes", "cost_usd"))
+        if m.get("match_model") or m.get("counts") in ("gh_minutes", "cost_usd"):
+            measured = 0.0
+            window_sum = 0.0
+            for ts, ev in runs:
+                u = _meter_usage(m, ev)
+                if not u:
+                    continue
+                if ts >= period_start:
+                    measured += u
+                if ts >= window_start:
+                    window_sum += u
+        else:
+            has_source = False
+
+        used_total = float(m.get("used") or 0) + (measured or 0.0)
+        m["measured"] = measured
+        m["used_total"] = used_total
+        m["pct_remaining"] = (round(max(0.0, (limit - used_total) / limit * 100.0), 1)
+                              if limit else None)
+        velocity = (round(window_sum / (window_s / 86400.0), 2)
+                    if window_sum is not None else None)
+        m["velocity_per_day"] = velocity
+        m["projected_exhaustion"] = None
+
+        if not limit:
+            m["pace"] = {"verdict": "unmetered", "detail": "no limit configured"}
+            continue
+        if not has_source:
+            m["pace"] = {"verdict": "unknown",
+                         "detail": "no usage source configured (match_model / counts)"}
+            continue
+        remaining = limit - used_total
+        if remaining <= 0:
+            m["pace"] = {"verdict": "exhausted",
+                         "detail": ("hard cap reached -- stop the spend line"
+                                    if m.get("strict") else
+                                    "over budget -- overage is the engineer's call")}
+            continue
+        if not velocity:
+            m["pace"] = {"verdict": "idle",
+                         "detail": "no burn in the trailing window; no date projected"}
+            continue
+        days_left = remaining / velocity
+        exhaustion = now.__class__.fromtimestamp(
+            now.timestamp() + days_left * 86400.0, tz=now.tzinfo)
+        m["projected_exhaustion"] = exhaustion.date().isoformat()
+        if exhaustion < period_end:
+            m["pace"] = {"verdict": "slow",
+                         "detail": ("exhausts ~%s, before the period ends %s -- "
+                                    % (exhaustion.date(), period_end.date()))
+                         + ("hard list-price cap: pace work to land at the period end"
+                            if m.get("strict") else
+                            "overage budget: the engineer decides, projection attached")}
+        elif (m["pct_remaining"] or 0) - pct_period_remaining > 20:
+            m["pace"] = {"verdict": "may speed",
+                         "detail": "%.0f%% remaining vs %.0f%% of the period left -- "
+                                   "headroom to raise the pace"
+                                   % (m["pct_remaining"], pct_period_remaining)}
+        else:
+            m["pace"] = {"verdict": "on pace",
+                         "detail": "burn matches the period at current velocity"}
+
+    out["period_start"] = period_start.isoformat()
+    out["period_end"] = period_end.isoformat()
+    out["pct_period_remaining"] = round(pct_period_remaining, 1)
+    return out
+
+
 # ---------------------------------------------------------------- utilities
 
 def now_iso() -> str:
@@ -348,7 +484,8 @@ def build_snapshot(repo: Path, events: list[dict], config: dict, shard_count: in
         "waiting_on_you": sorted(asks.values(), key=lambda a: a["since"] or ""),
         "questions": sorted(folded_questions.values(),
                             key=lambda q: (q.get("raised_at") or "", q["question_id"])),
-        "budget": config.get("budget", DEFAULT_BUDGET),
+        "budget": enrich_budget(config.get("budget", DEFAULT_BUDGET), events,
+                                datetime.now(timezone.utc)),
         "rollup_by_role": sorted(rollup.values(), key=lambda r: (r["role"], r["model"])),
         "sessions": sorted(sessions),
     }

@@ -53,13 +53,14 @@
   },
 
   "budget": {
-    "period": "week to date",
+    "period": "month to date",
     "advisory": "Advisory only. Nothing here stops work — it tells you when to.",
+    "_pacing": "The courier enriches each meter from run_end events: used_total, pct_remaining, measured velocity/day, a projected exhaustion date, and a pace verdict (slow / on pace / may speed / idle / unknown / exhausted) that CAPACITY_REBALANCING.md consumes. match_model attributes in+out tokens by model_used substring; counts attributes gh_minutes or cost_usd. strict=true marks a hard list-price cap: a projected early exhaustion becomes mandatory pacing, not advice. period_start/period_end (ISO) override the default calendar month.",
     "meters": [
-      { "label": "Claude — Opus 5",    "used": 0, "limit": 60000000, "foot": "" },
-      { "label": "Claude — Sonnet 5",  "used": 0, "limit": 90000000, "foot": "" },
-      { "label": "Claude — Fable 5.1", "used": 0, "limit": 20000000, "foot": "" },
-      { "label": "GitHub Actions",     "used": 0, "limit": 3000,     "foot": "minutes" }
+      { "label": "Claude — Opus 5",    "used": 0, "limit": 60000000, "match_model": "opus",   "foot": "" },
+      { "label": "Claude — Sonnet 5",  "used": 0, "limit": 90000000, "match_model": "sonnet", "foot": "" },
+      { "label": "Claude — Fable 5.1", "used": 0, "limit": 20000000, "match_model": "fable",  "foot": "" },
+      { "label": "GitHub Actions",     "used": 0, "limit": 3000,     "counts": "gh_minutes", "strict": true, "foot": "minutes — hard list-price cap" }
     ]
   }
 }

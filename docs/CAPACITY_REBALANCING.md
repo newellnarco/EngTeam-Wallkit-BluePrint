@@ -46,6 +46,7 @@ describing itself:
 | CI wall-clock p50/p95 + queue time | check runs | The time cost of every merge |
 | Test shard imbalance + drift | `testkit check` (exit 1 on either) | Sharding no longer matches the suite |
 | Token spend per merged unit | harness usage in `run_end` (DEC-0008: actuals, never estimates) | The cost line the budget meters aggregate |
+| Budget trajectory: per-meter velocity → projected exhaustion date vs period end | the courier's budget enrichment (AGENTS tab gauges) | Whether the wave's pace fits the money; `strict` meters make it a hard constraint |
 | Review-lane latency / quota state | lane postures (WORKFLOW §10) | A metered lane about to be named-not-waited-on |
 
 ## 3. The decision table
@@ -65,6 +66,8 @@ reason:
 | `testkit check` exits 1 (imbalance or drift) | Regenerate the shard map — never hand-edit it (the reviewer rejects a hand-edited map on sight) |
 | Token spend per merged unit rising | Author smaller stories (ITEM_AUTHORING §4) before adding or removing agents — unit size, not headcount, is the first lever |
 | Budget meter warns | Report to the engineer with the trend; advisory means the human decides, not that nobody does |
+| Meter pace verdict `slow` (projected exhaustion before period end) | On a `strict` meter (hard list price): mandatory pacing — pause dispatches or shrink the builder pool until the projection lands at or after period end. On an overage budget: the engineer decides, projection attached |
+| Meter pace verdict `may speed` (remaining % far ahead of the period) | Headroom exists: the Maestro may raise parallelism within caps — one knob per cycle still holds |
 | A metered review lane exhausted | Name it unavailable in the report and proceed; do not idle the PR on a lane that cannot answer |
 
 Two standing preferences behind the table: **drain before you widen** (a

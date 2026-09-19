@@ -388,6 +388,13 @@ table.data tr.group .count {
 
 .ident { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
 
+/* ---- pace chips (budget trajectory) -------------------------------------- */
+.chip--pace-slow, .chip--pace-exhausted { color: var(--status-alert); border-color: var(--status-alert); }
+.chip--pace-on-pace { color: var(--status-good); border-color: var(--status-good); }
+.chip--pace-may-speed { color: var(--status-info); border-color: var(--status-info); }
+.chip--pace-idle, .chip--pace-unknown, .chip--pace-unmetered { color: var(--text-muted); border-color: var(--line); }
+.gauge .traj { font-size: var(--text-xs); color: var(--text-secondary); margin-top: 4px; }
+
 /* ---- meter --------------------------------------------------------------- */
 
 .meter { width: 120px; height: 5px; background: var(--line); border-radius: var(--radius-sm); overflow: hidden; flex: none; }
@@ -583,6 +590,10 @@ footer {
         </tr></thead>
         <tbody id="crewBody"></tbody>
       </table></div>
+    </div>
+    <div class="panel">
+      <h2>Budget<span class="sub">balance per tool &middot; % remaining &middot; projected exhaustion at measured velocity</span></h2>
+      <div class="gauges" id="gaugesAgents"></div>
     </div>
     <div class="panel">
       <h2>Integrity<span class="sub">what the last sweep could and could not verify</span></h2>
@@ -895,6 +906,10 @@ footer {
   // ---- AGENTS -------------------------------------------------------------
 
   function paintCrew(){
+    var bm = (D.budget || {}).meters || [];
+    var el = $('gaugesAgents');
+    if (el) el.innerHTML = bm.length ? bm.map(gaugeHtml).join('')
+      : '<div class="gauge"><div class="foot">No budget meters configured.</div></div>';
     var crew = D.crew || [], limits = D.role_limits || {};
     var order = ['foreman','maestro','architect','adjudicator','builder','researcher','reviewer','courier'];
     var byRole = {};
@@ -976,19 +991,34 @@ footer {
     }).join('');
   }
 
+  // ---- budget gauges (AGENTS + LEDGER share one builder) -------------------
+
+  function gaugeHtml(m){
+    var used = (m.used_total != null) ? m.used_total : m.used;
+    var pct = m.limit ? Math.min(100, used / m.limit * 100) : 0;
+    var cls = pct > 85 ? 'alert' : pct > 70 ? 'warn' : '';
+    var pace = m.pace || {};
+    var chip = pace.verdict
+      ? ' <span class="chip chip--pace-' + esc(String(pace.verdict).replace(/\s+/g, '-')) + '">' + esc(pace.verdict) + '</span>'
+      : '';
+    var traj = '';
+    if (m.pct_remaining != null) traj += esc(m.pct_remaining.toFixed ? m.pct_remaining.toFixed(0) : m.pct_remaining) + '% remaining';
+    if (m.projected_exhaustion) traj += (traj ? ' &middot; ' : '') + 'exhausts ~' + esc(m.projected_exhaustion) + ' at measured velocity';
+    else if (pace.verdict === 'idle') traj += (traj ? ' &middot; ' : '') + 'no burn in the trailing window';
+    var detail = pace.detail ? '<div class="traj">' + esc(pace.detail) + '</div>' : '';
+    return '<div class="gauge"><h4>' + esc(m.label) + chip + '</h4>' +
+      '<div><span class="big">' + esc(m.display || compact(used)) + '</span>' +
+      (m.limit ? '<span class="of">of ' + compact(m.limit) + '</span>' : '') + '</div>' +
+      '<div class="bar"><i class="' + cls + '" style="width:' + pct.toFixed(1) + '%"></i></div>' +
+      (traj ? '<div class="traj">' + traj + '</div>' : '') + detail +
+      '<div class="foot">' + esc(m.foot || '') + '</div></div>';
+  }
+
   // ---- LEDGER -------------------------------------------------------------
 
   function paintLedger(){
     var b = D.budget || {};
-    var gauges = (b.meters || []).map(function(m){
-      var pct = m.limit ? Math.min(100, m.used / m.limit * 100) : 0;
-      var cls = pct > 85 ? 'alert' : pct > 70 ? 'warn' : '';
-      return '<div class="gauge"><h4>' + esc(m.label) + '</h4>' +
-        '<div><span class="big">' + esc(m.display || compact(m.used)) + '</span>' +
-        (m.limit ? '<span class="of">of ' + compact(m.limit) + '</span>' : '') + '</div>' +
-        '<div class="bar"><i class="' + cls + '" style="width:' + pct.toFixed(1) + '%"></i></div>' +
-        '<div class="foot">' + esc(m.foot || '') + '</div></div>';
-    }).join('');
+    var gauges = (b.meters || []).map(gaugeHtml).join('');
     $('gauges').innerHTML = gauges || '<div class="gauge"><div class="foot">No budget data yet.</div></div>';
     $('advisory').textContent = b.advisory ||
       'Budgets are advisory. Nothing here stops work — it tells you when to.';
