@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-19T21:54:00.843Z",
+  "generated_at": "2026-09-19T22:03:31.459Z",
   "repo": {
     "name": "atlas-core",
     "path": "/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kit/sample",
     "branch": "main"
   },
   "courier": {
-    "last_run_ms": 1,
+    "last_run_ms": 2,
     "events": 78,
     "shards": 3
   },
@@ -84,7 +84,7 @@
         "kind": "unassigned_past_sla",
         "question_id": "q_0051",
         "item_id": "ST-112",
-        "age_min": 45.0,
+        "age_min": 54.5,
         "sla_min": 5,
         "detail": "nobody picked it up"
       }

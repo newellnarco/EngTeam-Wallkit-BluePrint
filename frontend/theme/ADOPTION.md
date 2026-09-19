@@ -31,6 +31,50 @@ Three rules, all lintable, worth wiring into CI:
 - Every `var()` resolves to a defined token.
 - Every semantic token exists in both light and dark.
 
+## The wall itself
+
+The wall (`tools/wall/render/wall_template.html`) is the one consumer that
+cannot follow step 1, because it is a **single self-contained file**: the
+courier inlines the snapshot and the page is opened from `file://` as often as
+it is served, so there is no stylesheet for it to link. The token layer is
+therefore **embedded**, between two markers:
+
+```
+/* ==== BEGIN theme.css (embedded verbatim from frontend/theme/theme.css) ==== */
+   ... the whole of theme.css, unmodified ...
+/* ==== END theme.css ==== */
+```
+
+Below the END marker sits the component layer: the `primitives.css` classes the
+page actually uses (`.panel`, `table.data`, `.chip`, `.meter`, `.tabs`,
+`.notice`, `.empty`) plus the wall-specific pieces — the sweep lamp, the arc
+bands, the status chips. It reaches for **tokens only**.
+
+Re-embedding after a theme change is a copy-paste between the markers. Nothing
+else in the file moves.
+
+### The sync guard
+
+An embedded copy is a copy that can drift, so `tests/test_wall_design.py` holds
+it to the contract:
+
+- every custom-property **name** defined in `theme.css` appears in the
+  template's style block — a token added to the theme and not re-embedded fails
+  here, not at the next screenshot;
+- the embedded block is `theme.css` **verbatim**, not a paraphrase of it;
+- **zero hex literals** below the END marker — a raw colour there is a colour
+  that will not follow light mode, which is the bug the token layer exists to
+  prevent;
+- every `var()` in the file resolves to a token the file defines;
+- light and dark come from `theme.css`'s own `prefers-color-scheme` rules; the
+  component layer never redefines a colour for a mode.
+
+The same file also checks the markup the theme is applied to: the four tab
+labels in order, one chip class per status in the closed set
+`{planned, in_progress, blocked, review, done, shipped}` plus the neutral
+`chip--st-unknown` fallback, the arc grouping, and the error banner that a
+malformed `wall.json` raises instead of a blank page.
+
 ## Contrast
 
 Every text pair clears WCAG AA (4.5:1) against its intended background in both

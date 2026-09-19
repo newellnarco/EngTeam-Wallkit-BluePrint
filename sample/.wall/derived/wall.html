@@ -6,196 +6,576 @@
 <meta http-equiv="refresh" content="30">
 <title>Wall — atlas-core</title>
 <style>
-:root{
-  --ground:#10161d;
-  --board:#18212b;
-  --board-2:#1e2833;
-  --rule:#2a3742;
-  --rule-soft:#222d38;
-  --chalk:#dce3e8;
-  --chalk-dim:#7e8f9c;
-  --chalk-faint:#55646f;
-  --brass:#c9962f;
-  --brass-soft:#8a6a24;
-  --flag:#d2603f;
-  --sage:#5f9070;
-  --steel:#5c7f9c;
-  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
-  --text:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-  color-scheme:dark;
-  box-sizing:border-box;
-  padding-top:env(safe-area-inset-top,0px);
-  padding-bottom:env(safe-area-inset-bottom,0px);
+/* ============================================================================
+   The wall is one self-contained file: it is opened from file:// as often as
+   it is served, so there is no stylesheet to link. The design system therefore
+   lives INLINE, in two blocks:
+
+     1. the token layer, embedded verbatim from frontend/theme/theme.css
+     2. the component layer, the primitives.css classes this page actually uses
+        plus the handful of wall-specific pieces, built only on those tokens
+
+   Rules that hold below the token block, and are enforced by
+   tests/test_wall_design.py:
+
+     * no raw hex anywhere outside the embedded token block
+     * every custom property defined in theme.css appears here, so the two
+       cannot drift apart silently
+     * light and dark come from theme.css's own prefers-color-scheme rules;
+       this file never redefines a colour for a mode
+
+   Re-embedding after a theme change is a copy of theme.css between the BEGIN
+   and END markers. Nothing else in this file moves.
+   ========================================================================== */
+
+/* ==== BEGIN theme.css (embedded verbatim from frontend/theme/theme.css) ==== */
+/* ============================================================================
+   Wall theme tokens
+   ----------------------------------------------------------------------------
+   Blueprint stock and brass. Cool slate ground, warm metal accent, structure
+   carried by hairline rules rather than cards and shadows.
+
+   Three layers. Use the semantic layer in components; reach for the primitive
+   layer only when defining a new semantic token.
+
+     1. primitives  --c-*      raw palette, no meaning attached
+     2. semantic    --surface-*, --text-*, --line-*, --accent-*, --status-*
+     3. shape       --radius-*, --space-*, type and motion
+
+   Every colour pair used for text clears WCAG AA (4.5:1) against its intended
+   background in both modes. Verify before changing a value.
+   ========================================================================== */
+
+:root {
+  /* ---- 1. primitives ---------------------------------------------------- */
+
+  /* Blueprint — the cool structural spine of the palette. */
+  --c-blue-950: #0b1016;
+  --c-blue-900: #10161d;
+  --c-blue-850: #18212b;
+  --c-blue-800: #1e2833;
+  --c-blue-700: #2a3742;
+  --c-blue-600: #3a4a58;
+  --c-blue-300: #7c8d97;
+  --c-blue-200: #9aa9b3;
+  --c-blue-100: #c2ccd3;
+  --c-blue-050: #dce3e8;
+
+  /* Paper — the light-mode ground. Cool, not cream. */
+  --c-paper-050: #ffffff;
+  --c-paper-100: #f4f6f8;
+  --c-paper-200: #e6eaee;
+  --c-paper-300: #d2d9df;
+  --c-ink-900:   #141c24;
+  --c-ink-700:   #2c3a45;
+  --c-ink-500:   #4d5c68;
+  --c-ink-400:   #6f7f8b;
+
+  /* Brass — the single accent. Two values: it must darken on light grounds. */
+  --c-brass-light: #c9962f;   /* on dark:  6.11:1 */
+  --c-brass-dark:  #7a5a14;   /* on light: 6.36:1 */
+
+  /* Status. Each has a dark-mode and a light-mode value; the raw hues differ
+     because a hue that reads correctly on navy is unreadable on white. */
+  --c-alert-dark:   #e07a58;  --c-alert-light:   #a8401f;
+  --c-good-dark:    #74a585;  --c-good-light:    #2f6b45;
+  --c-info-dark:    #7aa0bd;  --c-info-light:    #2d5a7b;
+
+  /* ---- 3. shape, type, motion ------------------------------------------- */
+
+  /* Structure is information. Radius stays small so panels read as drawn
+     rules rather than as floating cards; there are no drop shadows anywhere. */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;
+  --space-4: 16px;  --space-5: 24px;  --space-6: 32px;  --space-7: 48px;
+
+  /* One family for prose, one for numerals. Mono is used where columns must
+     align or an identifier must be read character by character — never as
+     decoration on labels. System stacks only: no network fetch. */
+  --font-text: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --text-xs:   11.5px;
+  --text-sm:   12.5px;
+  --text-base: 13.5px;
+  --text-md:   15px;
+  --text-lg:   18px;
+  --text-xl:   21px;
+  --text-2xl:  27px;
+
+  --leading-tight: 1.25;
+  --leading-body:  1.5;
+  --measure: 68ch;          /* keep prose under ~80 characters */
+
+  --ease: cubic-bezier(.2, 0, .2, 1);
+  --dur: 140ms;
+
+  /* ---- 2. semantic — dark is the default ground ------------------------- */
+
+  --surface-ground:  var(--c-blue-900);
+  --surface-panel:   var(--c-blue-850);
+  --surface-raised:  var(--c-blue-800);
+  --surface-sunken:  var(--c-blue-950);
+  --surface-hover:   #222d38;
+
+  --text-primary:    var(--c-blue-050);
+  --text-secondary:  var(--c-blue-200);
+  --text-muted:      var(--c-blue-300);   /* 4.73:1 — AA, safe for small text */
+  --text-inverse:    var(--c-blue-950);
+
+  --line-strong:     var(--c-blue-600);
+  --line:            var(--c-blue-700);
+  --line-soft:       #222d38;
+
+  --accent:          var(--c-brass-light);
+  --accent-muted:    #8a6a24;
+  --accent-contrast: var(--c-blue-950);   /* text on a brass fill */
+
+  --status-alert:    var(--c-alert-dark);
+  --status-good:     var(--c-good-dark);
+  --status-info:     var(--c-info-dark);
+  --status-idle:     var(--c-blue-300);
+
+  --grid-line:       var(--line-soft);
+  --focus-ring:      var(--accent);
+
+  color-scheme: dark;
 }
-*,*::before,*::after{box-sizing:inherit}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{
-  margin:0;background:var(--ground);color:var(--chalk);
-  font:400 13px/1.45 var(--text);
-  -webkit-font-smoothing:antialiased;
+
+/* ---- light mode ---------------------------------------------------------
+   Follows the viewer's setting, overridable with data-theme on <html>.
+   Only the semantic layer changes; component CSS never knows which is active. */
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --surface-ground:  var(--c-paper-100);
+    --surface-panel:   var(--c-paper-050);
+    --surface-raised:  var(--c-paper-100);
+    --surface-sunken:  var(--c-paper-200);
+    --surface-hover:   #eef2f5;
+
+    --text-primary:    var(--c-ink-900);
+    --text-secondary:  var(--c-ink-700);
+    --text-muted:      var(--c-ink-500);   /* 6.36:1 */
+    --text-inverse:    var(--c-paper-050);
+
+    --line-strong:     var(--c-paper-300);
+    --line:            var(--c-paper-200);
+    --line-soft:       #eef1f4;
+
+    --accent:          var(--c-brass-dark);
+    --accent-muted:    #9c7a31;
+    --accent-contrast: var(--c-paper-050);
+
+    --status-alert:    var(--c-alert-light);
+    --status-good:     var(--c-good-light);
+    --status-info:     var(--c-info-light);
+    --status-idle:     var(--c-ink-400);
+
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --surface-ground:  var(--c-paper-100);
+  --surface-panel:   var(--c-paper-050);
+  --surface-raised:  var(--c-paper-100);
+  --surface-sunken:  var(--c-paper-200);
+  --surface-hover:   #eef2f5;
+
+  --text-primary:    var(--c-ink-900);
+  --text-secondary:  var(--c-ink-700);
+  --text-muted:      var(--c-ink-500);
+  --text-inverse:    var(--c-paper-050);
+
+  --line-strong:     var(--c-paper-300);
+  --line:            var(--c-paper-200);
+  --line-soft:       #eef1f4;
+
+  --accent:          var(--c-brass-dark);
+  --accent-muted:    #9c7a31;
+  --accent-contrast: var(--c-paper-050);
+
+  --status-alert:    var(--c-alert-light);
+  --status-good:     var(--c-good-light);
+  --status-info:     var(--c-info-light);
+  --status-idle:     var(--c-ink-400);
+
+  color-scheme: light;
+}
+
+/* ---- base ---------------------------------------------------------------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+
+body {
+  margin: 0;
+  background: var(--surface-ground);
+  color: var(--text-primary);
+  font: 400 var(--text-base)/var(--leading-body) var(--font-text);
+  -webkit-font-smoothing: antialiased;
+
+  /* The blueprint grid. It is the one piece of pure atmosphere in the system,
+     so it stays faint enough to read as paper texture rather than as content. */
   background-image:
-    linear-gradient(var(--rule-soft) 1px,transparent 1px),
-    linear-gradient(90deg,var(--rule-soft) 1px,transparent 1px);
-  background-size:64px 64px,64px 64px;
-  background-position:-1px -1px;
-}
-.sheet{max-width:1320px;margin:0 auto;padding:0 20px 64px}
-
-/* ---- ribbon ---- */
-.ribbon{
-  display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 22px;
-  padding:22px 0 16px;border-bottom:2px solid var(--rule);
-}
-.repo{font-size:21px;font-weight:600;letter-spacing:-.015em;margin:0}
-.repo .branch{color:var(--chalk-faint);font-weight:400;font-family:var(--mono);font-size:14px;margin-left:8px}
-.ribbon .spacer{flex:1 1 auto}
-.sweep{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;color:var(--chalk-dim)}
-.lamp{width:9px;height:9px;border-radius:50%;background:var(--sage);box-shadow:0 0 0 3px rgba(95,144,112,.16);flex:none}
-.lamp.warm{background:var(--brass);box-shadow:0 0 0 3px rgba(201,150,47,.16)}
-.lamp.cold{background:var(--flag);box-shadow:0 0 0 3px rgba(210,96,63,.18)}
-.lamp.live{animation:breathe 3.2s ease-in-out infinite}
-@keyframes breathe{0%,100%{opacity:1}50%{opacity:.42}}
-@media (prefers-reduced-motion:reduce){.lamp.live{animation:none}}
-.courier-note{font-family:var(--mono);font-size:11.5px;color:var(--chalk-faint)}
-
-/* ---- tabs ---- */
-nav.tabs{display:flex;gap:2px;margin:0 0 2px;border-bottom:1px solid var(--rule);overflow-x:auto}
-nav.tabs button{
-  appearance:none;background:none;border:0;border-bottom:2px solid transparent;
-  color:var(--chalk-dim);font:inherit;font-size:13px;padding:11px 15px;cursor:pointer;white-space:nowrap;
-  margin-bottom:-1px;
-}
-nav.tabs button:hover{color:var(--chalk)}
-nav.tabs button[aria-selected="true"]{color:var(--chalk);border-bottom-color:var(--brass)}
-nav.tabs button:focus-visible{outline:2px solid var(--brass);outline-offset:-2px}
-nav.tabs .count{font-family:var(--mono);font-size:11px;color:var(--chalk-faint);margin-left:6px}
-nav.tabs button[aria-selected="true"] .count{color:var(--brass)}
-nav.tabs .count.hot{color:var(--flag)}
-[role="tabpanel"][hidden]{display:none}
-
-/* ---- panels & tables ---- */
-.panel{background:var(--board);border:1px solid var(--rule);border-radius:2px;margin-top:18px;overflow:hidden}
-.panel > h2{
-  margin:0;padding:12px 16px;font-size:13px;font-weight:600;letter-spacing:.005em;
-  border-bottom:1px solid var(--rule);color:var(--chalk);
-  display:flex;align-items:baseline;gap:10px;
-}
-.panel > h2 .sub{font-weight:400;color:var(--chalk-faint);font-size:12px}
-.scroll{overflow-x:auto}
-table{border-collapse:collapse;width:100%;min-width:760px}
-th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule-soft);vertical-align:baseline}
-th{color:var(--chalk-faint);font-weight:500;font-size:11.5px;background:var(--board-2);position:sticky;top:0;z-index:1}
-tbody tr:last-child td{border-bottom:0}
-td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12px}
-td.num{color:var(--chalk-dim)}
-td.num.lead{color:var(--chalk)}
-tr.rolebar td{
-  background:var(--board-2);border-bottom:1px solid var(--rule);
-  padding:7px 12px;font-size:11.5px;color:var(--brass);letter-spacing:.02em;
-}
-tr.rolebar .cap{color:var(--chalk-faint);font-family:var(--mono);margin-left:8px}
-
-/* ---- crew ---- */
-.who{display:flex;flex-direction:column;gap:1px}
-.who b{font-weight:600;font-size:13px;letter-spacing:-.005em}
-.who span{color:var(--chalk-faint);font-family:var(--mono);font-size:11px}
-.model{font-family:var(--mono);font-size:11.5px;color:var(--steel)}
-.model.routed{color:var(--brass)}
-.model.routed::after{content:" ⇢ routed";color:var(--chalk-faint);font-size:10.5px}
-.state{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
-.dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--chalk-faint)}
-.dot.working{background:var(--sage)}
-.dot.blocked{background:var(--flag)}
-.dot.waiting{background:var(--brass)}
-.dot.idle{background:var(--chalk-faint)}
-.dot.stale{background:var(--flag);box-shadow:0 0 0 2px rgba(210,96,63,.2)}
-.task{color:var(--chalk-dim)}
-.task .id{font-family:var(--mono);font-size:11px;color:var(--chalk-faint);margin-right:7px}
-.task.none{color:var(--chalk-faint);font-style:italic}
-
-/* ---- board ---- */
-.arc{border-bottom:1px solid var(--rule)}
-.arc:last-child{border-bottom:0}
-.arc > header{display:flex;align-items:baseline;gap:12px;padding:12px 16px;background:var(--board-2)}
-.arc > header h3{margin:0;font-size:13px;font-weight:600}
-.arc > header .id{font-family:var(--mono);font-size:11px;color:var(--chalk-faint)}
-.arc > header .spacer{flex:1}
-.meter{width:120px;height:4px;background:var(--rule);border-radius:2px;overflow:hidden;flex:none}
-.meter i{display:block;height:100%;background:var(--brass)}
-.chip{
-  display:inline-block;font-family:var(--mono);font-size:10.5px;padding:2px 7px;
-  border:1px solid var(--rule);border-radius:2px;color:var(--chalk-dim);white-space:nowrap;
-}
-.chip.done{color:var(--sage);border-color:rgba(95,144,112,.45)}
-.chip.active{color:var(--brass);border-color:var(--brass-soft)}
-.chip.blocked{color:var(--flag);border-color:rgba(210,96,63,.45)}
-.chip.review{color:var(--steel);border-color:rgba(92,127,156,.45)}
-.chip.bug{color:var(--flag);border-color:rgba(210,96,63,.35)}
-.dupe{color:var(--flag);font-size:11px;margin-left:8px}
-
-/* ---- waiting ---- */
-.ask{padding:14px 16px;border-bottom:1px solid var(--rule-soft);display:flex;gap:14px;align-items:flex-start}
-.ask:last-child{border-bottom:0}
-.ask .age{font-family:var(--mono);font-size:11.5px;color:var(--flag);flex:none;min-width:52px;padding-top:1px}
-.ask .age.calm{color:var(--chalk-faint)}
-.ask .body{flex:1;min-width:0}
-.ask .q{margin:0 0 5px;font-size:13.5px;line-height:1.4}
-.ask .from{font-family:var(--mono);font-size:11px;color:var(--chalk-faint)}
-.ask .from .cmd{color:var(--steel)}
-
-/* ---- ledger ---- */
-.gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:1px;background:var(--rule)}
-.gauge{background:var(--board);padding:15px 16px}
-.gauge h4{margin:0 0 3px;font-size:12px;font-weight:500;color:var(--chalk-dim)}
-.gauge .big{font-family:var(--mono);font-size:24px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.gauge .of{font-family:var(--mono);font-size:12px;color:var(--chalk-faint);margin-left:5px}
-.bar{height:5px;background:var(--rule);border-radius:2px;overflow:hidden;margin:11px 0 6px}
-.bar i{display:block;height:100%;background:var(--steel)}
-.bar i.warm{background:var(--brass)}
-.bar i.hot{background:var(--flag)}
-.gauge .foot{font-family:var(--mono);font-size:11px;color:var(--chalk-faint)}
-.advisory{
-  padding:10px 16px;border-top:1px solid var(--rule);
-  font-size:12px;color:var(--chalk-dim);background:var(--board-2);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 64px 64px, 64px 64px;
+  background-position: -1px -1px;
 }
 
-/* ---- integrity ---- */
-.flags{padding:0}
-.flag-row{display:flex;gap:12px;padding:11px 16px;border-bottom:1px solid var(--rule-soft);align-items:baseline}
-.flag-row:last-child{border-bottom:0}
-.flag-row .k{font-family:var(--mono);font-size:11.5px;color:var(--flag);flex:none;min-width:130px}
-.flag-row .k.ok{color:var(--sage)}
-.flag-row .v{color:var(--chalk-dim);font-size:12.5px}
-.empty{padding:26px 16px;color:var(--chalk-faint);font-size:13px}
+/* Visible, consistent, and never removed. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
 
-footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
-  font-family:var(--mono);font-size:11px;color:var(--chalk-faint);
-  display:flex;flex-wrap:wrap;gap:6px 20px}
-@media (max-width:640px){
-  .sheet{padding:0 12px 48px}
-  .repo{font-size:18px}
+h1, h2, h3, h4 { margin: 0 0 var(--space-3); line-height: var(--leading-tight); font-weight: 600; }
+h1 { font-size: var(--text-xl);  letter-spacing: -.015em; }
+h2 { font-size: var(--text-lg);  letter-spacing: -.01em; }
+h3 { font-size: var(--text-md); }
+h4 { font-size: var(--text-base); }
+
+p { margin: 0 0 var(--space-3); max-width: var(--measure); }
+
+a { color: var(--accent); text-underline-offset: 2px; }
+
+code, kbd, samp, .mono { font-family: var(--font-mono); font-size: .92em; }
+
+/* Numerals in any table column align by default. */
+.num, td.num, th.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+/* ==== END theme.css ==== */
+
+/* ---------------------------------------------------------------------------
+   Component layer — primitives.css classes used by this page, then the
+   wall-specific pieces. Tokens only below this line.
+   ------------------------------------------------------------------------- */
+
+/* ---- layout -------------------------------------------------------------- */
+
+.app-shell   { max-width: 1320px; margin: 0 auto; padding: 0 var(--space-5) var(--space-7); }
+.app-shell--wide { max-width: none; }
+.row { display: flex; align-items: center; gap: var(--space-3); }
+.row > .spacer, .masthead > .spacer { flex: 1 1 auto; }
+
+.masthead {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-5);
+  padding: var(--space-5) 0 var(--space-4);
+  border-bottom: 2px solid var(--line-strong);
+}
+.masthead h1 { margin: 0; }
+.masthead .meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+
+/* ---- panel --------------------------------------------------------------- */
+
+.panel {
+  background: var(--surface-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-top: var(--space-4);
+}
+.panel > h2 {
+  display: flex; align-items: baseline; gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-base); font-weight: 600; color: var(--text-primary);
+}
+.panel > h2 .sub { font-weight: 400; font-size: var(--text-sm); color: var(--text-muted); }
+
+/* ---- table --------------------------------------------------------------- */
+
+.scroll-x { overflow-x: auto; }
+table.data { border-collapse: collapse; width: 100%; min-width: 760px; }
+table.data th,
+table.data td {
+  text-align: left; vertical-align: baseline;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--line-soft);
+}
+table.data th {
+  font-size: var(--text-xs); font-weight: 500; color: var(--text-muted);
+  background: var(--surface-raised);
+  position: sticky; top: 0; z-index: 1;
+}
+table.data tbody tr:last-child td { border-bottom: 0; }
+table.data tbody tr:hover td { background: var(--surface-hover); }
+table.data td.num, table.data th.num {
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  text-align: right; font-size: var(--text-sm); color: var(--text-secondary);
+}
+table.data td.num.lead { color: var(--text-primary); }
+
+/* Every arc renders its own table, so the columns are pinned rather than sized
+   per table. Left to auto layout, "Status" sits at a different x in each arc
+   and stops being a column you can read down -- which is the only reason the
+   board is a table rather than a stack of cards. */
+table.data.board { table-layout: fixed; }
+table.data.board td:first-child, table.data.board th:first-child { overflow-wrap: anywhere; }
+
+/* A group header inside a table, for banding rows by category. */
+table.data tr.group td {
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--line);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs); color: var(--accent); letter-spacing: .02em;
+}
+table.data tr.group .count {
+  color: var(--text-muted); font-family: var(--font-mono); margin-left: var(--space-2);
+}
+
+/* ---- status -------------------------------------------------------------- */
+
+.dot {
+  width: 6px; height: 6px; border-radius: var(--radius-pill);
+  background: var(--status-idle); flex: none; display: inline-block;
+}
+.dot.working { background: var(--status-good); }
+.dot.blocked { background: var(--status-alert); }
+.dot.waiting { background: var(--accent); }
+.dot.idle    { background: var(--status-idle); }
+.dot.stale   {
+  background: var(--status-alert);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--status-alert) 20%, transparent);
+}
+.state { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+
+.chip {
+  display: inline-block; white-space: nowrap;
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  padding: 2px var(--space-2);
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+.chip--id { color: var(--text-muted); }
+
+/* One class per status in the closed set, plus a neutral fallback. An
+   unrecognised status is still rendered, literally — the wall reports what the
+   ledger says rather than quietly dropping a state it was not taught. */
+.chip--st-planned     { color: var(--text-secondary); border-color: var(--line-strong); }
+.chip--st-in_progress { color: var(--accent);       border-color: var(--accent-muted); }
+.chip--st-blocked     { color: var(--status-alert); border-color: color-mix(in srgb, var(--status-alert) 45%, transparent); }
+.chip--st-review      { color: var(--status-info);  border-color: color-mix(in srgb, var(--status-info) 45%, transparent); }
+.chip--st-done        { color: var(--status-good);  border-color: color-mix(in srgb, var(--status-good) 45%, transparent); }
+.chip--st-shipped     { color: var(--status-good);  border-color: var(--status-good);
+                        background: color-mix(in srgb, var(--status-good) 12%, transparent); }
+.chip--st-unknown     { color: var(--text-muted);   border-color: var(--line); font-style: italic; }
+
+.chip--kind-bug   { color: var(--status-alert); border-color: color-mix(in srgb, var(--status-alert) 35%, transparent); }
+.chip--kind-arc   { color: var(--accent); border-color: var(--accent-muted); }
+.chip--kind-story { color: var(--text-muted); }
+
+.ident { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+
+/* ---- meter --------------------------------------------------------------- */
+
+.meter { width: 120px; height: 5px; background: var(--line); border-radius: var(--radius-sm); overflow: hidden; flex: none; }
+.meter > i { display: block; height: 100%; background: var(--status-info); }
+.meter > i.warn { background: var(--accent); }
+.meter > i.alert { background: var(--status-alert); }
+
+/* ---- tabs ---------------------------------------------------------------- */
+
+nav.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+nav.tabs button {
+  appearance: none; background: none; cursor: pointer; white-space: nowrap;
+  border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  font: inherit; font-size: var(--text-base); letter-spacing: .04em;
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-muted);
+}
+nav.tabs button:hover { color: var(--text-primary); }
+nav.tabs button[aria-selected="true"] { color: var(--text-primary); border-bottom-color: var(--accent); }
+nav.tabs .count { font-family: var(--font-mono); font-size: var(--text-xs); margin-left: var(--space-2); color: var(--text-muted); }
+nav.tabs button[aria-selected="true"] .count { color: var(--accent); }
+nav.tabs .count.hot { color: var(--status-alert); }
+[role="tabpanel"][hidden] { display: none; }
+
+/* ---- messages ------------------------------------------------------------ */
+
+.empty { padding: var(--space-6) var(--space-4); text-align: center; color: var(--text-muted); font-size: var(--text-base); }
+td.empty { text-align: center; }
+
+.notice {
+  display: flex; gap: var(--space-3); align-items: flex-start;
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-strong); border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised); font-size: var(--text-sm);
+}
+/* `display:flex` outranks the user-agent's `[hidden] { display:none }`, so the
+   hidden state has to be restated or the empty banner draws a bar across the
+   page. */
+.notice[hidden] { display: none; }
+.notice--alert { border-left-color: var(--status-alert); }
+.notice strong { font-weight: 600; }
+.notice code { color: var(--accent); }
+
+/* ---- wall-specific ------------------------------------------------------- */
+
+.repo { font-size: var(--text-xl); font-weight: 600; letter-spacing: -.015em; margin: 0; }
+.repo .branch {
+  color: var(--text-muted); font-weight: 400;
+  font-family: var(--font-mono); font-size: var(--text-md); margin-left: var(--space-2);
+}
+.sweep { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-secondary); }
+.lamp {
+  width: 9px; height: 9px; border-radius: var(--radius-pill); flex: none;
+  background: var(--status-good);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-good) 16%, transparent);
+}
+.lamp.warm { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.lamp.cold { background: var(--status-alert); box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-alert) 18%, transparent); }
+.lamp.live { animation: breathe 3.2s ease-in-out infinite; }
+@keyframes breathe { 0%, 100% { opacity: 1 } 50% { opacity: .42 } }
+@media (prefers-reduced-motion: reduce) { .lamp.live { animation: none } }
+
+/* An arc is a band of the board, not a card: header rule, then its own table. */
+.arc { border-bottom: 1px solid var(--line); }
+.arc:last-child { border-bottom: 0; }
+.arc > header {
+  display: flex; align-items: baseline; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-raised);
+}
+.arc > header h3 { margin: 0; font-size: var(--text-base); font-weight: 600; }
+.arc > header .id { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--accent); }
+.arc > header .spacer { flex: 1 1 auto; }
+
+/* A child row is indented and marked; the glyph is the only ornament, and it
+   is there so a nested story reads as nested at a glance rather than by
+   measuring its left edge. */
+tr.child > td:first-child { position: relative; }
+tr.child .twig { color: var(--text-muted); font-family: var(--font-mono); margin-right: var(--space-2); }
+
+.task { color: var(--text-secondary); }
+.task .title { color: var(--text-primary); }
+.task.none { color: var(--text-muted); font-style: italic; }
+.note { color: var(--text-muted); font-size: var(--text-xs); margin-left: var(--space-2); }
+.dupe { color: var(--status-alert); font-size: var(--text-xs); margin-left: var(--space-2); }
+
+.who { display: flex; flex-direction: column; gap: 1px; }
+.who b { font-weight: 600; font-size: var(--text-base); letter-spacing: -.005em; }
+.who span { color: var(--text-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
+.model { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--status-info); }
+.model.routed { color: var(--accent); }
+.model.routed::after { content: " \21E2 routed"; color: var(--text-muted); }
+
+.ask { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line-soft); display: flex; gap: var(--space-4); align-items: flex-start; }
+.ask:last-child { border-bottom: 0; }
+.ask .age { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--status-alert); flex: none; min-width: 52px; padding-top: 1px; }
+.ask .age.calm { color: var(--text-muted); }
+.ask .body { flex: 1; min-width: 0; }
+.ask .q { margin: 0 0 var(--space-1); font-size: var(--text-base); line-height: var(--leading-body); max-width: var(--measure); }
+.ask .from { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+.ask .from .cmd { color: var(--status-info); }
+
+.gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(272px, 1fr)); gap: 1px; background: var(--line); }
+.gauge { background: var(--surface-panel); padding: var(--space-4); }
+.gauge h4 { margin: 0 0 var(--space-1); font-size: var(--text-sm); font-weight: 500; color: var(--text-secondary); }
+.gauge .big { font-family: var(--font-mono); font-size: var(--text-2xl); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.gauge .of { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); margin-left: var(--space-1); }
+.gauge .bar { height: 5px; background: var(--line); border-radius: var(--radius-sm); overflow: hidden; margin: var(--space-3) 0 var(--space-1); }
+.gauge .bar > i { display: block; height: 100%; background: var(--status-info); }
+.gauge .bar > i.warn { background: var(--accent); }
+.gauge .bar > i.alert { background: var(--status-alert); }
+.gauge .foot { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+.advisory {
+  padding: var(--space-3) var(--space-4); border-top: 1px solid var(--line);
+  font-size: var(--text-sm); color: var(--text-secondary); background: var(--surface-raised);
+}
+
+.flag-row { display: flex; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line-soft); align-items: baseline; }
+.flag-row:last-child { border-bottom: 0; }
+.flag-row .k { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--status-alert); flex: none; min-width: 130px; }
+.flag-row .k.ok { color: var(--status-good); }
+.flag-row .v { color: var(--text-secondary); font-size: var(--text-sm); }
+
+footer {
+  margin-top: var(--space-5); padding-top: var(--space-3);
+  border-top: 1px solid var(--line-soft);
+  font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted);
+  display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-5);
+}
+
+@media (max-width: 640px) {
+  .app-shell { padding: 0 var(--space-3) var(--space-6); }
+  .repo { font-size: var(--text-lg); }
 }
 </style>
 </head>
 <body>
-<div class="sheet">
+<div class="app-shell app-shell--wide">
 
-  <div class="ribbon">
+  <header class="masthead">
     <h1 class="repo" id="repoName">—<span class="branch" id="repoBranch"></span></h1>
     <span class="spacer"></span>
     <div class="sweep">
       <span class="lamp" id="lamp" aria-hidden="true"></span>
       <span id="sweepAge">—</span>
     </div>
-    <div class="courier-note" id="courierNote"></div>
-  </div>
+    <div class="meta" id="courierNote"></div>
+  </header>
+
+  <div class="notice notice--alert" id="errorBanner" role="alert" hidden></div>
 
   <nav class="tabs" role="tablist" id="tabs"></nav>
 
-  <section role="tabpanel" id="panel-crew" aria-labelledby="tab-crew">
+  <section role="tabpanel" id="panel-board" aria-labelledby="tab-board">
     <div class="panel">
-      <h2>Crew<span class="sub" id="crewSub"></span></h2>
-      <div class="scroll"><table>
+      <h2>Arcs<span class="sub" id="arcsSub"></span></h2>
+      <div id="arcs"></div>
+    </div>
+    <div class="panel">
+      <h2>Stories<span class="sub" id="storiesSub">not filed under an arc</span></h2>
+      <div class="scroll-x"><table class="data board">
+        <colgroup><col style="width:42%"><col style="width:8%"><col style="width:11%"><col style="width:13%"><col style="width:7%"><col style="width:8%"><col style="width:11%"></colgroup>
+        <thead><tr>
+          <th>Item</th><th>Kind</th><th>Status</th><th>Assignee</th>
+          <th class="num">Est</th><th class="num">Actual</th><th class="num">Updated</th>
+        </tr></thead>
+        <tbody id="looseStories"></tbody>
+      </table></div>
+    </div>
+    <div class="panel">
+      <h2>Bugs<span class="sub" id="bugsSub">not filed under an arc</span></h2>
+      <div class="scroll-x"><table class="data board">
+        <colgroup><col style="width:42%"><col style="width:8%"><col style="width:11%"><col style="width:13%"><col style="width:7%"><col style="width:8%"><col style="width:11%"></colgroup>
+        <thead><tr>
+          <th>Item</th><th>Kind</th><th>Status</th><th>Assignee</th>
+          <th class="num">Est</th><th class="num">Actual</th><th class="num">Updated</th>
+        </tr></thead>
+        <tbody id="looseBugs"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <section role="tabpanel" id="panel-crew" aria-labelledby="tab-crew" hidden>
+    <div class="panel">
+      <h2>Agents<span class="sub" id="crewSub"></span></h2>
+      <div class="scroll-x"><table class="data">
         <thead><tr>
           <th>Name</th><th>Model</th><th>Status</th><th>Working on</th>
           <th class="num">Runs</th><th class="num">Tokens</th><th class="num">Cached</th>
@@ -206,21 +586,7 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
     </div>
     <div class="panel">
       <h2>Integrity<span class="sub">what the last sweep could and could not verify</span></h2>
-      <div class="flags" id="integrity"></div>
-    </div>
-  </section>
-
-  <section role="tabpanel" id="panel-board" aria-labelledby="tab-board" hidden>
-    <div class="panel">
-      <h2>Board<span class="sub" id="boardSub"></span></h2>
-      <div id="arcs"></div>
-    </div>
-  </section>
-
-  <section role="tabpanel" id="panel-waiting" aria-labelledby="tab-waiting" hidden>
-    <div class="panel">
-      <h2>Waiting on you<span class="sub">work is parked until these are answered</span></h2>
-      <div id="asks"></div>
+      <div id="integrity"></div>
     </div>
   </section>
 
@@ -232,7 +598,7 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
     </div>
     <div class="panel">
       <h2>By role<span class="sub">this billing period</span></h2>
-      <div class="scroll"><table>
+      <div class="scroll-x"><table class="data">
         <thead><tr>
           <th>Role</th><th>Model</th><th class="num">Runs</th><th class="num">Tokens in</th>
           <th class="num">Tokens out</th><th class="num">Cache read</th><th class="num">Cost</th>
@@ -242,43 +608,22 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
     </div>
   </section>
 
+  <section role="tabpanel" id="panel-waiting" aria-labelledby="tab-waiting" hidden>
+    <div class="panel">
+      <h2>Waiting on you<span class="sub">work is parked until these are answered</span></h2>
+      <div id="asks"></div>
+    </div>
+  </section>
+
   <footer>
     <span id="fSchema"></span><span id="fEvents"></span><span id="fShards"></span><span id="fSessions"></span>
   </footer>
 </div>
 
-<script id="wall-data" type="application/json">{"schema_version":1,"generated_at":"2026-09-19T21:23:45.757Z","repo":{"name":"atlas-core","path":"/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kitzip/wallkit/max3-wall-kit/sample","branch":""},"courier":{"last_run_ms":1,"events":57,"shards":2},"integrity":{"seq_gaps":[{"session_id":"s_b19e","seq":10}],"orphan_runs":[{"run_id":"run_024","agent":"Coretta","started":"2026-09-19T13:32:09.000Z","item_id":"ST-104"},{"run_id":"run_orphan_1","agent":"Nadia","started":"2026-09-19T18:23:45.700Z","item_id":"ST-121"}],"duplicates":[["ST-120","ST-112"]],"state_drift":0,"stale_claims":[{"agent":"Nadia","item_id":"ST-121","since":"2026-09-19T18:23:45.700Z"}]},"role_limits":{"builder":4,"researcher":6,"reviewer":2},"crew":[{"agent_key":"adj_5c02ea","name":"Coretta","title":"","role":"adjudicator","model_requested":"claude-fable-5-1","model_used":"claude-fable-5-1","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:49:14.000Z","runs":3,"cost_usd":3.7710000000000004,"gh_minutes":2,"tokens":{"in":31615,"out":5940,"cache_read":182565,"cache_write":19995},"last_event":"2026-09-19T13:49:14.000Z"},{"agent_key":"arc_bb1740","name":"Edmund","title":"","role":"architect","model_requested":"claude-fable-5-1","model_used":"claude-fable-5-1","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:40:07.000Z","runs":3,"cost_usd":4.625,"gh_minutes":4,"tokens":{"in":62235,"out":8875,"cache_read":177088,"cache_write":18548},"last_event":"2026-09-19T21:12:45.700Z"},{"agent_key":"bld_a41f09","name":"Desmond","title":"","role":"builder","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"working","item_id":"ST-106","item_title":"Checkpointed tail reads per shard","since":"2026-09-19T21:05:45.700Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:05:45.700Z"},{"agent_key":"bld_7e33d1","name":"Priya","title":"","role":"builder","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"blocked","item_id":"BG-021","item_title":"Duplicate event_id on retry","since":"2026-09-19T20:42:45.700Z","runs":1,"cost_usd":1.42,"gh_minutes":null,"tokens":{"in":42258,"out":4568,"cache_read":205466,"cache_write":17578},"last_event":"2026-09-19T20:45:45.700Z"},{"agent_key":"bld_2fc885","name":"Theo","title":"","role":"builder","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"working","item_id":"ST-111","item_title":"Atomic publish + heartbeat","since":"2026-09-19T21:17:45.700Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:17:45.700Z"},{"agent_key":"frm_4a91c2","name":"Alistair","title":"","role":"foreman","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"working","item_id":null,"item_title":null,"since":"2026-09-19T21:22:45.700Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:22:45.700Z"},{"agent_key":"mst_08de37","name":"Rosalind","title":"","role":"maestro","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T14:05:16.000Z","runs":6,"cost_usd":7.971,"gh_minutes":16,"tokens":{"in":92817,"out":22690,"cache_read":562679,"cache_write":28589},"last_event":"2026-09-19T21:19:45.700Z"},{"agent_key":"res_66c1b3","name":"Nadia","title":"","role":"researcher","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"ST-121","item_title":"No-op status check","since":"2026-09-19T18:23:45.700Z","runs":3,"cost_usd":2.431,"gh_minutes":4,"tokens":{"in":50797,"out":7702,"cache_read":362242,"cache_write":16618},"last_event":"2026-09-19T18:23:45.700Z"},{"agent_key":"res_d470af","name":"Silas","title":"","role":"researcher","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"working","item_id":"BG-021","item_title":"Find prior art on seq-gap recovery","since":"2026-09-19T21:20:45.700Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:20:45.700Z"},{"agent_key":"rev_913b6e","name":"Junia","title":"","role":"reviewer","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:45:58.000Z","runs":3,"cost_usd":5.905,"gh_minutes":4,"tokens":{"in":45806,"out":7876,"cache_read":309706,"cache_write":13692},"last_event":"2026-09-19T13:45:58.000Z"}],"board":{"arcs":[{"arc_id":"ARC-01","title":"Event ledger and consolidation","items":[{"item_id":"BG-021","kind":"bug","status":"blocked","title":"Duplicate event_id on retry","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Priya","estimate":"S","actual":null,"duplicate_of":null,"updated_at":"2026-09-19T12:20:37.000Z"},{"item_id":"ST-104","kind":"story","status":"done","title":"Append-only shard writer","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Desmond","estimate":"M","actual":"M","duplicate_of":null,"updated_at":"2026-09-19T12:08:25.000Z"},{"item_id":"ST-105","kind":"story","status":"in_review","title":"Deterministic merge with dedupe","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Priya","estimate":"L","actual":"XL","duplicate_of":null,"updated_at":"2026-09-19T12:10:22.000Z"},{"item_id":"ST-106","kind":"story","status":"active","title":"Checkpointed tail reads per shard","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Desmond","estimate":"M","actual":null,"duplicate_of":null,"updated_at":"2026-09-19T12:14:24.000Z"}]},{"arc_id":"ARC-02","title":"Wall renderer and propagation","items":[{"item_id":"ST-110","kind":"story","status":"done","title":"Self-contained HTML template","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":"Theo","estimate":"S","actual":"S","duplicate_of":null,"updated_at":"2026-09-19T12:21:41.000Z"},{"item_id":"ST-111","kind":"story","status":"active","title":"Atomic publish + heartbeat","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":"Theo","estimate":"M","actual":null,"duplicate_of":null,"updated_at":"2026-09-19T12:22:58.000Z"},{"item_id":"ST-112","kind":"story","status":"ready","title":"Live-poll upgrade path","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":null,"estimate":"M","actual":null,"duplicate_of":null,"updated_at":"2026-09-19T12:28:12.000Z"}]},{"arc_id":"ARC-03","title":"Fast-track routing","items":[{"item_id":"BG-024","kind":"bug","status":"triage","title":"Mixed changeset takes wrong route","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"S","actual":null,"duplicate_of":null,"updated_at":"2026-09-19T12:39:05.000Z"},{"item_id":"ST-120","kind":"story","status":"ready","title":"Path-based route classifier","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"S","actual":null,"duplicate_of":"ST-112","updated_at":"2026-09-19T12:29:40.000Z"},{"item_id":"ST-121","kind":"story","status":"ready","title":"No-op status check for protection","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"M","actual":null,"duplicate_of":null,"updated_at":"2026-09-19T12:33:27.000Z"}]}]},"waiting_on_you":[{"ask_id":"ask_0007","question":"Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?","agent":"Priya","item_id":"BG-021","since":"2026-09-19T20:45:45.700Z","trace_id":"tr_bg-021"},{"ask_id":"ask_0008","question":"Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?","agent":"Edmund","item_id":"ST-112","since":"2026-09-19T21:12:45.700Z","trace_id":"tr_st-112"},{"ask_id":"ask_0009","question":"Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?","agent":"Rosalind","item_id":"ARC-03","since":"2026-09-19T21:19:45.700Z","trace_id":"tr_arc-03"}],"budget":{"period":"week of 14 Sep 2026","advisory":"Advisory only. Nothing here stops work — it tells you when to.","meters":[{"label":"Claude — Opus 5","used":41200000,"limit":60000000,"display":"41.2M","foot":"builders account for 78% of this"},{"label":"Claude — Sonnet 5","used":12800000,"limit":90000000,"display":"12.8M","foot":"researchers and review"},{"label":"Claude — Fable 5.1","used":3100000,"limit":20000000,"display":"3.1M","foot":"1 run routed to Opus by safeguards"},{"label":"GitHub Actions","used":1412,"limit":3000,"display":"1,412 min","foot":"fast-track saved an estimated 240 min"}]},"rollup_by_role":[{"role":"adjudicator","model":"claude-fable-5-1","runs":3,"tokens_in":31615,"tokens_out":5940,"cache_read":182565,"cost_usd":3.7710000000000004},{"role":"architect","model":"claude-fable-5-1","runs":3,"tokens_in":62235,"tokens_out":8875,"cache_read":177088,"cost_usd":4.625},{"role":"builder","model":"claude-opus-5","runs":1,"tokens_in":42258,"tokens_out":4568,"cache_read":205466,"cost_usd":1.42},{"role":"builder","model":"claude-sonnet-5","runs":0,"tokens_in":0,"tokens_out":0,"cache_read":0,"cost_usd":0.0},{"role":"foreman","model":"claude-sonnet-5","runs":0,"tokens_in":0,"tokens_out":0,"cache_read":0,"cost_usd":0.0},{"role":"maestro","model":"claude-opus-5","runs":6,"tokens_in":92817,"tokens_out":22690,"cache_read":562679,"cost_usd":7.971},{"role":"researcher","model":"claude-sonnet-5","runs":3,"tokens_in":50797,"tokens_out":7702,"cache_read":362242,"cost_usd":2.431},{"role":"reviewer","model":"claude-sonnet-5","runs":3,"tokens_in":45806,"tokens_out":7876,"cache_read":309706,"cost_usd":5.905}],"sessions":["s_7f3a","s_b19e"]}</script>
+<script id="wall-data" type="application/json">{"schema_version":1,"generated_at":"2026-09-19T22:03:31.459Z","repo":{"name":"atlas-core","path":"/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kit/sample","branch":"main"},"courier":{"last_run_ms":2,"events":78,"shards":3},"integrity":{"seq_gaps":[{"session_id":"s_b19e","seq":10}],"seq_duplicates":[{"session_id":"s_c22d","seq":3,"count":2}],"orphan_runs":[{"run_id":"run_015","agent":"Edmund","started":"2026-09-19T13:35:35.000Z","item_id":"ST-104"},{"run_id":"run_orphan_1","agent":"Nadia","started":"2026-09-19T18:54:00.761Z","item_id":"ST-121"}],"duplicates":[["ST-120","ST-112"]],"state_drift":2,"state_drift_checked":true,"state_drift_detail":[{"item_id":"ST-110","kind":"field_mismatch","field":"assignee","expected":"Theo","found":"Hollis"},{"item_id":"ST-110","kind":"field_mismatch","field":"status","expected":"done","found":"active"}],"fold_problems":[],"merged_but_open":[{"item_id":"ST-105","kind":"reopened_after_ship","pr":1654,"status":"in_review","shipped_at":"2026-09-19T15:05:00.000Z","detail":"item_shipped is on the ledger but a later event put the item back to a non-terminal status"}],"escalations":[{"kind":"blocked_without_question","item_id":"BG-025","detail":"item is blocked with no open question -- blocked without asking"},{"kind":"unassigned_past_sla","question_id":"q_0051","item_id":"ST-112","age_min":54.5,"sla_min":5,"detail":"nobody picked it up"}],"stale_claims":[{"agent":"Nadia","item_id":"ST-121","since":"2026-09-19T18:54:00.761Z"}]},"role_limits":{"builder":4,"researcher":6,"reviewer":2},"crew":[{"agent_key":"adj_5c02ea","name":"Coretta","title":"","role":"adjudicator","model_requested":"claude-fable-5-1","model_used":"claude-opus-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:42:42.000Z","runs":2,"cost_usd":1.274,"gh_minutes":4,"tokens":{"in":34952,"out":3564,"cache_read":148362,"cache_write":12827},"last_event":"2026-09-19T13:42:42.000Z"},{"agent_key":"arc_bb1740","name":"Edmund","title":"","role":"architect","model_requested":"claude-fable-5-1","model_used":"claude-fable-5-1","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:54:03.000Z","runs":1,"cost_usd":1.285,"gh_minutes":4,"tokens":{"in":19730,"out":3969,"cache_read":136965,"cache_write":2442},"last_event":"2026-09-19T21:43:00.761Z"},{"agent_key":"bld_a41f09","name":"Desmond","title":"","role":"builder","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"working","item_id":"ST-106","item_title":"Checkpointed tail reads per shard","since":"2026-09-19T21:36:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:36:00.761Z"},{"agent_key":"bld_7e33d1","name":"Priya","title":"","role":"builder","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"blocked","item_id":"BG-021","item_title":"Duplicate event_id on retry","since":"2026-09-19T21:13:00.761Z","runs":1,"cost_usd":1.42,"gh_minutes":null,"tokens":{"in":29382,"out":7332,"cache_read":175462,"cache_write":11768},"last_event":"2026-09-19T21:16:00.761Z"},{"agent_key":"bld_2fc885","name":"Theo","title":"","role":"builder","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"working","item_id":"ST-111","item_title":"Atomic publish + heartbeat","since":"2026-09-19T21:48:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:48:00.761Z"},{"agent_key":"frm_4a91c2","name":"Alistair","title":"","role":"foreman","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"working","item_id":null,"item_title":null,"since":"2026-09-19T21:53:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:53:00.761Z"},{"agent_key":"mst_08de37","name":"Rosalind","title":"","role":"maestro","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T14:00:41.000Z","runs":6,"cost_usd":8.688,"gh_minutes":14,"tokens":{"in":85966,"out":21489,"cache_read":530631,"cache_write":29596},"last_event":"2026-09-19T21:50:00.761Z"},{"agent_key":"res_66c1b3","name":"Nadia","title":"","role":"researcher","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"ST-121","item_title":"No-op status check","since":"2026-09-19T18:54:00.761Z","runs":6,"cost_usd":6.622999999999999,"gh_minutes":14,"tokens":{"in":108391,"out":17330,"cache_read":575775,"cache_write":29736},"last_event":"2026-09-19T18:54:00.761Z"},{"agent_key":"res_d470af","name":"Silas","title":"","role":"researcher","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"working","item_id":"BG-021","item_title":"Find prior art on seq-gap recovery","since":"2026-09-19T21:51:00.761Z","runs":1,"cost_usd":0.41,"gh_minutes":null,"tokens":{"in":11012,"out":1672,"cache_read":151271,"cache_write":5998},"last_event":"2026-09-19T21:51:00.761Z"},{"agent_key":"rev_913b6e","name":"Junia","title":"","role":"reviewer","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:40:14.000Z","runs":2,"cost_usd":4.19,"gh_minutes":4,"tokens":{"in":30270,"out":5062,"cache_read":256136,"cache_write":7748},"last_event":"2026-09-19T13:40:14.000Z"}],"board":{"arcs":[{"arc_id":"ARC-01","title":"Event ledger and consolidation","items":[{"item_id":"BG-021","title":"Duplicate event_id on retry","kind":"bug","status":"blocked","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Priya","estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg021","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:17:15.000Z","updated_at":"2026-09-19T12:18:11.000Z","events":2},{"item_id":"ST-104","title":"Append-only shard writer","kind":"story","status":"done","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Desmond","estimate":"M","actual":"M","duplicate_of":null,"trace_id":"tr_st104","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:08:25.000Z","updated_at":"2026-09-19T12:08:54.000Z","events":2},{"item_id":"ST-105","title":"Deterministic merge with dedupe","kind":"story","status":"in_review","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Priya","estimate":"L","actual":"XL","duplicate_of":null,"trace_id":"tr_st105","scope":["backend/ledger/"],"pr":1654,"shipped_at":"2026-09-19T15:05:00.000Z","created_at":"2026-09-19T12:12:56.000Z","updated_at":"2026-09-19T15:09:00.000Z","events":4,"pr_state":"open"},{"item_id":"ST-106","title":"Checkpointed tail reads per shard","kind":"story","status":"active","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Desmond","estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st106","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:14:29.000Z","updated_at":"2026-09-19T12:15:47.000Z","events":2}]},{"arc_id":"ARC-02","title":"Wall renderer and propagation","items":[{"item_id":"ST-110","title":"Self-contained HTML template","kind":"story","status":"done","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":"Theo","estimate":"S","actual":"S","duplicate_of":null,"trace_id":"tr_st110","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:23:49.000Z","updated_at":"2026-09-19T12:24:06.000Z","events":2},{"item_id":"ST-111","title":"Atomic publish + heartbeat","kind":"story","status":"active","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":"Theo","estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st111","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:29:05.000Z","updated_at":"2026-09-19T12:29:42.000Z","events":2},{"item_id":"ST-112","title":"Live-poll upgrade path","kind":"story","status":"ready","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":null,"estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st112","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:30:41.000Z","updated_at":"2026-09-19T12:31:02.000Z","events":2}]},{"arc_id":"ARC-03","title":"Fast-track routing","items":[{"item_id":"BG-024","title":"Mixed changeset takes wrong route","kind":"bug","status":"triage","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg024","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:39:48.000Z","updated_at":"2026-09-19T12:41:08.000Z","events":2},{"item_id":"BG-025","title":"Lease TTL never expires on a crashed agent","kind":"bug","status":"blocked","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":"Theo","estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg025","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:45:25.000Z","updated_at":"2026-09-19T12:45:42.000Z","events":2},{"item_id":"ST-120","title":"Path-based route classifier","kind":"story","status":"ready","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"S","actual":null,"duplicate_of":"ST-112","trace_id":"tr_st120","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:35:24.000Z","updated_at":"2026-09-19T12:36:27.000Z","events":2},{"item_id":"ST-121","title":"No-op status check for protection","kind":"story","status":"ready","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st121","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:37:42.000Z","updated_at":"2026-09-19T12:38:22.000Z","events":2}]}]},"waiting_on_you":[{"ask_id":"ask_0007","question":"Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?","agent":"Priya","item_id":"BG-021","since":"2026-09-19T21:16:00.761Z","trace_id":"tr_bg021"},{"ask_id":"ask_0008","question":"Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?","agent":"Edmund","item_id":"ST-112","since":"2026-09-19T21:43:00.761Z","trace_id":"tr_st112"},{"ask_id":"ask_0009","question":"Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?","agent":"Rosalind","item_id":"ARC-03","since":"2026-09-19T21:50:00.761Z","trace_id":"tr_arc03"}],"questions":[{"question_id":"q_0042","ask_id":null,"item_id":"ST-106","trace_id":"tr_st106","text":"AC-3 says the checkpoint is per shard; AC-4 says per session. Which survives a shard being replaced?","ambiguity_class":"unclear_acceptance","status":"answered","raised_at":"2026-09-19T14:05:00.000Z","raised_by":"Desmond","raised_by_key":"bld_a41f09","assigned_to":"Silas","assigned_to_key":"res_d470af","assigned_at":"2026-09-19T14:08:00.000Z","first_run_at":"2026-09-19T14:14:00.000Z","escalations":[{"at":"2026-09-19T14:39:00.000Z","reason":"researcher pass found prior art but no ruling","tier":"architect"}],"tier":"architect","answered_at":"2026-09-19T14:53:00.000Z","answer_source":"architect","answer":"Checkpoint per shard; a replaced shard resets its own offset and nothing else.","blocks_criteria":["AC-3","AC-4"],"dependent_scope":["backend/ledger/merge.py","backend/tests/test_merge.py"],"independent_scope":["backend/ledger/shard.py"],"outcome_hint":"partial","events":4},{"question_id":"q_0051","ask_id":null,"item_id":"ST-112","trace_id":"tr_st112","text":"Does the live-poll upgrade read wall.json or subscribe to a socket? No interface is specified either way.","ambiguity_class":"undefined_interface","status":"open","raised_at":"2026-09-19T21:09:00.761Z","raised_by":"Theo","raised_by_key":"bld_2fc885","assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"researcher","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":["AC-1"],"dependent_scope":[],"independent_scope":[],"outcome_hint":"blocked","events":1},{"question_id":"ask_0007","ask_id":"ask_0007","item_id":"BG-021","trace_id":"tr_bg021","text":"Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:16:00.761Z","raised_by":"Priya","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1},{"question_id":"ask_0008","ask_id":"ask_0008","item_id":"ST-112","trace_id":"tr_st112","text":"Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:43:00.761Z","raised_by":"Edmund","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1},{"question_id":"ask_0009","ask_id":"ask_0009","item_id":"ARC-03","trace_id":"tr_arc03","text":"Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:50:00.761Z","raised_by":"Rosalind","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1}],"budget":{"period":"week of 14 Sep 2026","advisory":"Advisory only. Nothing here stops work — it tells you when to.","meters":[{"label":"Claude — Opus 5","used":41200000,"limit":60000000,"display":"41.2M","foot":"builders account for 78% of this"},{"label":"Claude — Sonnet 5","used":12800000,"limit":90000000,"display":"12.8M","foot":"researchers and review"},{"label":"Claude — Fable 5.1","used":3100000,"limit":20000000,"display":"3.1M","foot":"adjudicator runs routed to Opus by safeguards"},{"label":"GitHub Actions","used":1412,"limit":3000,"display":"1,412 min","foot":"fast-track saved an estimated 240 min"}]},"rollup_by_role":[{"role":"adjudicator","model":"claude-opus-5","runs":2,"tokens_in":34952,"tokens_out":3564,"cache_read":148362,"cost_usd":1.274},{"role":"architect","model":"claude-fable-5-1","runs":1,"tokens_in":19730,"tokens_out":3969,"cache_read":136965,"cost_usd":1.285},{"role":"builder","model":"claude-opus-5","runs":1,"tokens_in":29382,"tokens_out":7332,"cache_read":175462,"cost_usd":1.42},{"role":"builder","model":"claude-sonnet-5","runs":0,"tokens_in":0,"tokens_out":0,"cache_read":0,"cost_usd":0.0},{"role":"foreman","model":"claude-sonnet-5","runs":0,"tokens_in":0,"tokens_out":0,"cache_read":0,"cost_usd":0.0},{"role":"maestro","model":"claude-opus-5","runs":6,"tokens_in":85966,"tokens_out":21489,"cache_read":530631,"cost_usd":8.688},{"role":"researcher","model":"claude-sonnet-5","runs":7,"tokens_in":119403,"tokens_out":19002,"cache_read":727046,"cost_usd":7.0329999999999995},{"role":"reviewer","model":"claude-sonnet-5","runs":2,"tokens_in":30270,"tokens_out":5062,"cache_read":256136,"cost_usd":4.19}],"sessions":["s_7f3a","s_b19e","s_c22d"]}</script>
 <script>
 (function(){
   "use strict";
-  var D = JSON.parse(document.getElementById('wall-data').textContent);
-
-  // Two delivery modes, one file. Opened from file:// the page uses the JSON
-  // inlined at render time and the <meta refresh> keeps it current. Served over
-  // http it polls wall.json instead and repaints in place, so scroll position,
-  // the active tab and focus all survive — and the meta refresh is removed so
-  // the two mechanisms never fight.
-  var POLL_MS = 10000;
-
-  function live() {
-    return fetch('wall.json', {cache: 'no-store'})
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) { if (j && j.generated_at !== D.generated_at) { D = j; paint(); } })
-      .catch(function () { /* courier or server down; the lamp goes cold on its own */ });
-  }
-
-  if (location.protocol === 'http:' || location.protocol === 'https:') {
-    var meta = document.querySelector('meta[http-equiv="refresh"]');
-    if (meta) meta.parentNode.removeChild(meta);
-    live();
-    setInterval(function () {
-      // Don't poll a tab nobody is looking at.
-      if (!document.hidden) live();
-    }, POLL_MS);
-    document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) live();
-    });
-  }
 
   var $ = function(id){ return document.getElementById(id); };
   var nf = new Intl.NumberFormat('en-US');
@@ -298,21 +643,130 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
   }
   function ago(iso){
     if (!iso) return '—';
-    var s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    var t = Date.parse(iso);
+    if (isNaN(t)) return '—';
+    var s = Math.max(0, (Date.now() - t) / 1000);
     if (s < 60)    return Math.floor(s) + 's';
     if (s < 3600)  return Math.floor(s/60) + 'm';
     if (s < 86400) return Math.floor(s/3600) + 'h';
     return Math.floor(s/86400) + 'd';
   }
 
+  // A malformed snapshot is a stated failure with the command that fixes it,
+  // never a blank page. The banner stays up until a later sweep paints clean.
+  function fail(what, detail){
+    var b = $('errorBanner');
+    if (!b) return;
+    b.hidden = false;
+    b.innerHTML = '<div><strong>' + esc(what) + '</strong> ' + esc(detail || '') +
+      '<br>Re-run the courier: <code>python3 tools/wall/courier.py --repo . --rebuild</code></div>';
+  }
+  // The banner stays up until real data arrives. A successful paint of an
+  // EMPTY fallback must not clear it: "nothing to show" and "the snapshot is
+  // unreadable" are different states and the page has to keep saying which.
+  function clearFail(){
+    if (!parseOk) return;
+    var b = $('errorBanner');
+    if (b) b.hidden = true;
+  }
+
+  var parseOk = true;
+  var D;
+  try {
+    D = JSON.parse(document.getElementById('wall-data').textContent);
+    if (!D || typeof D !== 'object') throw new Error('snapshot is not an object');
+  } catch (e) {
+    D = {};
+    parseOk = false;
+    fail('The wall could not read its data.', 'wall.json did not parse: ' + e.message + '.');
+  }
+
+  // Two delivery modes, one file. Opened from file:// the page uses the JSON
+  // inlined at render time and the <meta refresh> keeps it current. Served over
+  // http it polls wall.json instead and repaints in place, so scroll position,
+  // the active tab and focus all survive — and the meta refresh is removed so
+  // the two mechanisms never fight.
+  var POLL_MS = 10000;
+
+  function live() {
+    return fetch('wall.json', {cache: 'no-store'})
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (j && typeof j === 'object' && j.generated_at !== D.generated_at) {
+          D = j; parseOk = true; paint();
+        }
+      })
+      .catch(function () { /* courier or server down; the lamp goes cold on its own */ });
+  }
+
+  if (location.protocol === 'http:' || location.protocol === 'https:') {
+    var meta = document.querySelector('meta[http-equiv="refresh"]');
+    if (meta) meta.parentNode.removeChild(meta);
+    live();
+    setInterval(function () {
+      // Don't poll a tab nobody is looking at.
+      if (!document.hidden) live();
+    }, POLL_MS);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) live();
+    });
+  }
+
+  // ---- status vocabulary --------------------------------------------------
+  // The closed set gets one class each. Everything else is still shown, spelled
+  // exactly as the ledger spelled it — a status the wall was not taught is a
+  // fact about the project, not a rendering error.
+  var STATUS_CANON = {
+    planned: 1, in_progress: 1, blocked: 1, review: 1, done: 1, shipped: 1
+  };
+  var STATUS_ALIAS = {
+    ready: 'planned', triage: 'planned', backlog: 'planned', todo: 'planned',
+    open: 'planned', queued: 'planned', proposed: 'planned',
+    active: 'in_progress', wip: 'in_progress', in_flight: 'in_progress',
+    in_review: 'review', in_ci: 'review', review_ready: 'review', needs_review: 'review',
+    merged: 'shipped', released: 'shipped',
+    closed: 'done', complete: 'done', completed: 'done', resolved: 'done'
+  };
+  var DONE_LIKE = {done: 1, shipped: 1};
+
+  function canonStatus(s){
+    var k = String(s == null ? '' : s).trim().toLowerCase().replace(/[\s\-]+/g, '_');
+    if (STATUS_CANON[k]) return k;
+    if (STATUS_ALIAS[k]) return STATUS_ALIAS[k];
+    return null;
+  }
+  function statusChip(s){
+    var c = canonStatus(s);
+    var raw = String(s == null ? '' : s);
+    var label = raw === '' ? 'unset' : raw.replace(/_/g, ' ');
+    return '<span class="chip chip--st-' + (c || 'unknown') + '" data-status="' + esc(raw) + '">' +
+           esc(label) + '</span>';
+  }
+  function kindChip(k){
+    var raw = String(k == null ? '' : k).trim().toLowerCase();
+    var cls = (raw === 'bug' || raw === 'arc' || raw === 'story') ? 'chip--kind-' + raw : 'chip--kind-story';
+    return '<span class="chip ' + cls + '" data-kind="' + esc(raw) + '">' + esc(raw || 'item') + '</span>';
+  }
+  function isBug(it){ return String(it.kind || '').trim().toLowerCase() === 'bug'; }
+  function isDone(it){ return DONE_LIKE[canonStatus(it.status)] === 1; }
+
+  // ---- tabs ---------------------------------------------------------------
+
+  function allItems(){
+    var arcs = (D.board && D.board.arcs) || [];
+    var out = [];
+    arcs.forEach(function(a){ (a.items || []).forEach(function(i){ out.push(i); }); });
+    return out;
+  }
+
   var TABS = [
-    {id:'crew',    label:'Crew',           count:function(d){ return (d.crew||[]).length; }},
-    {id:'board',   label:'Board',          count:function(d){ return (d.board&&d.board.arcs||[]).length; }},
-    {id:'waiting', label:'Waiting on you', count:function(d){ return (d.waiting_on_you||[]).length; }, hot:true},
-    {id:'ledger',  label:'Ledger',         count:function(){ return null; }}
+    {id:'board',   label:'STORIES', count:function(){ return allItems().length; }},
+    {id:'crew',    label:'AGENTS',  count:function(d){ return (d.crew||[]).length; }},
+    {id:'ledger',  label:'LEDGER',  count:function(){ return null; }},
+    {id:'waiting', label:'WAITING', count:function(d){ return (d.waiting_on_you||[]).length; }, hot:true}
   ];
-  var active = location.hash.replace('#','') || 'crew';
-  if (!TABS.some(function(t){ return t.id === active; })) active = 'crew';
+  var active = location.hash.replace('#','') || 'board';
+  if (!TABS.some(function(t){ return t.id === active; })) active = 'board';
 
   function paintTabs(){
     $('tabs').innerHTML = TABS.map(function(t){
@@ -333,8 +787,11 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
   });
 
   function paintSweep(){
-    var s = Math.max(0, (Date.now() - Date.parse(D.generated_at)) / 1000);
-    var lamp = $('lamp'), cls = 'lamp live';
+    var t = Date.parse(D.generated_at);
+    var lamp = $('lamp');
+    if (isNaN(t)) { lamp.className = 'lamp cold'; $('sweepAge').textContent = 'no sweep recorded'; return; }
+    var s = Math.max(0, (Date.now() - t) / 1000);
+    var cls = 'lamp live';
     if (s > 300) cls = 'lamp cold';
     else if (s > 150) cls = 'lamp warm live';
     lamp.className = cls;
@@ -342,6 +799,100 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
       ? 'no sweep for ' + ago(D.generated_at) + ' — check the courier'
       : 'swept ' + ago(D.generated_at) + ' ago';
   }
+
+  // ---- STORIES ------------------------------------------------------------
+
+  function itemRow(it, depth){
+    var pad = depth ? ' style="padding-left:calc(var(--space-3) + ' + (depth * 20) + 'px)"' : '';
+    var twig = depth ? '<span class="twig" aria-hidden="true">&#8627;</span>' : '';
+    return '<tr' + (depth ? ' class="child"' : '') + '>' +
+      '<td' + pad + '>' + twig +
+        '<span class="chip chip--id">' + esc(it.item_id) + '</span> ' +
+        '<span class="task"><span class="title">' + esc(it.title || '(untitled)') + '</span>' +
+        (it.note ? '<span class="note">' + esc(it.note) + '</span>' : '') +
+        (it.duplicate_of ? '<span class="dupe">dup of ' + esc(it.duplicate_of) + '</span>' : '') +
+        '</span></td>' +
+      '<td>' + kindChip(it.kind) + '</td>' +
+      '<td>' + statusChip(it.status) + '</td>' +
+      '<td>' + esc(it.assignee || '—') + '</td>' +
+      '<td class="num">' + esc(it.estimate || '—') + '</td>' +
+      '<td class="num">' + esc(it.actual || '—') + '</td>' +
+      '<td class="num">' + ago(it.updated_at) + '</td>' +
+    '</tr>';
+  }
+
+  // Children nest under their parent when parent_id links them, and a child
+  // whose parent is not in this arc is shown at the top level rather than
+  // dropped. Depth is capped so a cycle cannot loop the renderer.
+  function nestedRows(items){
+    var byId = {}, kids = {}, roots = [];
+    items.forEach(function(i){ byId[i.item_id] = i; });
+    items.forEach(function(i){
+      var p = i.parent_id;
+      if (p && byId[p] && p !== i.item_id) { (kids[p] = kids[p] || []).push(i); }
+      else { roots.push(i); }
+    });
+    var out = [], seen = {};
+    function walk(list, depth){
+      list.forEach(function(i){
+        if (seen[i.item_id]) return;
+        seen[i.item_id] = 1;
+        out.push(itemRow(i, depth));
+        if (kids[i.item_id] && depth < 4) walk(kids[i.item_id], depth + 1);
+      });
+    }
+    walk(roots, 0);
+    // Anything left over (a cycle) still gets rendered, flat.
+    items.forEach(function(i){ if (!seen[i.item_id]) { seen[i.item_id] = 1; out.push(itemRow(i, 0)); } });
+    return out.join('');
+  }
+
+  // Pinned column widths, shared by every board table so the columns line up
+  // down the page rather than per arc.
+  var COLS = '<colgroup><col style="width:42%"><col style="width:8%"><col style="width:11%"><col style="width:13%"><col style="width:7%"><col style="width:8%"><col style="width:11%"></colgroup>';
+  var HEAD = COLS + '<thead><tr>' +
+    '<th>Item</th><th>Kind</th><th>Status</th><th>Assignee</th>' +
+    '<th class="num">Est</th><th class="num">Actual</th><th class="num">Updated</th>' +
+    '</tr></thead>';
+
+  function paintStories(){
+    var arcs = (D.board && D.board.arcs) || [];
+    var real = [], loose = [];
+    arcs.forEach(function(a){
+      var id = a.arc_id;
+      if (!id || id === 'unassigned') { loose = loose.concat(a.items || []); }
+      else { real.push(a); }
+    });
+
+    $('arcs').innerHTML = real.length ? real.map(function(arc){
+      var items = arc.items || [];
+      var done = items.filter(isDone).length;
+      var pct = items.length ? Math.round(done / items.length * 100) : 0;
+      var cls = pct >= 100 ? '' : (pct >= 50 ? 'warn' : 'alert');
+      return '<div class="arc"><header>' +
+        '<span class="id">' + esc(arc.arc_id) + '</span><h3>' + esc(arc.title || arc.arc_id) + '</h3>' +
+        '<span class="spacer"></span>' +
+        '<span class="chip">' + done + '/' + items.length + '</span>' +
+        '<span class="meter"><i class="' + cls + '" style="width:' + pct + '%"></i></span>' +
+        '</header><div class="scroll-x"><table class="data board">' + HEAD +
+        '<tbody>' + nestedRows(items) + '</tbody></table></div></div>';
+    }).join('') : '<div class="empty">No arcs on the board yet.</div>';
+
+    var stories = loose.filter(function(i){ return !isBug(i); });
+    var bugs = loose.filter(isBug);
+    $('looseStories').innerHTML = stories.length ? nestedRows(stories)
+      : '<tr><td colspan="7" class="empty">Every story is filed under an arc.</td></tr>';
+    $('looseBugs').innerHTML = bugs.length ? nestedRows(bugs)
+      : '<tr><td colspan="7" class="empty">No loose bugs.</td></tr>';
+
+    var total = allItems().length;
+    $('arcsSub').textContent = real.length + ' arc' + (real.length === 1 ? '' : 's') +
+      ' · ' + total + ' item' + (total === 1 ? '' : 's') + ' on the board';
+    $('storiesSub').textContent = stories.length + ' not filed under an arc';
+    $('bugsSub').textContent = bugs.length + ' not filed under an arc';
+  }
+
+  // ---- AGENTS -------------------------------------------------------------
 
   function paintCrew(){
     var crew = D.crew || [], limits = D.role_limits || {};
@@ -354,14 +905,15 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
     var rows = roles.map(function(role){
       var list = byRole[role];
       var cap = limits[role];
-      var bar = '<tr class="rolebar"><td colspan="9">' + esc(role) +
-        '<span class="cap">' + list.length + (cap ? ' of ' + cap + ' slots' : '') + '</span></td></tr>';
+      var bar = '<tr class="group"><td colspan="9">' + esc(role) +
+        '<span class="count">' + list.length + (cap ? ' of ' + cap + ' slots' : '') + '</span></td></tr>';
       return bar + list.map(function(a){
         var t = a.tokens || {};
-        var live = (t.in||0) + (t.out||0);
+        var liveTokens = (t.in||0) + (t.out||0);
         var routed = a.model_used && a.model_requested && a.model_used !== a.model_requested;
         var task = a.item_id
-          ? '<span class="task"><span class="id">' + esc(a.item_id) + '</span>' + esc(a.item_title||'') + '</span>'
+          ? '<span class="task"><span class="chip chip--id">' + esc(a.item_id) + '</span> ' +
+            esc(a.item_title||'') + '</span>'
           : '<span class="task none">' + esc(a.idle_note || 'nothing assigned') + '</span>';
         return '<tr>' +
           '<td><div class="who"><b>' + esc(a.name) + '</b>' +
@@ -372,7 +924,7 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
             esc(a.status) + (a.since ? ' · ' + ago(a.since) : '') + '</span></td>' +
           '<td>' + task + '</td>' +
           '<td class="num">' + num(a.runs) + '</td>' +
-          '<td class="num lead">' + compact(live) + '</td>' +
+          '<td class="num lead">' + compact(liveTokens) + '</td>' +
           '<td class="num">' + compact(t.cache_read) + '</td>' +
           '<td class="num">' + money(a.cost_usd) + '</td>' +
           '<td class="num">' + (a.gh_minutes == null ? '—' : num(a.gh_minutes)) + '</td>' +
@@ -380,10 +932,12 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
       }).join('');
     }).join('');
 
-    $('crewBody').innerHTML = rows || '<tr><td colspan="9" class="empty">No crew on shift.</td></tr>';
+    $('crewBody').innerHTML = rows || '<tr><td colspan="9" class="empty">No agents on shift.</td></tr>';
     var working = crew.filter(function(a){ return a.status === 'working'; }).length;
     var stuck = crew.filter(function(a){ return a.status === 'blocked'; }).length;
-    $('crewSub').textContent = working + ' working' + (stuck ? ', ' + stuck + ' blocked' : '') +
+    var stale = crew.filter(function(a){ return a.status === 'stale'; }).length;
+    $('crewSub').textContent = working + ' working' +
+      (stuck ? ', ' + stuck + ' blocked' : '') + (stale ? ', ' + stale + ' stale' : '') +
       ' · ' + (D.sessions || []).length + ' session' + ((D.sessions||[]).length === 1 ? '' : 's');
   }
 
@@ -394,7 +948,8 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
       ['unfinished runs', (i.orphan_runs||[]).length, function(n){ return n + ' run' + (n===1?'':'s') + ' started with no result recorded'; }],
       ['state drift', i.state_drift||0, function(n){ return n + ' item' + (n===1?'':'s') + ' on disk disagree with the ledger'; }],
       ['duplicate items', (i.duplicates||[]).length, function(n){ return n + ' possible duplicate' + (n===1?'':'s') + ' on the board'; }],
-      ['stale claims', (i.stale_claims||[]).length, function(n){ return n + ' item' + (n===1?'':'s') + ' claimed in progress with no commits'; }]
+      ['stale claims', (i.stale_claims||[]).length, function(n){ return n + ' item' + (n===1?'':'s') + ' claimed in progress with no commits'; }],
+      ['merged but open', (i.merged_but_open||[]).length, function(n){ return n + ' item' + (n===1?'':'s') + ' still open on a merged PR'; }]
     ];
     $('integrity').innerHTML = checks.map(function(c){
       var n = c[1];
@@ -403,38 +958,7 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
     }).join('');
   }
 
-  function paintBoard(){
-    var arcs = (D.board && D.board.arcs) || [];
-    if (!arcs.length){ $('arcs').innerHTML = '<div class="empty">Nothing on the board yet.</div>'; return; }
-    $('arcs').innerHTML = arcs.map(function(arc){
-      var items = arc.items || [];
-      var done = items.filter(function(i){ return i.status === 'done'; }).length;
-      var pct = items.length ? Math.round(done / items.length * 100) : 0;
-      var rows = items.map(function(i){
-        return '<tr>' +
-          '<td><span class="task"><span class="id">' + esc(i.item_id) + '</span>' + esc(i.title) +
-            (i.duplicate_of ? '<span class="dupe">dup of ' + esc(i.duplicate_of) + '</span>' : '') + '</span></td>' +
-          '<td><span class="chip ' + esc(i.kind === 'bug' ? 'bug' : '') + '">' + esc(i.kind) + '</span></td>' +
-          '<td><span class="chip ' + esc(i.status) + '">' + esc(i.status.replace(/_/g,' ')) + '</span></td>' +
-          '<td>' + esc(i.assignee || '—') + '</td>' +
-          '<td class="num">' + esc(i.estimate || '—') + '</td>' +
-          '<td class="num">' + esc(i.actual || '—') + '</td>' +
-          '<td class="num">' + ago(i.updated_at) + '</td>' +
-        '</tr>';
-      }).join('');
-      return '<div class="arc"><header>' +
-        '<span class="id">' + esc(arc.arc_id) + '</span><h3>' + esc(arc.title) + '</h3>' +
-        '<span class="spacer"></span>' +
-        '<span class="chip">' + done + '/' + items.length + '</span>' +
-        '<span class="meter"><i style="width:' + pct + '%"></i></span>' +
-        '</header><div class="scroll"><table><thead><tr>' +
-        '<th>Item</th><th>Kind</th><th>Status</th><th>Assignee</th>' +
-        '<th class="num">Est</th><th class="num">Actual</th><th class="num">Updated</th>' +
-        '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
-    }).join('');
-    var all = arcs.reduce(function(n,a){ return n + (a.items||[]).length; }, 0);
-    $('boardSub').textContent = arcs.length + ' arcs · ' + all + ' items';
-  }
+  // ---- WAITING ------------------------------------------------------------
 
   function paintWaiting(){
     var asks = D.waiting_on_you || [];
@@ -452,11 +976,13 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
     }).join('');
   }
 
+  // ---- LEDGER -------------------------------------------------------------
+
   function paintLedger(){
     var b = D.budget || {};
     var gauges = (b.meters || []).map(function(m){
       var pct = m.limit ? Math.min(100, m.used / m.limit * 100) : 0;
-      var cls = pct > 85 ? 'hot' : pct > 70 ? 'warm' : '';
+      var cls = pct > 85 ? 'alert' : pct > 70 ? 'warn' : '';
       return '<div class="gauge"><h4>' + esc(m.label) + '</h4>' +
         '<div><span class="big">' + esc(m.display || compact(m.used)) + '</span>' +
         (m.limit ? '<span class="of">of ' + compact(m.limit) + '</span>' : '') + '</div>' +
@@ -479,18 +1005,23 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
   }
 
   function paint(){
-    document.title = 'Wall — ' + (D.repo && D.repo.name || '');
-    $('repoName').firstChild.nodeValue = (D.repo && D.repo.name) || '—';
-    $('repoBranch').textContent = (D.repo && D.repo.branch) ? D.repo.branch : '';
-    var c = D.courier || {};
-    $('courierNote').textContent = 'courier ' + (c.last_run_ms != null ? c.last_run_ms + 'ms' : '—') +
-      ' · ' + num(c.events) + ' events';
-    $('fSchema').textContent = 'schema v' + (D.schema_version || '?');
-    $('fEvents').textContent = num(c.events) + ' events merged';
-    $('fShards').textContent = num(c.shards) + ' shards';
-    $('fSessions').textContent = (D.sessions || []).length + ' sessions';
-    paintTabs(); paintSweep(); paintCrew(); paintIntegrity();
-    paintBoard(); paintWaiting(); paintLedger();
+    try {
+      document.title = 'Wall — ' + (D.repo && D.repo.name || '');
+      $('repoName').firstChild.nodeValue = (D.repo && D.repo.name) || '—';
+      $('repoBranch').textContent = (D.repo && D.repo.branch) ? D.repo.branch : '';
+      var c = D.courier || {};
+      $('courierNote').textContent = 'courier ' + (c.last_run_ms != null ? c.last_run_ms + 'ms' : '—') +
+        ' · ' + num(c.events) + ' events';
+      $('fSchema').textContent = 'schema v' + (D.schema_version || '?');
+      $('fEvents').textContent = num(c.events) + ' events merged';
+      $('fShards').textContent = num(c.shards) + ' shards';
+      $('fSessions').textContent = (D.sessions || []).length + ' sessions';
+      paintTabs(); paintSweep(); paintStories(); paintCrew(); paintIntegrity();
+      paintWaiting(); paintLedger();
+      clearFail();
+    } catch (e) {
+      fail('The wall could not render this snapshot.', String(e && e.message || e));
+    }
   }
 
   paint();
