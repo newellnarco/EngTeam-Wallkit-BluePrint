@@ -72,19 +72,16 @@ written procedure.
 
 | Role (org term) | Kit carrier | Function | Actual instructions |
 |---|---|---|---|
-| Product owner / sponsor | The driving engineer | Effort variables, product Q&A, ceilings, the human queue | `docs/SESSION_LIFECYCLE.md` §2/§4, `docs/PRODUCT_INTAKE.md` |
+| Product owner / sponsor | The driving engineer — **the Patron** | Effort variables, product Q&A, ceilings, the human queue, ratifications and verifications | `docs/SESSION_LIFECYCLE.md` §2/§4, `docs/PRODUCT_INTAKE.md` |
 | Engineering manager | **Maestro** (the session) | Dispatch, capacity within caps, merge authority, process | `.claude/MAESTRO.md`, `docs/WORKFLOW.md` §2/§7 |
-| PMO / metrics analyst | **Foreman** + Courier + the wall | Measured status, integrity, cost; rebalance recommendations | `.claude/agents/foreman.md`, `docs/CAPACITY_REBALANCING.md`; the mechanical half is `tools/wall/courier.py` |
+| PMO / metrics / project tracking | **Foreman** + Courier + the Wall | Measured status and integrity; throughput and cost tallies — **counted from the ledger, the harness and CI, never asserted by any agent**; the board (arcs/stories/bugs), SLA ladder and decision log held as state; rebalance recommendations | `.claude/agents/foreman.md`, `docs/CAPACITY_REBALANCING.md`, `docs/WALL_STANDARDS.md` §4, `docs/EVENT_SCHEMA.md` §5; the mechanical half is `tools/wall/courier.py` + `tools/wall/testkit.py` |
 | Solution architect | **Architect** | Domain design, arcs + stories, requirements sign-off, rulings | `.claude/agents/architect.md`, `docs/ITEM_AUTHORING.md` |
 | Governance board | **Adjudicator** | Tie-breaks, decision conflicts, contested trade-offs | `.claude/agents/adjudicator.md` |
-| Security & compliance authority | **Warden** (exactly one, singleton-enforced) | Guardrail corpus; architecture sign-off on in-scope arcs; data-use verdicts (dev + product); delivery audit — blocks autonomously, never grants | `.claude/agents/warden.md`; the singleton is refused in code by `tools/wall/agents.py` |
+| Security & compliance authority | **Warden** (exactly one, singleton-enforced) | Guardrail corpus; architecture sign-off on in-scope arcs; data-use verdicts (dev + product); delivery audit — blocks autonomously, never grants. **Audits the cross-cutting security lane** — SAST + secrets in CI, gated research network, localhost-only surfaces, consent-gated installs — machinery that runs structurally on its own; the Warden verifies it holds and rules on what it raises | `.claude/agents/warden.md`, `docs/TESTING_STANDARDS.md` (SAST lane), `docs/INSTALL.md`; the singleton is refused in code by `tools/wall/agents.py`, the bind by `tools/wall/server.py` |
 | Analysts | **Researchers** (N, parallel) | Evidence with sources, options with costs | `.claude/agents/researcher.md`, `docs/handoffs/finding-route.md` |
 | Engineers | **Builders** (N, parallel) | Implementation in leased scopes, tests owed | `.claude/agents/builder.md`, `docs/TESTING_STANDARDS.md` |
 | Release engineer | **Integrator** (a hat) | Rebase, safety proof, gates last, one PR at a time | `.claude/agents/integrator.md`, `docs/WORKFLOW.md` §9, `docs/handoffs/transplant-order.md` |
 | QA / code review | **Reviewer** + external lanes | Cold diff read, mutation protocol, DoD gate | `.claude/agents/reviewer.md`, `.claude/skills/reviewer-integration/SKILL.md` |
-| Security | A cross-cutting lane | The lane the Warden audits: SAST + secrets, gated network, consent-gated installs | `docs/TESTING_STANDARDS.md` (SAST lane), `docs/INSTALL.md`; the bind is enforced in `tools/wall/server.py` |
-| Project management | State, not a head | The wall's arcs/stories/bugs, SLA ladder, decision log | `docs/WALL_STANDARDS.md` §4, `docs/ITEM_AUTHORING.md`; the sweeps are `tools/wall/courier.py` |
-| Metrics | Measured, never self-reported | Harness token actuals, CI wall-clock, ledger-derived utilization, shard timings | `docs/EVENT_SCHEMA.md` §5; computed by `tools/wall/courier.py`, `tools/wall/testkit.py` |
 
 **Under-promising on purpose.** Every capability above is graded by how it is
 actually held up, and the grade is written where the claim is made
@@ -454,7 +451,7 @@ authority on which commands are in that state today.
 | Install adapters | One machine-wide timer per platform - scheduled task, launch agent, user timer | Consent-gated: the schedule is printed before it is created |
 | Questions and escalation | Raise, route, answer, record as a decision | Blocking work stops; non-blocking work continues |
 | Integration | Rebase, regenerate derived files, prove, gate, open the pull request | The role sheet exists so the procedure stops being re-typed |
-| Context templates | The five root documents a new project starts from | `templates/`, this repository |
+| Context templates | The root context documents a new project starts from (ten templates) | `templates/`, this repository |
 | Decision log | One file per ruling, superseded rather than rewritten | `docs/decisions/` |
 
 ---

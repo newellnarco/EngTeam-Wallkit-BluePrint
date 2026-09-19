@@ -96,7 +96,7 @@ AGENT_TOPOLOGY.md section 2 pins.
 
 | Org function | Carried by | Where it is written |
 |---|---|---|
-| **Product ownership** | The driving engineer: effort variables + product Q&A, the human queue, all ceilings | PRODUCT_INTAKE.md, SESSION_LIFECYCLE.md section 4 |
+| **Product ownership** | The driving engineer — "the Patron": effort variables + product Q&A, the human queue, all ceilings | PRODUCT_INTAKE.md, SESSION_LIFECYCLE.md section 4 |
 | **Engineering management / delivery** | Maestro (the session): dispatch, capacity within caps, merge authority, process sign-off | MAESTRO.md, WORKFLOW.md sections 2/7 |
 | **Project management** | Deliberately **state, not a head**: the wall's arcs/stories/bugs (epics/stories/defects), SLA ladder, escalation flags, decision log. Nobody "runs the board"; the courier verifies it and the Maestro acts on it | WALL_STANDARDS.md section 4, ITEM_AUTHORING.md, WORKFLOW.md section 4 |
 | **PMO / metrics & reporting analyst** | Foreman (judgment) + Courier and the wall (mechanical): throughput, cost, utilization, integrity; capacity **recommendations with numbers attached** | CAPACITY_REBALANCING.md, foreman.md |
@@ -109,6 +109,13 @@ AGENT_TOPOLOGY.md section 2 pins.
 | **Security & compliance authority ("the Warden")** | Warden: guardrail corpus, in-scope architecture sign-off before dispatch, per-use data verdicts for dev and product, wave-close delivery audit; blocks autonomously, never grants | warden.md, WORKFLOW.md section 7 |
 | **Security** | A cross-cutting lane, not a box: SAST + secrets in the DoD, network-gated analysts, localhost-only serving, consent-gated installs, and a straight-to-sponsor escalation class | TESTING_STANDARDS.md (SAST lane), SESSION_LIFECYCLE.md section 4, INSTALL.md |
 | **Metrics** | Every number measured, never self-reported: harness token actuals, CI wall-clock, ledger-derived utilization, shard timings; budgets advisory, trends reported | EVENT_SCHEMA.md section 5, CAPACITY_REBALANCING.md section 2 |
+
+> **Summary-table fold (user direction).** In the README's at-a-glance
+> table, the security lane folds into the Warden's row (the authority and
+> the machinery it audits belong together), and metrics + project-tracking
+> fold into the PMO row (Foreman + Courier + the Wall). This table remains
+> the full function-by-function map — nothing was removed, only the summary
+> was consolidated.
 
 ## 2b. Enforcement grades — under-promising on purpose
 

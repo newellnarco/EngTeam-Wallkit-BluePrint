@@ -30,7 +30,7 @@ def org_table_rows() -> list[str]:
 
 def test_every_org_row_cites_at_least_one_real_instruction_file():
     rows = org_table_rows()
-    assert len(rows) >= 13, "org table lost rows"
+    assert len(rows) >= 10, "org table lost rows"  # 10 after the user-directed fold
     for row in rows:
         cells = [c.strip() for c in row.strip("|").split("|")]
         assert len(cells) == 4, f"row lost its instructions column: {row[:60]}"

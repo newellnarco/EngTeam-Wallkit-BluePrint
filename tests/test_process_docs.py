@@ -997,9 +997,15 @@ def test_readme_org_table_covers_every_org_mapping_carrier():
     for fn in ("Product owner", "Engineering manager", "PMO / metrics",
                "Solution architect", "Governance board",
                "Security & compliance authority", "Analysts", "Engineers",
-               "Release engineer", "QA / code review", "Security",
-               "Project management", "Metrics"):
+               "Release engineer", "QA / code review"):
         assert fn in t, f"README org table is missing the {fn!r} function"
+    # The lane/state/metrics carriers FOLD into their owning rows (user
+    # direction) rather than standing as heads; assert the folded coverage.
+    flat = " ".join(t.replace("**", "").split())
+    assert "Audits the cross-cutting security lane" in flat
+    assert "SLA ladder and decision log held as state" in flat
+    assert "never asserted by any agent" in flat
+    assert "the Patron" in flat
 
 
 def test_readme_documents_what_activates_by_itself():
