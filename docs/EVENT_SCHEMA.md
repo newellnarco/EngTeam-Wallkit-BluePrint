@@ -395,3 +395,27 @@ assignment as `estimate` and at close as `actual`. Both land in `item_state`.
 
 Without this the Ledger tab can report what was spent but never whether it was
 more than expected, which is the only question budgeting actually asks.
+
+---
+
+## 9. Diagnostics-loop events
+
+Five events carry the closed loop from a running system's telemetry to
+tracked, verified work (`docs/DIAGNOSTICS_LOOP.md`). All ride the normal
+shard path with the standard envelope; nothing here invents a second
+transport.
+
+| Event | Required fields beyond the envelope | Notes |
+|---|---|---|
+| `diagnostic_snapshot_shipped` | `snapshot_ref` (branch/path), `generated_epoch`, `stale_after_s`, `trigger` (`heartbeat` \| `new_signature`) | The shipper writes it unconditionally — including when the observed system was unreachable, which the snapshot itself must say |
+| `diagnostic_finding` | `signature` (normalized — timestamps/pids/ids collapsed), `class` (`known_playbook` \| `unclassified`), `route` (`auto_repaired` \| `story_filed` \| `escalated`), `snapshot_ref` | A generic string that could match many causes stays `unclassified`; mis-filing is worse than not filing |
+| `story_filed` | `finding_ref` (the `diagnostic_finding`'s `event_id`), `item_id` | The join `wall trace` walks from a log line to the merged PR |
+| `verify_requested` | `item_id`, `what_changed`, `verify_steps` | Appended at ship for anything the owner could see or feel; append-only queue, persists across releases |
+| `verified` | `item_id`, `verdict` (`confirmed` \| `confirmed_with_findings`), `by` | Only ever records a human answer; a `confirmed_with_findings` feeds stage three as a new finding |
+
+Two integrity checks come with them, both courier-side: a
+`diagnostic_finding` with `route: story_filed` and no matching `story_filed`
+within the SLA is a dropped ball, flagged like an unassigned question; a
+`verify_requested` older than the configured horizon surfaces on the WAITING
+tab beside unanswered asks — the loop holding a slot open for a human is
+visible, never silent.

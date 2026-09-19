@@ -28,6 +28,7 @@ EXPECTED_TEMPLATES = [
     "FAILURE_PATTERNS.md.template",
     "SHIP_CHECKLIST.md.template",
     "BEST_PRACTICES.md.template",
+    "EVAL_RECORD.md.template",
     "BUDGETED_DOCS.md.template",
 ]
 

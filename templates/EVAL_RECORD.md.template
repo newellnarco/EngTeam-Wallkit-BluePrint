@@ -1,0 +1,62 @@
+<!--
+TEMPLATE: EVAL_RECORD (one per technology evaluation / A/B / swap decision)
+WHAT THIS IS  The decision record a technology evaluation ends in: what was
+              measured, on what, what won, what would reopen the question.
+WHY IT EXISTS A swap decided by impression gets re-litigated forever; one
+              decided by a recorded bench with enumerated re-eval triggers
+              is settled until a trigger fires (docs/TECH_EVALUATION.md).
+HOW TO USE    Copy to docs/decisions/EVAL-<TOPIC>.md (or fold into the
+              DEC-NNNN that records the verdict), fill every field, delete
+              this comment block. An unfilled field is a finding, not a
+              blank. Keep the bench assets on disk and name them here so a
+              re-run is two commands.
+-->
+
+# EVAL: <INCUMBENT> vs <CHALLENGER> - <ONE_LINE_QUESTION>
+
+| | |
+|---|---|
+| Status | DECIDED KEEP / DECIDED SWAP / OPEN |
+| Decision owner | <WHO_CALLS_IT> (data collected by <WHO_MEASURED>) |
+| Decided / last reviewed | <DATE> |
+| Decision record | DEC-<NNNN> |
+
+## The question
+
+<WHAT_IS_BEING_EVALUATED_AND_WHY_NOW - the trigger that opened this>
+
+## Decision basis
+
+- **Bench:** <PATH_TO_HARNESS> run on <TARGET_ENVIRONMENT>, dataset
+  <DATASET_NAME_AND_SIZE>. (Or, honestly: could not run because <REASON> -
+  and the verdict below says what that inability itself decides.)
+- **Target metric:** <METRIC> - incumbent <VALUE> vs challenger <VALUE>
+- **Guard metric:** <METRIC_THAT_MUST_NOT_REGRESS> - incumbent <VALUE> vs
+  challenger <VALUE>
+- **Flip protocol followed:** flag <FLAG_NAME>, baseline run <REF>, flipped
+  run <REF>, adopted only on measured win: YES / NO / N-A because <REASON>
+
+## Disqualifiers checked (deployment cost counts, independent of accuracy)
+
+- Starts cleanly on the target environment: YES / NO -> <DETAIL>
+- New dependencies and their licenses: <LIST_OR_NONE>
+- Operational cost delta (install size, boot time, memory, quota):
+  <MEASURED_OR_HONESTLY_UNKNOWN>
+- A challenger that cannot start is clearly not better; patching the working
+  incumbent's runtime to benchmark a challenger is an unacceptable trade.
+
+## Verdict
+
+<ONE_PARAGRAPH - imperative, citable. The incumbent wins ties.>
+
+## Candidate-fix recipe (recorded, not executed)
+
+<WHAT_KNOWN_CHANGE_WOULD_MAKE_THE_LOSER_VIABLE - so re-evaluation is cheap.
+NONE if none is known.>
+
+## Re-evaluation triggers (any one firing reopens this decision)
+
+- Environmental: <e.g. UPSTREAM_RELEASE_REMOVING_THE_DISQUALIFIER,
+  NEW_DEPLOYMENT_TARGET, DEPENDENCY_PAIRING_THAT_NEWLY_RESOLVES>
+- Experiential: <e.g. A_LIVE_QUALITY_PROBLEM_THE_OWNER_ACTUALLY_FEELS>
+- Bench assets for the re-run: <PATHS> - re-run is: <THE_TWO_COMMANDS>

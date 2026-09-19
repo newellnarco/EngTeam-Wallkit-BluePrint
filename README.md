@@ -195,6 +195,7 @@ these are files.
 | `templates/SHIP_CHECKLIST.md.template` | `SHIP_CHECKLIST.md` | The pre-ship gate, including gates-run-last and the budget check. |
 | `templates/BEST_PRACTICES.md.template` | `BEST_PRACTICES.md` | The coding standards the whole roster and any hosted reviewers judge against. |
 | `templates/BUDGETED_DOCS.md.template` | `BUDGETED_DOCS.md` | Which documents feed model prompts, their budgets, and measured headroom. |
+| `templates/EVAL_RECORD.md.template` | `docs/decisions/EVAL-*.md` | One per technology evaluation: bench, disqualifiers, verdict, re-eval triggers (docs/TECH_EVALUATION.md). |
 
 Replace every `<PLACEHOLDER>` and delete the leading comment block from each.
 Each template carries a **question set** — required questions plus the probes
@@ -401,6 +402,8 @@ docs/
   PRODUCT_INTAKE.md      the product-definition Q&A: derive from the repo first, ask second
   CAPACITY_REBALANCING.md  the measured knobs: builder/researcher split, PR pacing, CI sharding
   TEMPLATE_INTAKE.md     the per-template question sets: required + LLM probes, worked examples
+  DIAGNOSTICS_LOOP.md    running system -> shipped evidence -> automated review -> story with design
+  TECH_EVALUATION.md     measure-before-flip: bench, flag protocol, decision record, re-eval triggers
   LLM_BOOTSTRAP.md       the day-zero procedure an LLM session follows to stand all of this up
   DEPLOYMENT_TARGETS.md  Docker, VMs, Kubernetes - who runs the timer, serves, ships
   COMPLIANCE_POSTURE.md  the mechanisms in auditor language: SoD, change control, traceability

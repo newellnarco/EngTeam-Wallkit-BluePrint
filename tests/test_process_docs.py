@@ -502,3 +502,87 @@ def test_adopt_conflicts_go_to_the_engineer():
     flat = " ".join(t.split())
     assert "always** the engineer's call" in flat or "always the engineer's call" in flat.replace("**", "")
     assert "The skill stages the diff; it does not pick" in flat
+
+
+# ------------------------------------------------- diagnostics loop + evals
+
+DIAG = KIT / "docs" / "DIAGNOSTICS_LOOP.md"
+EVAL = KIT / "docs" / "TECH_EVALUATION.md"
+EVAL_T = KIT / "templates" / "EVAL_RECORD.md.template"
+SCHEMA = KIT / "docs" / "EVENT_SCHEMA.md"
+
+
+def test_diagnostics_loop_has_the_five_stages():
+    t = _text(DIAG)
+    for h in ("ship, honestly", "freshness is first-class",
+              "automated review, under a standing grant",
+              "story creation, with the design attached",
+              "owner-verification queue"):
+        assert h in t, f"diagnostics loop missing stage: {h}"
+
+
+def test_diagnostics_shipper_runs_unconditionally():
+    t = _text(DIAG)
+    flat = " ".join(t.split())
+    assert "the shipper runs unconditionally" in flat.replace("**", "")
+    assert "F-OBS-COUPLED" in t
+
+
+def test_diagnostics_missing_signal_is_a_story_not_a_question():
+    t = _text(DIAG)
+    flat = " ".join(t.replace("**", "").split())
+    assert '"Not enough detail" never goes to the engineer' in flat
+    assert "itself a P1 story" in flat
+
+
+def test_diagnostics_grant_keeps_the_engineer_ceiling():
+    t = _text(DIAG)
+    assert "The grant's ceiling is unchanged" in t
+
+
+def test_verification_queue_rules():
+    t = _text(DIAG)
+    flat = " ".join(t.replace("**", "").split())
+    assert "Only the owner's explicit sign-off retires an item" in flat
+    assert "Unverified items persist across releases" in flat
+    assert '"Too small to list" is not the shipper\'s call' in flat
+
+
+def test_never_ask_the_owner_to_run_anything():
+    t = _text(DIAG)
+    flat = " ".join(t.replace("**", "").split())
+    assert "must name the channel that cannot carry it" in flat
+    assert "Automate the result back, not just the work" in flat
+    assert "non-zero on every path where the work did not complete" in flat
+
+
+def test_event_schema_carries_the_diagnostics_events():
+    t = _text(SCHEMA)
+    for ev in ("diagnostic_snapshot_shipped", "diagnostic_finding",
+               "story_filed", "verify_requested", "verified"):
+        assert f"`{ev}`" in t, f"schema missing event {ev}"
+
+
+def test_tech_evaluation_law_and_flip_protocol():
+    t = _text(EVAL)
+    flat = " ".join(t.replace("**", "").split())
+    assert "no baseline for the thing a change guards means the change is not designed yet" in flat
+    assert "target metric improves AND the guard" in flat
+    assert "instant, documented revert" in flat
+    assert "the incumbent wins ties" in flat.lower()
+
+
+def test_tech_evaluation_disqualifiers_are_first_class():
+    t = _text(EVAL)
+    flat = " ".join(t.replace("*", "").split())
+    assert "deployment cost counts independent of accuracy" in flat.lower().replace(",", "")
+    assert "challenger that cannot start" in flat
+    assert "recorded, not executed" in flat
+
+
+def test_eval_record_template_carries_the_load_bearing_fields():
+    t = _text(EVAL_T)
+    for f in ("Status | DECIDED KEEP / DECIDED SWAP / OPEN", "Decision basis",
+              "Disqualifiers checked", "Candidate-fix recipe (recorded, not executed)",
+              "Re-evaluation triggers", "Guard metric"):
+        assert f in t, f"eval template missing {f}"
