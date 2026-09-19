@@ -308,7 +308,8 @@ docs/
   ORIGINAL_OUTLINE.md    the source outline, unedited
   decisions/             DEC-NNNN.md, one per ruling, plus index.md
   diagrams/              components, the closed loop, AGENT_TOPOLOGY (nodes/edges,
-                         parallel vs sequential, concern-to-mechanism map)
+                         parallel vs sequential, concern-to-mechanism map),
+                         ORG_MAPPING (the same system as an engineering org)
   handoffs/              dispatch brief, finding routing, transplant order, wave report
 
 .claude/

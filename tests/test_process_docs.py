@@ -284,3 +284,24 @@ def test_new_docs_listed_in_readme_layout():
     for name in ("PRODUCT_INTAKE.md", "CAPACITY_REBALANCING.md",
                  "AGENT_TOPOLOGY", "reviewer-integration"):
         assert name in t, f"README layout missing {name}"
+
+
+# ---------------------------------------------------------------- org mapping
+
+ORG = KIT / "docs" / "diagrams" / "ORG_MAPPING.md"
+
+
+def test_org_mapping_has_a_diagram_and_maps_every_function():
+    t = _text(ORG)
+    assert "```mermaid" in t
+    for fn in ("Product ownership", "Engineering management", "Project management",
+               "PMO / metrics", "architecture", "Governance", "analysis",
+               "Engineering", "Release engineering", "Quality assurance",
+               "Security", "Metrics"):
+        assert fn in t, f"org mapping missing function {fn!r}"
+
+
+def test_org_mapping_addresses_ddd_honestly():
+    t = _text(ORG)
+    for term in ("Ubiquitous language", "Bounded contexts", "Thin by design"):
+        assert term in t

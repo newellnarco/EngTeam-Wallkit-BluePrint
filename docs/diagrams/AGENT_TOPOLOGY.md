@@ -191,3 +191,5 @@ with no mechanism is a wish:
 - `docs/ITEM_AUTHORING.md` — what travels along the dispatch edges
 - `docs/AGENT_ROSTER_SPEC.md` — the nodes' full role sheets
 - `ARCHITECTURE.md` (this directory) — component/file view of the same system
+- `ORG_MAPPING.md` (this directory) — the same system mapped to classic org
+  functions (PM, PMO/metrics, analysts, QA, security, release, DDD alignment)
