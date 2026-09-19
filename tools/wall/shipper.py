@@ -55,6 +55,11 @@ from typing import Any
 #: Where the courier writes the snapshot every sweep.
 SNAPSHOT_REL = ".wall/derived/wall.json"
 
+#: Machine-readable doctor state, refreshed by every `wall run-once` sweep.
+#: Ships when present so an off-box reader gets plumbing + roster health
+#: beside the board without a session on the machine.
+DOCTOR_REL = ".wall/derived/doctor.json"
+
 #: Root of the day-rolled event shards (EVENT_SCHEMA section 6).
 EVENTS_REL = ".wall/events"
 
@@ -209,6 +214,8 @@ def shipment_paths(repo: Path, *, day: str | None = None) -> list[str]:
     paths: list[str] = []
     if snapshot_path.is_file():
         paths.append(SNAPSHOT_REL)
+    if (repo / DOCTOR_REL).is_file():
+        paths.append(DOCTOR_REL)
     if day is None:
         try:
             snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))

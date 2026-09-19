@@ -141,19 +141,99 @@ def count_flags(integrity: dict) -> int:
     return sum(len(integrity.get(k) or []) for k in FLAG_KEYS)
 
 
+def build_doctor_payload(repo: Path) -> dict:
+    """Machine-readable doctor state: what wall.json does NOT already carry.
+
+    wall.json holds the board and the integrity detail, and it ships. This
+    payload adds the plumbing checks, the roster audit and a per-flag summary,
+    so an off-box reader gets the whole health picture from the telemetry
+    branch without an interactive session on the machine. Honest absence
+    throughout: a section that could not be checked says so instead of
+    reading clean.
+    """
+    from datetime import datetime, timezone
+    repo = Path(repo)
+    payload: dict = {
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "heartbeat": None,
+        "integrity_summary": {"checked": False},
+        "plumbing": {"checked": False, "reason": "service.py is not installed"},
+        "roster": {"checked": False},
+    }
+    hb = repo / ".wall" / "derived" / "heartbeat.json"
+    if hb.exists():
+        try:
+            payload["heartbeat"] = json.loads(hb.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            payload["heartbeat"] = {"unreadable": True}
+    snap_path = repo / ".wall" / "derived" / "wall.json"
+    if snap_path.exists():
+        try:
+            i = json.loads(snap_path.read_text(encoding="utf-8"))["integrity"]
+        except (OSError, ValueError, KeyError):
+            payload["integrity_summary"] = {"checked": False, "unreadable": True}
+        else:
+            counts = {}
+            for k in FLAG_KEYS:
+                v = i.get(k)
+                counts["state_drift" if k == "state_drift_detail" else k] = (
+                    len(v) if isinstance(v, list) else (v or 0))
+            if i.get("state_drift_checked") is False:
+                counts["state_drift"] = None  # not checked is not zero
+            payload["integrity_summary"] = {"checked": True, "flags": counts}
+    try:
+        import service  # noqa: PLC0415
+    except ImportError:
+        pass
+    else:
+        try:
+            payload["plumbing"] = {"checked": True,
+                                   "checks": service.doctor_checks(repo)}
+        except Exception as exc:  # a doctor that crashes must still report
+            payload["plumbing"] = {"checked": False, "reason": repr(exc)}
+    try:
+        problems = AgentRegistry(repo).audit()
+        payload["roster"] = {"checked": True, "problems": problems}
+    except Exception as exc:
+        payload["roster"] = {"checked": False, "reason": repr(exc)}
+    return payload
+
+
+def write_doctor_json(repo: Path) -> Path | None:
+    """Write ``.wall/derived/doctor.json``; None (never an exception) on failure."""
+    repo = Path(repo)
+    out = repo / ".wall" / "derived" / "doctor.json"
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(build_doctor_payload(repo), indent=1,
+                                  sort_keys=True) + "\n", encoding="utf-8")
+        return out
+    except OSError as exc:
+        print(f"doctor.json not written: {exc}", file=sys.stderr)
+        return None
+
+
 def cmd_run_once(a):
     """Merge shards, build the snapshot, render the wall. Fully working."""
-    snap = courier.run_once(Path(a.repo).resolve(), rebuild=a.rebuild)
+    repo = Path(a.repo).resolve()
+    snap = courier.run_once(repo, rebuild=a.rebuild)
     n = count_flags(snap["integrity"])
     print(f"swept {snap['courier']['events']} events from "
           f"{snap['courier']['shards']} shards"
           f"{f' — {n} integrity flags' if n else ' — clean'}")
+    # Refresh the machine-readable diagnostics on every sweep, so what the
+    # shipper carries off-box is never staler than the wall it rides with.
+    write_doctor_json(repo)
     return 0
 
 
 def cmd_doctor(a):
     """Heartbeat, sequence gaps, orphan runs, roster health. Working."""
     repo = Path(a.repo).resolve()
+    if getattr(a, "as_json", False):
+        out = write_doctor_json(repo)
+        print(json.dumps(build_doctor_payload(repo), indent=1, sort_keys=True))
+        return 0 if out else 1
     hb = repo / ".wall" / "derived" / "heartbeat.json"
     print("heartbeat:", json.loads(hb.read_text()) if hb.exists() else "MISSING — courier has never run")
 
@@ -882,7 +962,10 @@ def main() -> int:
     s.add_argument("--rebuild", action="store_true")
     s.set_defaults(fn=cmd_run_once)
 
-    sub.add_parser("doctor", help="heartbeat, integrity flags, roster").set_defaults(fn=cmd_doctor)
+    s = sub.add_parser("doctor", help="heartbeat, integrity flags, roster")
+    s.add_argument("--json", dest="as_json", action="store_true",
+                   help="machine-readable; also writes .wall/derived/doctor.json")
+    s.set_defaults(fn=cmd_doctor)
 
     s = sub.add_parser("classify", help="show the route for the current changeset")
     s.add_argument("--staged", action="store_true")
