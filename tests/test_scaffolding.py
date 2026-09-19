@@ -31,6 +31,8 @@ EXPECTED_TEMPLATES = [
     "DOCS_MAP.md.template",
     "EVAL_RECORD.md.template",
     "BUDGETED_DOCS.md.template",
+    "OWNER_DECISIONS.md.template",
+    "REVIEWER_LANES.md.template",
 ]
 
 # <PLACEHOLDER>: uppercase, digits, underscores. Deliberately does not match

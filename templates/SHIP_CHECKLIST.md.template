@@ -147,6 +147,9 @@ Skipping a reviewer never licenses claiming it passed. A tool that returns
       matches. A reduced or draft-scoped run is not the full gate.
 - [ ] Review threads answered by their owner only, each finding verified before
       being accepted or declined, with proof when declined.
+- [ ] The CI meter reading for this change is recorded in the report beside the
+      result - what ran, and roughly what it cost. A run nobody can price is a
+      run nobody can scope next time.
 - [ ] The merge is the coordinator's call. Report green and stop.
 
 ---

@@ -1,0 +1,125 @@
+<!--
+TEMPLATE: REVIEWER_LANES.md
+WHAT THIS IS  The living per-repository register of automated review lanes:
+              which exist, which died and exactly why, each lane's meter
+              facts, its standing rules, the owner actions still owed, and
+              what now covers the ground a cancelled lane used to cover.
+WHY IT EXISTS Lane wiring lives in configs; the REASONS live nowhere, so the
+              next session re-evaluates a reviewer that was already rejected,
+              re-learns a quota shape by hitting it, and waits on a lane that
+              structurally cannot answer.
+HOW TO USE    Copy to the repo root as REVIEWER_LANES.md. The
+              /reviewer-integration skill writes and updates it: `add` fills a
+              lane's block, `remove` records the cancellation and its
+              disqualifiers, `baseline` reconciles the block against the live
+              config. Read it at session start beside the failure registry.
+              Fill every <PLACEHOLDER>.
+QUESTIONS      Required questions + LLM probes to fill this well:
+              docs/TEMPLATE_INTAKE.md section 9.
+-->
+
+# REVIEWER_LANES.md
+
+> Every automated review lane this repository has ever had, in effect or not.
+> A lane is a **lane, not an authority**: it advises, and the authority matrix
+> decides. This file is the record of what advises us, what used to, and why.
+
+---
+
+## 1. Lanes at a glance
+
+| Lane | State | Since | Verdict / exact disqualifier |
+|---|---|---|---|
+| <LANE_NAME> | in effect | <YYYY_MM_DD> | <WHAT_IT_IS_GOOD_AT> |
+| <LANE_NAME> | cancelled | <YYYY_MM_DD> | <THE_EXACT_DISQUALIFIER> |
+| <LANE_NAME> | declined | <YYYY_MM_DD> | <WHY_IT_WAS_NEVER_ADOPTED> |
+
+States: **in effect** (running and read), **cancelled** (was running, stopped),
+**declined** (evaluated, never adopted), **removed** (config gone, owner-side
+teardown confirmed).
+
+**A disqualifier is exact or it is not a disqualifier.** "Did not work out" is
+a mood. "Skips draft pull requests, and this repo reviews on drafts" is a fact
+the next session can re-check in one minute and either confirm or overturn.
+
+---
+
+## 2. Per-lane block
+
+Repeat one of these per lane, including the dead ones.
+
+### <LANE_NAME>
+
+- **State:** <IN_EFFECT_OR_CANCELLED>, since <YYYY_MM_DD>
+- **Triggers:** <WHICH_EVENTS_FIRE_IT> (every push? open and ready only?)
+- **Scope:** <WHICH_PATHS_IT_REVIEWS>
+- **Instruction files:** <WHICH_FILES_IT_LOADS> (registered in the budget file)
+- **Meter shape:** <THROTTLE_OR_HARD_STOP> - a throttle reopens after a window,
+  a hard stop does not reopen until the period rolls. The two demand opposite
+  reactions, and a lane whose shape is unrecorded gets waited on when it will
+  never answer.
+- **Caps and measured ceilings:** <MEASURED_LIMIT_AND_HEADROOM> - measured, not
+  quoted from documentation. A config field that grows by policy will cross a
+  vendor cap, and past the cap the tool can reject the whole config and keep
+  running **on its defaults**, looking entirely normal.
+- **Standing rules for this lane:** <WAIT_OR_SKIP_THRESHOLD>,
+  <DRAFT_BEHAVIOR>, <WHICH_COMMANDS_ARE_NEVER_INVOKED>
+- **Owner actions owed:** <WHAT_ONLY_THE_OWNER_CAN_DO> - uninstalling an app,
+  changing a dashboard-side setting, adjusting branch protection. A
+  cancellation an agent cannot finish is **tracked here**, never assumed done.
+
+---
+
+## 3. Standing rules that apply to every lane
+
+- **Verify before accepting OR declining.** Both directions are claims.
+- **A metered lane that cannot answer is named in the report, never waited on.**
+- **One writer per thread**; a finding is answered by its owner, with proof when
+  declined.
+- **A lane that skips the state your work sits in is silently disabled.** A
+  draft-skipping lane on a repo that reviews drafts reports nothing and looks
+  configured. Decide that per lane, deliberately, and pin the choice with a
+  test in both directions - flipping it back should fail CI.
+
+---
+
+## 4. History - so a later session does not re-litigate this
+
+Append-only. Every state change, with the date and the reason, including the
+reversals.
+
+| Date | Lane | Change | Why |
+|---|---|---|---|
+| <YYYY_MM_DD> | <LANE_NAME> | <ADDED_OR_CANCELLED_OR_REVERSED> | <REASON> |
+
+Two of these rows in opposite directions within a week is not embarrassing; it
+is the record that stops a third round. **A cancelled lane's record stays so it
+is not re-adopted by amnesia** - without the history, the next evaluation reads
+the marketing page, adopts it, and rediscovers the same disqualifier at the
+same cost.
+
+---
+
+## 5. Salvage - a dead lane's findings outlive it
+
+**A cancelled scanner's real findings are worked, not discarded with it.** The
+lane's verdict was about the lane: its metering, its scoping, its output
+format. It was never a verdict on the defects it found.
+
+| Finding class the dead lane covered | What covers it now |
+|---|---|
+| <FINDING_CLASS> | <REPLACEMENT_MECHANISM_OR_NOTHING_YET> |
+
+A row whose right-hand side is "nothing yet" is honest and is a gap on the
+backlog. A row quietly deleted along with the lane is how a whole class of
+defect stops being looked for and nobody can name the day it happened.
+
+---
+
+## 6. Maintenance
+
+Written by `/reviewer-integration`: `add <lane>` creates or updates the lane's
+block, `remove <lane>` records the cancellation with its disqualifiers and the
+owner actions owed, `baseline <lane>` reconciles the block against the live
+config and reports drift. Hand edits are fine; the next `baseline` will
+reconcile them.

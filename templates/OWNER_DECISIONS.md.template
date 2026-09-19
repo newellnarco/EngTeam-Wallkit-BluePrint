@@ -1,0 +1,144 @@
+<!--
+TEMPLATE: OWNER_DECISIONS.md
+WHAT THIS IS  The registry of things that are OFF, deferred or retired ON
+              PURPOSE - the third state beside working and broken - each with
+              the reason it was decided and the condition that lifts it.
+WHY IT EXISTS Without this record a deliberate decision is indistinguishable
+              from a defect, so every review round re-raises it, every session
+              re-litigates it, and somebody eventually "fixes" a thing the
+              owner switched off on purpose.
+HOW TO USE    Copy to the repo root as OWNER_DECISIONS.md. One row per
+              decision, keyed by a stable id. Fill every <PLACEHOLDER>. Only
+              the owner adds, amends or retires an entry; agents READ it and
+              cite it. The classifier that files findings consults this
+              registry before filing (docs/DIAGNOSTICS_LOOP.md, stage three).
+QUESTIONS      Required questions + LLM probes to fill this well:
+              docs/TEMPLATE_INTAKE.md section 8.
+-->
+
+# OWNER_DECISIONS.md
+
+> Deliberate decisions are not defects. Everything recorded here is off,
+> deferred or retired because somebody decided it, and the decision stands
+> until its lifting condition fires.
+
+---
+
+## 1. Three states, not two
+
+A surface that is not doing its job has three possible explanations, and only
+two of them are problems:
+
+| State | What it means | Who acts |
+|---|---|---|
+| **working** | It does what it claims | nobody |
+| **broken** | It claims to work and does not | the crew, now |
+| **off on purpose** | It is not running, and that is the decision | nobody, until the lifting condition fires |
+
+A registry that only knows the first two forces every reader to guess, and the
+guess is always "broken" - which is how a deliberate deferral gets re-filed as
+a finding every single review round, and eventually gets "fixed" by somebody
+who was not in the room.
+
+---
+
+## 2. Entry schema
+
+```
+id            stable, never reused: OD-<NNN>
+subject       the EXACT thing this covers - one id, one path, one flag, one
+              check name. Never a wildcard, never a category.
+state         deferred | disabled | retired
+decided       <YYYY-MM-DD>, by the owner
+reason        why, in one sentence somebody can disagree with
+lifts-when    the condition that ends this entry - REQUIRED
+evidence      where the subject shows up when it does (so it can still be
+              reported, see rule 3.3)
+```
+
+**Both `reason` and `lifts-when` are required.** An entry missing either is
+**ignored loudly**: it is reported as a defect in this registry and it does NOT
+suppress anything. A silent partial entry would be the strongest thing in the
+repository - a standing suppression nobody has to justify.
+
+---
+
+## 3. The rules that keep this from being a suppression list
+
+**3.1 One id per entry, never a wildcard.** A decision covers the thing that
+was decided. "All warnings from <SUBSYSTEM>" is a decision nobody made about
+findings nobody has seen yet, and it hides the next real one.
+
+**3.2 A standing entry is never re-raised.** Not as a finding, not as a
+proactive issue, not as a footnote, not as a "worth revisiting" aside. Re-raising
+it is the cost this file exists to remove, and a footnote is a re-raise wearing
+a smaller font.
+
+**3.3 It is still REPORTED, with evidence, whenever its subject appears.** A
+standing decision moves an item off the **proactive** list; it does not delete
+the observation. The finding becomes a report-with-evidence citing the entry id
+- "observed, covered by OD-<NNN>, lifts when <CONDITION>" - so the owner can
+see the cost of their own decision accruing and change their mind with data.
+Suppressing the observation itself would make the decision unfalsifiable.
+
+**3.4 A decision is never applied to an UNKNOWN reading.** An entry covers a
+KNOWN state of a subject. When the instrument could not look - unreachable,
+timed out, not installed, unparseable - the answer is `unknown`, which is a
+fact about the instrument and not about the subject the owner decided about.
+Applying a decision to an unknown converts a broken probe into a sanctioned
+silence, which is the worst of the three states wearing the best one's name.
+
+**3.5 No other surface may promise the deferred behavior.** If paging is off by
+decision, nothing may say "you will be paged". Every promise of a behavior that
+is currently off is a defect, and the sweep for those promises is part of
+landing the entry, not a follow-up.
+
+**3.6 The lifting condition is real work, not a date.** "Revisit in Q3" lifts
+nothing; it just moves the argument. A lifting condition names an observable
+event: a dependency reaching a version, a rewrite landing, a measured rate
+falling below a threshold, an owner decision recorded as its own ruling.
+
+**3.7 Retiring an entry is a change, not a deletion.** When the condition
+fires, the entry moves to section 5 with the date it lifted, and the subject
+returns to the proactive list **in the same change** - otherwise the decision
+outlives its own reason and nobody notices.
+
+---
+
+## 4. Standing decisions
+
+| id | subject | state | decided | reason | lifts when |
+|---|---|---|---|---|---|
+| OD-001 | <EXACT_SUBJECT_ID> | <DEFERRED_OR_DISABLED> | <YYYY_MM_DD> | <ONE_SENTENCE_REASON> | <OBSERVABLE_CONDITION> |
+| OD-002 | <EXACT_SUBJECT_ID> | <DEFERRED_OR_DISABLED> | <YYYY_MM_DD> | <ONE_SENTENCE_REASON> | <OBSERVABLE_CONDITION> |
+
+Expanded entries, where a row is not enough:
+
+### OD-001 - <SHORT_TITLE>
+
+- **Subject:** <EXACT_SUBJECT_ID> (the exact check, flag, path or feature id)
+- **State:** <DEFERRED_OR_DISABLED>, decided <YYYY_MM_DD> by the owner
+- **Reason:** <WHY_THIS_IS_OFF>
+- **Lifts when:** <OBSERVABLE_CONDITION>
+- **Still reported as:** <WHERE_THE_EVIDENCE_SURFACES> - cite this id beside it
+- **Promises swept:** <WHERE_THE_OLD_BEHAVIOR_WAS_ADVERTISED_AND_WHAT_CHANGED>
+
+---
+
+## 5. Lifted and retired
+
+Kept, not deleted: the history is what stops the same decision being made,
+reversed and re-made by three sessions that never met.
+
+| id | subject | lifted | what fired the condition |
+|---|---|---|---|
+| <OD_NNN> | <EXACT_SUBJECT_ID> | <YYYY_MM_DD> | <WHAT_HAPPENED> |
+
+---
+
+## 6. Who may write here
+
+Only the owner decides. A session may **draft** a proposed entry and put it on
+the human queue with its reason and a candidate lifting condition; it may not
+add one, widen one, or extend one to a neighbouring subject. A crew that can
+write its own suppressions has no findings.

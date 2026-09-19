@@ -237,6 +237,8 @@ these are files.
 | `templates/BEST_PRACTICES.md.template` | `BEST_PRACTICES.md` | The coding standards the whole roster and any hosted reviewers judge against. |
 | `templates/DOCS_MAP.md.template` | `DOCS_MAP.md` | Change kind to doc surfaces: which docs must update in the same pull request. |
 | `templates/BUDGETED_DOCS.md.template` | `BUDGETED_DOCS.md` | Which documents feed model prompts, their budgets, and measured headroom. |
+| `templates/OWNER_DECISIONS.md.template` | `OWNER_DECISIONS.md` | What is off, deferred or retired on purpose - the third state beside working and broken - with each entry's reason and lifting condition. |
+| `templates/REVIEWER_LANES.md.template` | `REVIEWER_LANES.md` | Every review lane this repo has had: state, exact disqualifiers, meter facts, owner actions owed, salvage. |
 | `templates/EVAL_RECORD.md.template` | `docs/decisions/EVAL-*.md` | One per technology evaluation: bench, disqualifiers, verdict, re-eval triggers (docs/TECH_EVALUATION.md). |
 
 Replace every `<PLACEHOLDER>` and delete the leading comment block from each.
@@ -409,7 +411,10 @@ than installing a second set of standards.
 ### Looking ahead: more than one adopting repository
 
 Nothing below is needed for the first adoption. It is written down now because
-the second one is where these get decided badly by default.
+the second one is where these get decided badly by default. **The mechanics are
+[`docs/FLEET.md`](docs/FLEET.md)** — the exit-code verdict, the spin-off
+exchange that ends, the one byte-identical artifact, delivery as a draft pull
+request, and how a disposition is recorded. What follows is the short version.
 
 - **Shared rules cross repositories additively.** A rule learned in one adopter
   is offered to the others; consolidating two rule sets never deletes a
@@ -422,6 +427,9 @@ the second one is where these get decided badly by default.
 - **A sync verdict is never UNKNOWN.** Comparing a shared block across repos
   produces "same", "differs" or "absent here" — a comparison that cannot decide
   is a broken comparison, and it is fixed rather than reported.
+- **A run is not an action.** A cross-repository checker that runs perfectly and
+  reports drift correctly has still changed nothing; every non-zero verdict ends
+  in a tracked item with an owner, or the check is decoration.
 - **A hash pin proves no local edit, not fleet agreement.** Pinning a governed
   shared block locally is worth doing and is honest only with that caveat
   attached: it says nobody changed this copy, not that the copies match.
@@ -474,7 +482,8 @@ authority on which commands are in that state today.
 | `COMPLIANCE_POSTURE.md` | The mechanisms in auditor language: SoD, change control, traceability |
 | `TESTING_STANDARDS.md` | Tiers, mutation protocol, SAST lane, sharding + rebalance |
 | `LOGGING_AND_AUDIT.md` | Three planes, per-run artifacts, trace commands |
-| `FAST_TRACK.md` | Doc-only routing |
+| `FAST_TRACK.md` | Doc-only routing, and the CI meter economics that go with it |
+| `FLEET.md` | More than one adopting repository: exit-code verdicts, the spin-off exchange, one byte-identical artifact, dispositions |
 | `INSTALL.md` | Machine-wide timer, serving, platform specifics |
 | `OPEN_QUESTIONS.md` | Settled decisions, and whatever is open now |
 | `ORIGINAL_OUTLINE.md` | The source outline, unedited |

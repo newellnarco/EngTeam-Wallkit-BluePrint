@@ -454,10 +454,11 @@ def test_template_intake_covers_every_template_with_both_layers():
     for name in ("CLAUDE.md.template", "RULES.md.template",
                  "FAILURE_PATTERNS.md.template", "SHIP_CHECKLIST.md.template",
                  "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template",
-                 "DOCS_MAP.md.template"):
+                 "DOCS_MAP.md.template", "OWNER_DECISIONS.md.template",
+                 "REVIEWER_LANES.md.template"):
         assert name in t, f"intake missing template {name}"
-    assert t.count("**Required:**") >= 7
-    assert t.count("**LLM probes:**") >= 7
+    assert t.count("**Required:**") >= 9
+    assert t.count("**LLM probes:**") >= 9
     # EVAL_RECORD is per-evaluation, not an adoption-time doc; the intake must
     # say so rather than silently lacking a section for a listed template.
     assert "EVAL_RECORD.md.template" in t and "per evaluation" in t
@@ -479,7 +480,8 @@ def test_every_template_points_at_its_question_set():
     for name in ("CLAUDE.md.template", "RULES.md.template",
                  "FAILURE_PATTERNS.md.template", "SHIP_CHECKLIST.md.template",
                  "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template",
-                 "DOCS_MAP.md.template"):
+                 "DOCS_MAP.md.template", "OWNER_DECISIONS.md.template",
+                 "REVIEWER_LANES.md.template"):
         t = _text(KIT / "templates" / name)
         assert "TEMPLATE_INTAKE.md" in t, f"{name} lacks its question-set pointer"
 

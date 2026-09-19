@@ -118,6 +118,9 @@ A close is a procedure, not an exit. In order:
    session reads the older one and acts on a picture that is two waves out of
    date; if something in the old report must survive, it is carried forward into
    the new one, which is also the moment it gets re-vetted (section 1, step 8).
+   **Where the host has CI, the report itself is under a shape test** — sections
+   present and ordered, open items a real table — and its **Open items section
+   is the only to-do list**: if it is not there, it is not open.
 7. **Every standing directive the engineer issued this session is written into
    the rules or the config, in the same working chunk it was issued.** A
    directive that exists only in the conversation is a bug: the session that

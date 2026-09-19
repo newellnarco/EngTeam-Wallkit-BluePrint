@@ -245,7 +245,26 @@ unwired. *Check:* the regression test enters through the public path the
 incident came in on, with the guard's inputs arranged, not through the private
 function the fix happened to touch.
 
-**3.19 <PROJECT_SPECIFIC_HONESTY_RULE>.** <Add yours here as they are learned.
+**3.19 A deliberate configuration choice is pinned by a CI assertion in BOTH
+directions - including a deliberately ABSENT file.** A setting chosen for cost
+or safety gets a test that fails if it is flipped back, and a file that must not
+exist gets a test that fails if it reappears. "Configured but inert" and
+"silently reverted" are the same class: in both, the repository looks decided
+and behaves undecided. *Check:* for each such choice, one assertion on the
+current value and one on the forbidden one; for an absent file, assert the path
+does not exist and say in the message why it must not.
+
+**3.20 Removing a feature evicts its state and ships a stays-gone test.**
+Deletion of the code is the easy half. The settings it wrote to live storage,
+the keys it pushed into any sync or shared config, and the migration ledger it
+left behind all outlive it - and a stale key that still hides a surface or
+overrides a default is the removed feature still running, from a place nobody
+greps. *Check:* the change deletes the live state and evicts the synced keys,
+and a test asserts the behaviour stays gone with the stale key present. Record
+whether the feature was **removed** (practical) or **retired** (a decision, with
+its reason), so nobody proposes rebuilding it.
+
+**3.21 <PROJECT_SPECIFIC_HONESTY_RULE>.** <Add yours here as they are learned.
 Every entry names the check that catches the next one.>
 
 ---

@@ -180,6 +180,57 @@ When no mutant can be made to fail, the finding you were about to pin may not
 exist. That is worth knowing and worth saying, in preference to shipping a test
 that documents a property the code does not have.
 
+### 4.1 The probe roster -- mutation is a standing muster, not a one-shot
+
+A mutation check run once proves the test could fail **that day**. Tests get
+refactored, renamed, narrowed and accidentally decoupled from the thing they
+defend, and none of that shows up as a red: the suite stays green while the
+frontline quietly empties. So every probe that matters is **recorded in a
+roster and re-mustered on a cadence in CI**.
+
+**The roster.** One machine-readable file (`docs/mutation_probes.json` or the
+host's equivalent), one record per probe:
+
+```
+id          stable: MP-<NNN>
+target      the file and the exact anchor text (asserted to occur ONCE)
+mutation    the precise edit applied
+tests       the covering test ids to run
+why         the defect class this probe claims to catch -- one sentence
+```
+
+**The `why` is not decoration.** A probe whose `why` is "checks the guard"
+cannot be evaluated when it later survives, because nobody can say what was
+supposed to have been caught. The `why` names the defect the probe is standing
+guard against, in the terms the failure registry uses.
+
+**The muster.** A scheduled or per-wave CI job runs the whole roster through the
+section 4 protocol -- copy aside, anchor, mutate, prove the mutant is what runs,
+run only the covering tests, restore, byte-diff, re-run -- and reports one row
+per probe.
+
+Three readings, one pass:
+
+- **KILLED** -- the covering test failed on the mutant. The probe still guards.
+- **SURVIVED** -- a **finding about the test**, filed like any other. Something
+  that used to be load-bearing no longer is: the test narrowed, the code moved,
+  or a second path now satisfies the assertion.
+- **ERROR** -- the probe could not run (anchor absent, anchor duplicated,
+  tests uncollectable). **Never a pass.** An anchor that no longer matches is
+  a probe testing nothing while reading green, which is the exact false-clean
+  the roster exists to prevent.
+
+**Mutate through the artifact the tests actually read.** Where the suite runs
+against a build, a bundle, a generated file or a bytecode cache, a source-only
+mutation proves nothing -- the tests never saw it. **The derived artifact is
+rebuilt after the mutation and before the run, or the probe does not count**,
+and the roster records which artifact each probe goes through.
+
+A recurring class in `FAILURE_PATTERNS.md` carries a **`> class-guard:`** line
+naming the assertion that fails when any member of the class recurs; that guard
+is itself a roster probe, so CI requires it to exist, to run, and to have a
+mutation proving it can fail.
+
 ---
 
 ## 5. SAST and secrets
@@ -303,6 +354,39 @@ failed and on which paths; a derived-file red beside a source-file red is a
 source-file red.
 
 ---
+
+## 8.5 The blast-radius matrix
+
+Numbered 8.5 so the reviewer-rejects section keeps the number other documents
+cite. The matrix is the artifact that lets a scoped run be responsible: it says,
+per area of the repository, what a change there can break and therefore what
+must run.
+
+| Area | Primary tests | Blast radius | Must verify | Fast-track eligible |
+|---|---|---|---|---|
+| `<AREA_PATH>` | `<TEST_IDS>` | the modules that import it, derived | `<INVARIANT>` | yes / no |
+
+Five rules keep it honest:
+
+1. **The blast radius is DERIVED from the real import or dependency graph,
+   never remembered.** A hand-written radius agrees with the author's mental
+   model and with nothing else, and it is wrong in exactly the direction that
+   feels safe. Regenerate it from the graph and diff.
+2. **Name the dependency cores.** Some modules are imported by nearly
+   everything -- the config loader, the event schema, the shared client. Their
+   radius is the whole system: touch one, run the full suite. A core is listed
+   by name so the answer is not re-derived under time pressure.
+3. **A failure in a higher tier than the matrix predicted means the blast
+   radius was wider than the diff -- widen the row in the same change.** The
+   red is not a nuisance on the way to a merge; it is the matrix being
+   corrected by reality, and a merge that discards the correction buys the same
+   surprise again next month.
+4. **Fast-track eligibility is a column here, not a judgment call.** The route
+   is computed from the file set (`docs/FAST_TRACK.md`); this column is what a
+   reviewer checks the computation against.
+5. **Any change to the CI pipeline grooms the matrix in the same pull
+   request.** A pipeline that runs a different set than the matrix describes has
+   two definitions of the gate, and the cheaper one wins by default.
 
 ## 9. What the Reviewer rejects
 

@@ -98,6 +98,33 @@ report green without being the gate. Confirm the **name** of the green check is
 the one branch protection requires before merging. That check caught two
 would-have-been-early merges in a single wave.
 
+### The meter is part of the design
+
+CI is metered, and the meter is spent by decisions taken long before anyone
+looks at a bill. **Name the question a run answers, and the cheapest meter that
+answers it, BEFORE spending it** - an action that cannot name its question is a
+guess, and it is billed as one. Five rules follow from that, each earned:
+
+- **Every job carries a `timeout-minutes`.** A hung job does not fail cheaply;
+  it bills to the vendor's own ceiling, which is generous because it is not
+  your money being defaulted.
+- **A `schedule:` trigger must state why the work cannot be event-driven.** A
+  schedule pays on the calendar rather than on the change, so the justification
+  is written beside the cron line or the trigger becomes a dispatch.
+- **Cancelled runs still bill for the time they ran.** Superseding your own
+  in-flight run is not free, which is the cost side of never pushing while
+  checks are running.
+- **Jobs bill rounded up to the minute**, so five twenty-second jobs cost five
+  minutes. Splitting a pipeline into many tiny jobs buys parallelism with
+  rounding.
+- **Measure before optimising, and report the reading beside the result.** A
+  meter reading in the log after the fact changes nothing; the same number in
+  the report is what makes the next scoping decision cheaper.
+
+And the free lane is the point of all of it: **the local gate costs nothing and
+runs offline, so a hosted reviewer finding something the local gate would have
+caught is a registered process failure**, not a lucky catch.
+
 ---
 
 ## What fast-track never skips

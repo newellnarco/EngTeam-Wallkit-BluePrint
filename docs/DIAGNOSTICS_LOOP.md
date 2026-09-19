@@ -68,7 +68,18 @@ triages it under this standing autonomy grant:
    default OFF — escalates to a live session. The classifier is deliberately
    conservative: a generic string like "timed out" stays *unclassified*
    rather than mis-filing an external blip as a system-down finding.
-4. **The grant's ceiling is unchanged.** Irreversible or outward-facing
+4. **The classifier consults the owner-decisions registry before filing.**
+   A subject covered by a standing owner decision
+   (`templates/OWNER_DECISIONS.md.template`) is off on purpose — the third
+   state beside working and broken — so the finding is **converted to a
+   report-with-evidence citing the entry id, never a story**, and never
+   re-raised as a proactive issue or a footnote. Two limits keep this from
+   becoming a suppression list: the entry must name both a reason and a
+   lifting condition, and it is **never applied to an `unknown` reading** —
+   a decision covers a known state of a subject, while unknown is a fact
+   about the instrument. Once the lifting condition has fired, the entry no
+   longer converts anything and the finding files normally.
+5. **The grant's ceiling is unchanged.** Irreversible or outward-facing
    repairs, credential changes, spend — the six engineer classes
    (SESSION_LIFECYCLE §4) apply inside this loop exactly as outside it.
 
@@ -108,7 +119,7 @@ changed, and the exact steps to verify it. Rules:
 The automation channels exist so that every piece of machine-side work has a
 carrier: the scheduled task (recurring), the one-time script runner (apply
 once per machine, then never again), and the always-on loop (continuous).
-Two rules make the discipline real:
+Three rules make the discipline real:
 
 1. **Any sentence of the form "run this on the machine" must name the
    channel that cannot carry it** — or the sentence is a defect in the plan,
@@ -121,6 +132,10 @@ Two rules make the discipline real:
    the work did not complete** — a success marker stamped on a
    dependency-absent skip path means the fix never applies anywhere
    (seeded class F-ONESHOT).
+3. **An ask shipped to the machine carries its own machine-verifier**, landed
+   in the same change, so the result channel reports proof rather than hope —
+   an ask the system cannot verify is not done, and "tell me when you did it"
+   is not a verification.
 
 ## 7. Sign-off — who is always in this loop
 

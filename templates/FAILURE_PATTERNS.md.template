@@ -21,6 +21,48 @@ QUESTIONS      Required questions + LLM probes to fill this well:
 > contract: check your change against this list before declaring it ready.
 > Referenced by `CLAUDE.md`; reading it is mandatory before a ship.
 
+## Recurring classes - watch these hardest
+
+**Read this digest at session start.** It is not a summary of the registry; it
+is the short list of classes that have bitten **more than once here**, which
+makes them the bugs you are statistically about to write again today. The full
+entries are below; these are the one-line reminders.
+
+| Class | The reminder, in one line | class-guard |
+|---|---|---|
+| <F_SCOPE_NNN> | <ONE_LINE_REMINDER> | `<ASSERTION_NAME>` |
+| <F_SCOPE_NNN> | <ONE_LINE_REMINDER> | `<ASSERTION_NAME>` |
+
+Three rules keep the digest from becoming decoration:
+
+- **Promotion is by recurrence, not by severity.** A class arrives here the
+  second time it happens, whatever it cost either time. Severity picks what to
+  fix first; recurrence picks what you are about to do again.
+- **Classification is intake step one.** A new find is sorted into an existing
+  class before anything else, and the immediate next question is **"what else
+  is in that class right now?"** - that sweep finds live instances, which is
+  why it is a step rather than an instinct.
+- **Ask which class the new guard is itself an instance of.** A guard written
+  in a hurry is code like any other, and the classes here apply to it.
+
+### The `> class-guard:` convention
+
+Every class in this digest carries, in its entry below, a line of the form:
+
+```
+> class-guard: <the assertion, by name, that fails when ANY member recurs>
+```
+
+It names a **machine-checkable assertion**, not a habit. CI requires that
+guard to **exist**, to **run**, and to have a **mutation proving it can fail**
+(`docs/TESTING_STANDARDS.md` section 4.1, the probe roster). A class-guard
+nobody can watch go red is a sentence about intentions.
+
+Adding a `> class-guard:` line to an existing entry is the **one** amendment
+the append-only rule permits: it adds a defence without rewriting the record.
+
+---
+
 ## Format
 
 ```
@@ -31,6 +73,8 @@ Symptom       what the failure looks like from outside
 Root cause    the actual mistake
 Check         the gate that catches the next one, automated where possible
 Command       the exact command, when there is one
+class-guard   for a recurring class: the named assertion that fails when any
+              member of the class recurs (see the digest above)
 ```
 
 Add an entry **and** the corresponding item in `SHIP_CHECKLIST.md` at the same
@@ -388,3 +432,6 @@ time. An entry with no check is a story, not a defence.
 - **Root cause:** <the actual mistake>
 - **Check:** <the gate that catches the next one>
 - **Command:** <the exact command>
+
+> class-guard: <named assertion that fails when any member of this class
+> recurs - required once the class has recurred and entered the digest>

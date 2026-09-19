@@ -36,7 +36,11 @@ grader keeps making a mistake the others already learned.
    a throttle reopens after a window, a hard stop does not reopen until the
    period rolls** -- the two demand opposite reactions, and a lane whose shape
    is unrecorded gets waited on when it will never answer (WORKFLOW section 10,
-   review-meter economics).
+   review-meter economics). Write the lane's block into the repo's
+   **`REVIEWER_LANES.md`** (from `templates/REVIEWER_LANES.md.template`) as
+   part of this step: state, triggers, meter shape, caps, standing rules, and
+   any owner action owed - the config records the wiring, that file records the
+   reasons.
 3. **Import its rules INTO the shared criteria -- not beside them.** Diff the
    reviewer's imported rules/policies against the standards file. A rule the
    body lacks is added *to the body* (with the lane named as its source); a
@@ -56,6 +60,10 @@ grader keeps making a mistake the others already learned.
    limit and a measuring command. Hosted reviewers fail closed at their cap,
    on whatever PR happens to be in flight (measured: an instruction file at
    ~80% of one lane's token cap failed every review until carved down).
+   **Vendor caps can silently revert a lane to its defaults**, so measure the
+   ceiling and print the headroom rather than assuming the config held: past
+   the cap a reviewer may reject the whole configuration, keep posting reviews,
+   and apply none of your rules - which looks exactly like a working lane.
 6. **Write the lane's posture** into the WORKFLOW section 10 table: verify before
    accepting OR declining; truncated-diff findings refuted with a parse
    proof; declining-with-better-fix needs a counterfactual test; a metered
@@ -77,12 +85,52 @@ Removal is the add, reversed, plus the part everyone forgets:
    disposition (silence is not a disposition), and reassign any pending
    required check so the merge gate cannot wait forever on a lane that will
    never report.
+5. **Record the cancellation in `REVIEWER_LANES.md`**: flip the lane's state,
+   write the **exact disqualifier** (a re-checkable fact, never "did not work
+   out"), list the owner actions still owed, and fill its salvage row naming
+   what now covers the finding classes that lane used to catch. The dead lane's
+   block stays in the file so the next session does not re-adopt it by amnesia.
 
 ## `baseline <lane>`
 
 Re-run discovery + diff (add steps 1-4) without changing triggers: reports
 where the lane's live config has drifted from the shared body, and
-regenerates it. Run it after any bulk edit to the standards file.
+regenerates it. Run it after any bulk edit to the standards file. **Reconcile
+`REVIEWER_LANES.md` in the same pass** - meter shape, measured ceiling and
+headroom, triggers, owner actions still owed - and report any row that the
+live configuration contradicts rather than quietly rewriting the record.
+
+## The canary - proving a guideline file is READ, not merely present
+
+A lane can load a rules file, parse it cleanly, and govern nothing. Config
+scoping, a vendor cap, a stale cache and a directory-scoped entry all produce
+the same symptom: reviews keep posting and none of your rules are applied. The
+canary is the instrument that separates "the file is configured" from "the file
+was read on this diff".
+
+1. **Plant arbitrary, token-free rules.** Each canary rule requires a short
+   phrase that cannot be derived from general knowledge about the code, and the
+   required text must NOT contain the canary's own identifier - otherwise
+   removing the rule leaks the identifier into the diff and the lane can echo
+   it without ever having read the file.
+2. **One in the FIRST guideline file, one in the LAST.** Both firing is the
+   only evidence that the whole list loads rather than the first entry.
+3. **Pre-register the expected readings BEFORE the result arrives.** Write down
+   what each outcome would mean - both fire, only the first, only the last,
+   neither - and then run it. A reading interpreted after the fact is a story
+   about whatever happened.
+4. **Run an asymmetric round: break only ONE of the two.** A lane that still
+   names the intact rule is reading; a lane that names the broken one, or names
+   both unchanged, is recalling or replaying rather than reading this diff.
+5. **A lane that misses its canary is treated as NOT loading the file**,
+   whatever its own status check says. The check reports that the lane ran; the
+   canary reports that the rules arrived, and only the second one is the claim
+   being made.
+6. **State the instrument's limits beside its result.** It cannot separate a
+   config channel from ordinary file reading, and it is **invalid on any diff
+   that touches the criteria files themselves** - the lane can read the rule
+   out of the diff. Re-run canaries after any bulk edit to the shared body, on
+   a diff that does not include it.
 
 ## `learn` -- the collective long-term learning loop
 

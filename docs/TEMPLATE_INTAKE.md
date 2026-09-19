@@ -229,6 +229,75 @@ as a method, not a questionnaire about one product:
   and index (MRC); an extension maps permission changes to store listings
   and privacy notes (feedhacker).
 
+## 8. OWNER_DECISIONS.md.template — what is off on purpose
+
+**Required:**
+
+- Q8.1 What is currently switched off, deferred or retired **on purpose**?
+  Walk the surfaces that look broken and separate the three states: working,
+  broken, and off-by-decision. *(REEF: a capture feature left disabled on a
+  production appliance reads as a defect to every reviewer who meets it.)*
+- Q8.2 For each one: the **reason**, in a sentence somebody could disagree
+  with. "Not now" is not a reason; "it pages the owner at 3am for a condition
+  that self-heals" is.
+- Q8.3 For each one: the **lifting condition** — the observable event that ends
+  the decision. Both Q8.2 and Q8.3 are required, and an entry missing either is
+  ignored loudly rather than applied.
+- Q8.4 Which entries cover a subject some other surface still **promises**?
+  *(feedhacker: a retired feature that the help text still describes. The sweep
+  for those promises lands with the entry, not after it.)*
+
+**LLM probes:**
+
+- Mine **closed-wontfix issues**: each one is a decision nobody wrote down, and
+  the issue tracker is the wrong home for a standing suppression because
+  nothing consults it before filing the same finding again.
+- Mine **disabled config flags and commented-out code**: a flag set to off with
+  no comment is either a decision or a bug, and only the owner knows which.
+  Offer each as a proposed entry with a candidate lifting condition.
+- Mine **recurring review findings that keep getting declined**: a finding
+  declined three times is an unrecorded owner decision paying rent every round.
+- "Is there anything here that a new reviewer always flags and you always wave
+  off?" — that is the registry's first entry, in the owner's own words.
+- Shape contrasts: an appliance defers hardware-dependent checks it cannot run
+  in the lab (REEF); a research repo defers link-rot sweeps over an archive it
+  does not control (MRC); a feed product disables an upstream whose terms
+  changed (feedhacker).
+
+## 9. REVIEWER_LANES.md.template — the review-lane register
+
+**Required:**
+
+- Q9.1 Which automated review lanes exist here today, and what fires each one
+  (every push? open and ready only?)?
+- Q9.2 Which lanes existed and **died** — and what exactly disqualified each?
+  An exact disqualifier is re-checkable in a minute; "did not work out" makes
+  the next session re-run the whole evaluation. *(All three sibling shapes
+  carry cancelled lanes whose verdict text propagated fleet-wide precisely
+  because it was exact.)*
+- Q9.3 Each live lane's **meter shape** — a throttle that reopens after a
+  window, or a hard stop that does not reopen until the period rolls — plus its
+  measured ceiling and current headroom.
+- Q9.4 What is still **owed by the owner** for each lane: an app to uninstall,
+  a dashboard-side setting, a branch-protection change. A cancellation an agent
+  cannot finish is tracked, never assumed.
+- Q9.5 For each cancelled lane, what now covers the finding classes it used to
+  catch? "Nothing yet" is an honest answer and a backlog item.
+
+**LLM probes:**
+
+- **Dashboard-side settings that are not in the repository at all** — the repo
+  cannot derive what it does not hold, so ask the engineer to export or paste
+  them; a lane configured only off-repo looks unconfigured to every check here.
+- "Has any lane's config silently reverted to defaults?" — a policy-grown
+  config field that crosses a vendor cap can be rejected wholesale while the
+  tool keeps reviewing on its defaults, which looks entirely normal.
+- "Does any lane skip the state your work sits in?" — a draft-skipping lane on
+  a repo that reviews drafts is silently disabled; whichever way that is
+  decided, pin it with a test in both directions.
+- Shape contrasts: a repo may deliberately run **no** AI review lane at all
+  (feedhacker) — that is a recorded posture with a reason, not an empty file.
+
 *(`EVAL_RECORD.md.template` deliberately has no section here: it is filled
 per evaluation via `docs/TECH_EVALUATION.md`, not at adoption time.)*
 
@@ -236,7 +305,7 @@ per evaluation via `docs/TECH_EVALUATION.md`, not at adoption time.)*
 
 ## Using this document
 
-- **Empty repo:** run the six sections as one batched question round (the
+- **Empty repo:** run the nine sections as one batched question round (the
   one moment a batch beats a trickle — README empty-repo runbook step 2).
 - **Existing repo:** derive first. Most answers are already in the tree
   under other names; the questions become confirmations with evidence
