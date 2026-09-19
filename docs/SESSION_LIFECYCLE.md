@@ -61,7 +61,7 @@ is never asked twice.
 
 | # | Question | Answered by | Escalate to the engineer when |
 |---|---|---|---|
-| Q1 | What is this wave's scope? | The engineer's instruction, or the backlog in priority order if the standing instruction says so | No standing instruction and no explicit scope |
+| Q1 | What is this wave's scope? | The engineer's instruction, or the backlog in priority order if the standing instruction says so | No standing instruction and no explicit scope. On a first wave, scope comes out of the product intake (`docs/PRODUCT_INTAKE.md`) |
 | Q2 | What budget applies? | `.wall/config/wall.json` meters | Config missing or the engineer signalled a change |
 | Q3 | Any `human_required` items still unanswered? | The waiting tab | Never assumed — an unanswered ask stays parked, period |
 | Q4 | Did the last session leave in-flight state? | open_runs, leases, the open PR, dirty tree | The evidence is contradictory (e.g. commits exist that no run claims) |
@@ -155,4 +155,6 @@ asking again), and signals the Maestro to unpark the item.
 - docs/ITEM_AUTHORING.md — the authoring side of questions and amendments
 - docs/handoffs/wave-report.md — the close-out artifact
 - docs/handoffs/finding-route.md — the escalation document
+- docs/PRODUCT_INTAKE.md — the product-definition Q&A behind Q1
+- docs/CAPACITY_REBALANCING.md — the mid-wave knobs and who turns them
 - .claude/MAESTRO.md — the session manual this SOP slots into

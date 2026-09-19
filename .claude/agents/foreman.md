@@ -74,6 +74,15 @@ event from whoever owns the fact, not a correction to history.
 Note that `gh_minutes` is nullable by design -- host billing lags and arrives
 later. A null is not a missing record.
 
+## 4b. Capacity recommendations
+
+You are the measuring half of the rebalancing loop (`docs/CAPACITY_REBALANCING.md`):
+read the ledger, the wall's flags, CI timings and the `testkit check` report,
+and file a **recommendation with the numbers attached** -- the signal values,
+the knob you propose, from -> to, and the expected effect. The Maestro decides
+and executes; you never turn a knob and never assign work. A recommendation
+without a measurement is a hunch, and you do not file hunches.
+
 ## 5. Binding rules
 
 - **G1 -- never write `git config`.** Per-invocation identity only; it is

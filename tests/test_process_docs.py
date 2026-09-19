@@ -135,3 +135,152 @@ def test_maestro_reading_order_includes_both_docs():
     t = _text(MAESTRO)
     assert "docs/SESSION_LIFECYCLE.md" in t
     assert "docs/ITEM_AUTHORING.md" in t
+
+
+# ---------------------------------------------------------------- topology
+
+TOPOLOGY = KIT / "docs" / "diagrams" / "AGENT_TOPOLOGY.md"
+INTAKE = KIT / "docs" / "PRODUCT_INTAKE.md"
+REBALANCE = KIT / "docs" / "CAPACITY_REBALANCING.md"
+REVIEWER_SKILL = KIT / ".claude" / "skills" / "reviewer-integration" / "SKILL.md"
+
+
+def test_topology_has_two_mermaid_diagrams():
+    t = _text(TOPOLOGY)
+    assert t.count("```mermaid") == 2
+    assert "flowchart TB" in t and "sequenceDiagram" in t
+
+
+def test_topology_names_every_actor():
+    t = _text(TOPOLOGY)
+    for actor in ("Maestro", "Architect", "Adjudicator", "Builders", "Researchers",
+                  "Reviewer", "Integrator", "Foreman", "Courier",
+                  "SessionStart hook", "SubagentStop hook"):
+        assert actor in t, f"topology missing actor {actor!r}"
+
+
+def test_topology_states_parallel_vs_sequential():
+    t = _text(TOPOLOGY)
+    assert "build in parallel, decide and integrate in\nseries" in t or \
+        "build in parallel, decide and integrate in series" in " ".join(t.split())
+    assert "ONE PR slot" in t
+
+
+def test_topology_concern_map_covers_every_stated_goal():
+    t = _text(TOPOLOGY)
+    for concern in ("**Security**", "**Quality**", "**Backlog generation**",
+                    "**Grooming**", "**Architectural design**", "**Logging**",
+                    "**Auditing**", "**Reversibility**", "**Checks and balances**",
+                    "**Extensible quality**", "**Autonomy with minimal input**"):
+        assert concern in t, f"concern map missing {concern}"
+
+
+# ---------------------------------------------------------------- intake
+
+def test_intake_reduces_engineer_input_to_two_classes():
+    t = _text(INTAKE)
+    assert "Effort variables" in t
+    assert "Product clarification and specificity" in t
+
+
+def test_intake_covers_all_six_product_domains():
+    t = _text(INTAKE)
+    for d in ("Product requirements", "Data security requirements",
+              "Hosting locations", "Technology choices", "Architecture choices",
+              "End-user experience"):
+        assert d in t, f"intake missing domain {d!r}"
+
+
+def test_intake_derives_before_asking():
+    t = _text(INTAKE)
+    assert "Derive first, ask second" in t
+    assert "Every derived answer cites its evidence" in t
+    assert "Strong evidence records; weak evidence asks" in t
+
+
+def test_intake_supports_injection_mid_flight():
+    t = _text(INTAKE)
+    assert "Injection" in t and "amendment" in t
+    assert "parks what it invalidates" in t
+
+
+def test_intake_never_fabricates_an_answer():
+    t = _text(INTAKE)
+    assert "No answer is not an answer" in t
+
+
+# ---------------------------------------------------------------- rebalancing
+
+def test_rebalance_quality_is_a_floor_not_an_axis():
+    t = _text(REBALANCE)
+    assert "Quality is a constraint, not an axis" in t
+
+
+def test_rebalance_decision_chain_respects_the_authority_matrix():
+    t = _text(REBALANCE)
+    flat = " ".join(t.split())
+    assert "Foreman" in t and "Maestro" in t and "Adjudicator" in t
+    assert "recommendation" in t.lower()
+    assert "within the configured caps" in flat
+    assert "the engineer's" in t
+
+
+def test_rebalance_covers_the_three_knob_families():
+    t = _text(REBALANCE)
+    assert "PR" in t and ("pacing" in t or "creation" in t)
+    assert "builder/researcher split" in t or "builders and researchers" in t
+    assert "shard" in t.lower()
+
+
+def test_rebalance_is_measured_and_reversible():
+    t = _text(REBALANCE)
+    flat = " ".join(t.split())
+    assert "from → to" in flat or "from -> to" in flat
+    assert "one knob per cycle" in flat.lower()
+    assert "measured wall-clock win" in flat
+
+
+def test_rebalance_wired_into_the_decider_role_sheets():
+    foreman = _text(KIT / ".claude" / "agents" / "foreman.md")
+    adj = _text(KIT / ".claude" / "agents" / "adjudicator.md")
+    maestro = _text(MAESTRO)
+    for t in (foreman, adj, maestro):
+        assert "CAPACITY_REBALANCING" in t
+
+
+# ---------------------------------------------------------------- reviewer skill
+
+def test_reviewer_skill_exists_with_all_four_commands():
+    t = _text(REVIEWER_SKILL)
+    for cmd in ("`add <lane>`", "`remove <lane>`", "`baseline <lane>`", "`learn`"):
+        assert cmd in t, f"reviewer skill missing {cmd}"
+
+
+def test_reviewer_skill_one_body_of_criteria():
+    t = _text(REVIEWER_SKILL)
+    assert "one-body-of-criteria" in t or "one shared body" in t
+    assert "mirrored" in t
+
+
+def test_reviewer_skill_verifies_with_a_probe_not_a_glance():
+    t = _text(REVIEWER_SKILL)
+    assert "probe" in t
+    assert "A rule no lane flags is not integrated" in t
+
+
+def test_reviewer_skill_removal_keeps_adopted_rules():
+    t = _text(REVIEWER_SKILL)
+    assert "STAY in the shared body" in t
+
+
+def test_reviewer_skill_never_grants_merge_authority():
+    t = _text(REVIEWER_SKILL)
+    flat = " ".join(t.split())
+    assert "never grants a lane merge or approval authority" in flat
+
+
+def test_new_docs_listed_in_readme_layout():
+    t = _text(README)
+    for name in ("PRODUCT_INTAKE.md", "CAPACITY_REBALANCING.md",
+                 "AGENT_TOPOLOGY", "reviewer-integration"):
+        assert name in t, f"README layout missing {name}"

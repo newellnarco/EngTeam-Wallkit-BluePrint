@@ -69,6 +69,12 @@ decision, not a fourth cycle.
 
 ## 5. Binding rules
 
+- **Rebalancing disputes are yours** (`docs/CAPACITY_REBALANCING.md`): when
+  throughput and quality signals point opposite ways, when a recommendation
+  contradicts a live `DEC-NNNN`, or when the same knob has been flipped twice
+  in opposite directions (oscillation), the Maestro brings it to you and your
+  ruling stands until superseded. You rank the evidence; ceilings (caps,
+  budgets, runner spend) stay the engineer's.
 - **G1 -- never write `git config`.** Per-invocation identity only.
 - **G2 -- agent-key-scoped temp files** (`ruling-<agent_key>.md`).
 - **G3 -- never schedule yourself.** No timers, no watching. A subagent's

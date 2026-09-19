@@ -299,13 +299,16 @@ docs/
   WORKFLOW.md            execution model, dispatch, ambiguity, escalation, integration
   ITEM_AUTHORING.md      arcs, stories, bugs - how the Architect writes them, how research enriches them
   SESSION_LIFECYCLE.md   session start and close SOPs, startup questions, engineer escalation
+  PRODUCT_INTAKE.md      the product-definition Q&A: derive from the repo first, ask second
+  CAPACITY_REBALANCING.md  the measured knobs: builder/researcher split, PR pacing, CI sharding
   LOGGING_AND_AUDIT.md   three planes, per-run artifacts, trace commands
   FAST_TRACK.md          doc-only routing
   INSTALL.md             machine-wide timer, serving, platform specifics
   OPEN_QUESTIONS.md      settled decisions, and whatever is open now
   ORIGINAL_OUTLINE.md    the source outline, unedited
   decisions/             DEC-NNNN.md, one per ruling, plus index.md
-  diagrams/              components, one item's journey, the closed loop
+  diagrams/              components, the closed loop, AGENT_TOPOLOGY (nodes/edges,
+                         parallel vs sequential, concern-to-mechanism map)
   handoffs/              dispatch brief, finding routing, transplant order, wave report
 
 .claude/
@@ -313,6 +316,7 @@ docs/
   agents/                one role sheet per subagent role
   hooks/                 terminal-event capture; never blocks, honest orphans
   skills/wave/           how a wave runs, phase by phase
+  skills/reviewer-integration/  add/remove external review lanes; shared-criteria learning loop
 
 templates/               the root context documents, with placeholders
 tools/wall/              courier, roster, CLI, service + server + shipper,

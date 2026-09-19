@@ -161,6 +161,9 @@ the transition immediately; the timer is the fallback, not the trigger.
 3. `docs/AGENT_ROSTER_SPEC.md` -- roles, models, caps, authority.
 4. `docs/ITEM_AUTHORING.md` -- what a well-formed arc, story or bug looks like
    before you admit or dispatch one.
-5. `docs/EVENT_SCHEMA.md` -- the ledger contract. Read before the first run.
-6. `docs/RECONCILIATION.md` Part 2 -- the measured failure classes.
-7. `.claude/skills/wave/SKILL.md` -- how a wave actually runs.
+5. `docs/PRODUCT_INTAKE.md` -- how the product definition is derived and
+   asked; `docs/CAPACITY_REBALANCING.md` -- the knobs you may turn mid-wave
+   and the ones you may not.
+6. `docs/EVENT_SCHEMA.md` -- the ledger contract. Read before the first run.
+7. `docs/RECONCILIATION.md` Part 2 -- the measured failure classes.
+8. `.claude/skills/wave/SKILL.md` -- how a wave actually runs.
