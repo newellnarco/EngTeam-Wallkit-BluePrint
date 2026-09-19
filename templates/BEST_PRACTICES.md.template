@@ -12,6 +12,8 @@ HOW TO USE    Copy to the repo root as BEST_PRACTICES.md. Fill every
               one is a measured failure class, not a preference. Add to them
               as your own classes appear; do not trim them to make a diff pass.
               This file feeds model prompts - read section 0 before it grows.
+QUESTIONS      Required questions + LLM probes to fill this well:
+              docs/TEMPLATE_INTAKE.md section 5.
 -->
 
 # BEST_PRACTICES.md - coding standards for <PROJECT_NAME>

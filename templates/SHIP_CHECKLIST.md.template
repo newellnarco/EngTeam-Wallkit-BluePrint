@@ -9,6 +9,8 @@ HOW TO USE    Copy to the repo root as SHIP_CHECKLIST.md, fill every
               <PLACEHOLDER>, delete sections that cannot apply here.
               Walk it top to bottom before every ship. A genuinely N/A item is
               reported as N/A, never skipped silently.
+QUESTIONS      Required questions + LLM probes to fill this well:
+              docs/TEMPLATE_INTAKE.md section 4.
 -->
 
 # SHIP_CHECKLIST.md

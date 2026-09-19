@@ -12,6 +12,8 @@ HOW TO USE    Copy to the repo root as BUDGETED_DOCS.md. Add a row for every
               Re-measure and update the row in the SAME change that grows a
               counted document - that requirement is part of the definition of
               done.
+QUESTIONS      Required questions + LLM probes to fill this well:
+              docs/TEMPLATE_INTAKE.md section 6.
 -->
 
 # BUDGETED_DOCS.md

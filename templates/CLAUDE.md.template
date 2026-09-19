@@ -9,6 +9,8 @@ HOW TO USE    Copy to the repo root as CLAUDE.md, replace every <PLACEHOLDER>,
               Keep it SHORT. This file is loaded into agent context on every
               run and into some hosted reviewers' prompts - see
               BUDGETED_DOCS.md before letting it grow.
+QUESTIONS      Required questions + LLM probes to fill this well:
+              docs/TEMPLATE_INTAKE.md section 1.
 -->
 
 # CLAUDE.md - instructions for AI assistants working on <PROJECT_NAME>

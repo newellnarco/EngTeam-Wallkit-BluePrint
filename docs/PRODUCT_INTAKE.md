@@ -131,6 +131,9 @@ one queue, one habit, one audit trail:
 
 ## 6. Cross-references
 
+- `docs/TEMPLATE_INTAKE.md` — the per-template question sets this discipline
+  drives (required + probes, worked examples across four project shapes)
+
 - `docs/diagrams/AGENT_TOPOLOGY.md` — where intake sits in the node/edge map
 - `docs/SESSION_LIFECYCLE.md` — startup questions, the human queue, escalation
 - `docs/ITEM_AUTHORING.md` — how brief sections become citable criteria

@@ -37,11 +37,15 @@ missing — with file paths as evidence.
 ## Phase 1 — Lay the files down
 
 1. Empty repo: copy the kit directories in, copy each template to the root and
-   fill its placeholders (`RULES.md` Part 1 is the one needing real thought —
+   fill it via its question set (`docs/TEMPLATE_INTAKE.md`: required questions
+   first, then probe for the unasked-but-important with your derivations as
+   defaults) — never fill placeholders by guessing (`RULES.md` Part 1 is the one needing real thought —
    draft it and flag it for the engineer's confirmation rather than inventing
-   hard rules unilaterally). Existing repo: **map, never duplicate** — write
-   pointer stubs at the kit's expected locations and add the three
-   non-negotiable rules to the host's own documents.
+   hard rules unilaterally). Existing repo: run `/adopt inventory`
+   then `/adopt map` — classify by function with evidence, pointer stubs over
+   duplication, the three non-negotiable rules added to the host's own
+   documents; duplicated rulebooks go through `/adopt consolidate` with the
+   engineer ruling on conflicts.
 2. Run the whole kit test suite if present, or `wall run-once` at minimum, and
    fix or report anything red before proceeding. You are the first user; a
    broken base is yours to catch now.

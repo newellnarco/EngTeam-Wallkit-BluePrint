@@ -10,6 +10,8 @@ HOW TO USE    Copy to the repo root as RULES.md. Part 1 is YOURS - write the
               hard rules in your own words and delete the sample ones you do
               not want. Part 2 ships mostly as-is: those rules are measured
               failure responses, not preferences. Replace every <PLACEHOLDER>.
+QUESTIONS      Required questions + LLM probes to fill this well:
+              docs/TEMPLATE_INTAKE.md section 2.
 -->
 
 # RULES.md - the binding rules for <PROJECT_NAME>

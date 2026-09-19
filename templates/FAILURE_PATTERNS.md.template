@@ -11,6 +11,8 @@ HOW TO USE    Copy to the repo root as FAILURE_PATTERNS.md. The seeded entries
               your own as they occur. Fill every <PLACEHOLDER>.
               Append only. Never rewrite or reorder an existing entry - it is a
               record of something already paid for.
+QUESTIONS      Required questions + LLM probes to fill this well:
+              docs/TEMPLATE_INTAKE.md section 3.
 -->
 
 # FAILURE_PATTERNS.md

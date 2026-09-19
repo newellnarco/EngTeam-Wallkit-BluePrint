@@ -441,3 +441,64 @@ def test_warden_wired_into_workflow_and_authoring():
     assert "Risk tier" in ia and "Declared data uses" in ia
     dod = _text(KIT / "tools" / "wall" / "config" / "wall.example.json")
     assert "warden sign-off recorded for in-scope arcs" in dod
+
+
+# ------------------------------------------------- template intake + adopt
+
+TEMPLATE_INTAKE = KIT / "docs" / "TEMPLATE_INTAKE.md"
+ADOPT_SKILL = KIT / ".claude" / "skills" / "adopt" / "SKILL.md"
+
+
+def test_template_intake_covers_every_template_with_both_layers():
+    t = _text(TEMPLATE_INTAKE)
+    for name in ("CLAUDE.md.template", "RULES.md.template",
+                 "FAILURE_PATTERNS.md.template", "SHIP_CHECKLIST.md.template",
+                 "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template"):
+        assert name in t, f"intake missing template {name}"
+    assert t.count("**Required:**") >= 6
+    assert t.count("**LLM probes:**") >= 6
+
+
+def test_template_intake_uses_the_four_project_shapes():
+    t = _text(TEMPLATE_INTAKE)
+    for shape in ("MAX3", "REEF", "MRC", "feedhacker"):
+        assert shape in t, f"intake missing shape {shape}"
+
+
+def test_template_intake_graduates_its_own_probes():
+    t = _text(TEMPLATE_INTAKE)
+    assert "graduates questions the way the failure registry graduates bugs" in \
+        " ".join(t.split())
+
+
+def test_every_template_points_at_its_question_set():
+    for name in ("CLAUDE.md.template", "RULES.md.template",
+                 "FAILURE_PATTERNS.md.template", "SHIP_CHECKLIST.md.template",
+                 "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template"):
+        t = _text(KIT / "templates" / name)
+        assert "TEMPLATE_INTAKE.md" in t, f"{name} lacks its question-set pointer"
+
+
+def test_adopt_skill_has_the_three_commands_and_the_law():
+    t = _text(ADOPT_SKILL)
+    for cmd in ("## `inventory`", "## `map`", "## `consolidate`"):
+        assert cmd in t
+    flat = " ".join(t.split())
+    assert "map, do not duplicate" in flat
+    assert "Inventory never edits anything" in flat
+
+
+def test_adopt_classifies_by_function_not_filename():
+    t = _text(ADOPT_SKILL)
+    assert "Classify by FUNCTION, not filename" in t
+    for fn in ("Entry point", "Standing rules", "Failure registry",
+               "Ship checklist", "Coding standards", "Decision log",
+               "Prompt budgets"):
+        assert fn in t, f"adopt missing function {fn}"
+
+
+def test_adopt_conflicts_go_to_the_engineer():
+    t = _text(ADOPT_SKILL)
+    flat = " ".join(t.split())
+    assert "always** the engineer's call" in flat or "always the engineer's call" in flat.replace("**", "")
+    assert "The skill stages the diff; it does not pick" in flat

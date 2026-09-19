@@ -197,6 +197,9 @@ these are files.
 | `templates/BUDGETED_DOCS.md.template` | `BUDGETED_DOCS.md` | Which documents feed model prompts, their budgets, and measured headroom. |
 
 Replace every `<PLACEHOLDER>` and delete the leading comment block from each.
+Each template carries a **question set** — required questions plus the probes
+for what nobody thinks to ask — in `docs/TEMPLATE_INTAKE.md`; run them as one
+batched round rather than guessing at placeholders.
 The only one that needs real thought today is `RULES.md` Part 1 - the hard
 rules. Everything else can start thin and grow.
 
@@ -274,6 +277,11 @@ A project that already has its own context documents does **not** copy the
 templates over them. Duplicating a rule is worse than not having it: two copies
 drift, and the next agent reads whichever it found first. The job here is to
 **map**, and to add only what is genuinely missing.
+
+**Shortcut — let the session run this whole runbook:** `/adopt inventory` parses
+the tree and classifies every document by function with evidence; `/adopt map`
+writes the pointer stubs; `/adopt consolidate` merges duplicates with the
+engineer ruling on conflicts (`.claude/skills/adopt/SKILL.md`).
 
 **1. Inventory what exists - by function, not by filename.** Every mature
 repository has grown some of these under names of its own. Find them:
@@ -392,6 +400,7 @@ docs/
   SESSION_LIFECYCLE.md   session start and close SOPs, startup questions, engineer escalation
   PRODUCT_INTAKE.md      the product-definition Q&A: derive from the repo first, ask second
   CAPACITY_REBALANCING.md  the measured knobs: builder/researcher split, PR pacing, CI sharding
+  TEMPLATE_INTAKE.md     the per-template question sets: required + LLM probes, worked examples
   LLM_BOOTSTRAP.md       the day-zero procedure an LLM session follows to stand all of this up
   DEPLOYMENT_TARGETS.md  Docker, VMs, Kubernetes - who runs the timer, serves, ships
   COMPLIANCE_POSTURE.md  the mechanisms in auditor language: SoD, change control, traceability
@@ -412,6 +421,7 @@ docs/
   hooks/                 terminal-event capture; never blocks, honest orphans
   skills/wave/           how a wave runs, phase by phase
   skills/reviewer-integration/  add/remove external review lanes; shared-criteria learning loop
+  skills/adopt/          parse an existing repo's docs by function; map + consolidate
 
 templates/               the root context documents, with placeholders
 tools/wall/              courier, roster, CLI, service + server + shipper,
