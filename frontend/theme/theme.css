@@ -1,0 +1,235 @@
+/* ============================================================================
+   MAX3 theme tokens
+   ----------------------------------------------------------------------------
+   Blueprint stock and brass. Cool slate ground, warm metal accent, structure
+   carried by hairline rules rather than cards and shadows.
+
+   Three layers. Use the semantic layer in components; reach for the primitive
+   layer only when defining a new semantic token.
+
+     1. primitives  --c-*      raw palette, no meaning attached
+     2. semantic    --surface-*, --text-*, --line-*, --accent-*, --status-*
+     3. shape       --radius-*, --space-*, type and motion
+
+   Every colour pair used for text clears WCAG AA (4.5:1) against its intended
+   background in both modes. Verify before changing a value.
+   ========================================================================== */
+
+:root {
+  /* ---- 1. primitives ---------------------------------------------------- */
+
+  /* Blueprint — the cool structural spine of the palette. */
+  --c-blue-950: #0b1016;
+  --c-blue-900: #10161d;
+  --c-blue-850: #18212b;
+  --c-blue-800: #1e2833;
+  --c-blue-700: #2a3742;
+  --c-blue-600: #3a4a58;
+  --c-blue-300: #7c8d97;
+  --c-blue-200: #9aa9b3;
+  --c-blue-100: #c2ccd3;
+  --c-blue-050: #dce3e8;
+
+  /* Paper — the light-mode ground. Cool, not cream. */
+  --c-paper-050: #ffffff;
+  --c-paper-100: #f4f6f8;
+  --c-paper-200: #e6eaee;
+  --c-paper-300: #d2d9df;
+  --c-ink-900:   #141c24;
+  --c-ink-700:   #2c3a45;
+  --c-ink-500:   #4d5c68;
+  --c-ink-400:   #6f7f8b;
+
+  /* Brass — the single accent. Two values: it must darken on light grounds. */
+  --c-brass-light: #c9962f;   /* on dark:  6.11:1 */
+  --c-brass-dark:  #7a5a14;   /* on light: 6.36:1 */
+
+  /* Status. Each has a dark-mode and a light-mode value; the raw hues differ
+     because a hue that reads correctly on navy is unreadable on white. */
+  --c-alert-dark:   #e07a58;  --c-alert-light:   #a8401f;
+  --c-good-dark:    #74a585;  --c-good-light:    #2f6b45;
+  --c-info-dark:    #7aa0bd;  --c-info-light:    #2d5a7b;
+
+  /* ---- 3. shape, type, motion ------------------------------------------- */
+
+  /* Structure is information. Radius stays small so panels read as drawn
+     rules rather than as floating cards; there are no drop shadows anywhere. */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;   --space-2: 8px;   --space-3: 12px;
+  --space-4: 16px;  --space-5: 24px;  --space-6: 32px;  --space-7: 48px;
+
+  /* One family for prose, one for numerals. Mono is used where columns must
+     align or an identifier must be read character by character — never as
+     decoration on labels. System stacks only: no network fetch. */
+  --font-text: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --text-xs:   11.5px;
+  --text-sm:   12.5px;
+  --text-base: 13.5px;
+  --text-md:   15px;
+  --text-lg:   18px;
+  --text-xl:   21px;
+  --text-2xl:  27px;
+
+  --leading-tight: 1.25;
+  --leading-body:  1.5;
+  --measure: 68ch;          /* keep prose under ~80 characters */
+
+  --ease: cubic-bezier(.2, 0, .2, 1);
+  --dur: 140ms;
+
+  /* ---- 2. semantic — dark is the default ground ------------------------- */
+
+  --surface-ground:  var(--c-blue-900);
+  --surface-panel:   var(--c-blue-850);
+  --surface-raised:  var(--c-blue-800);
+  --surface-sunken:  var(--c-blue-950);
+  --surface-hover:   #222d38;
+
+  --text-primary:    var(--c-blue-050);
+  --text-secondary:  var(--c-blue-200);
+  --text-muted:      var(--c-blue-300);   /* 4.73:1 — AA, safe for small text */
+  --text-inverse:    var(--c-blue-950);
+
+  --line-strong:     var(--c-blue-600);
+  --line:            var(--c-blue-700);
+  --line-soft:       #222d38;
+
+  --accent:          var(--c-brass-light);
+  --accent-muted:    #8a6a24;
+  --accent-contrast: var(--c-blue-950);   /* text on a brass fill */
+
+  --status-alert:    var(--c-alert-dark);
+  --status-good:     var(--c-good-dark);
+  --status-info:     var(--c-info-dark);
+  --status-idle:     var(--c-blue-300);
+
+  --grid-line:       var(--line-soft);
+  --focus-ring:      var(--accent);
+
+  color-scheme: dark;
+}
+
+/* ---- light mode ---------------------------------------------------------
+   Follows the viewer's setting, overridable with data-theme on <html>.
+   Only the semantic layer changes; component CSS never knows which is active. */
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --surface-ground:  var(--c-paper-100);
+    --surface-panel:   var(--c-paper-050);
+    --surface-raised:  var(--c-paper-100);
+    --surface-sunken:  var(--c-paper-200);
+    --surface-hover:   #eef2f5;
+
+    --text-primary:    var(--c-ink-900);
+    --text-secondary:  var(--c-ink-700);
+    --text-muted:      var(--c-ink-500);   /* 6.36:1 */
+    --text-inverse:    var(--c-paper-050);
+
+    --line-strong:     var(--c-paper-300);
+    --line:            var(--c-paper-200);
+    --line-soft:       #eef1f4;
+
+    --accent:          var(--c-brass-dark);
+    --accent-muted:    #9c7a31;
+    --accent-contrast: var(--c-paper-050);
+
+    --status-alert:    var(--c-alert-light);
+    --status-good:     var(--c-good-light);
+    --status-info:     var(--c-info-light);
+    --status-idle:     var(--c-ink-400);
+
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --surface-ground:  var(--c-paper-100);
+  --surface-panel:   var(--c-paper-050);
+  --surface-raised:  var(--c-paper-100);
+  --surface-sunken:  var(--c-paper-200);
+  --surface-hover:   #eef2f5;
+
+  --text-primary:    var(--c-ink-900);
+  --text-secondary:  var(--c-ink-700);
+  --text-muted:      var(--c-ink-500);
+  --text-inverse:    var(--c-paper-050);
+
+  --line-strong:     var(--c-paper-300);
+  --line:            var(--c-paper-200);
+  --line-soft:       #eef1f4;
+
+  --accent:          var(--c-brass-dark);
+  --accent-muted:    #9c7a31;
+  --accent-contrast: var(--c-paper-050);
+
+  --status-alert:    var(--c-alert-light);
+  --status-good:     var(--c-good-light);
+  --status-info:     var(--c-info-light);
+  --status-idle:     var(--c-ink-400);
+
+  color-scheme: light;
+}
+
+/* ---- base ---------------------------------------------------------------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+
+body {
+  margin: 0;
+  background: var(--surface-ground);
+  color: var(--text-primary);
+  font: 400 var(--text-base)/var(--leading-body) var(--font-text);
+  -webkit-font-smoothing: antialiased;
+
+  /* The blueprint grid. It is the one piece of pure atmosphere in the system,
+     so it stays faint enough to read as paper texture rather than as content. */
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 64px 64px, 64px 64px;
+  background-position: -1px -1px;
+}
+
+/* Visible, consistent, and never removed. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+h1, h2, h3, h4 { margin: 0 0 var(--space-3); line-height: var(--leading-tight); font-weight: 600; }
+h1 { font-size: var(--text-xl);  letter-spacing: -.015em; }
+h2 { font-size: var(--text-lg);  letter-spacing: -.01em; }
+h3 { font-size: var(--text-md); }
+h4 { font-size: var(--text-base); }
+
+p { margin: 0 0 var(--space-3); max-width: var(--measure); }
+
+a { color: var(--accent); text-underline-offset: 2px; }
+
+code, kbd, samp, .mono { font-family: var(--font-mono); font-size: .92em; }
+
+/* Numerals in any table column align by default. */
+.num, td.num, th.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "repo_name": "atlas-core",
+  "role_limits": {
+    "builder": 4,
+    "researcher": 6,
+    "reviewer": 2
+  },
+  "budget": {
+    "period": "week of 14 Sep 2026",
+    "advisory": "Advisory only. Nothing here stops work \u2014 it tells you when to.",
+    "meters": [
+      {
+        "label": "Claude \u2014 Opus 5",
+        "used": 41200000,
+        "limit": 60000000,
+        "display": "41.2M",
+        "foot": "builders account for 78% of this"
+      },
+      {
+        "label": "Claude \u2014 Sonnet 5",
+        "used": 12800000,
+        "limit": 90000000,
+        "display": "12.8M",
+        "foot": "researchers and review"
+      },
+      {
+        "label": "Claude \u2014 Fable 5.1",
+        "used": 3100000,
+        "limit": 20000000,
+        "display": "3.1M",
+        "foot": "1 run routed to Opus by safeguards"
+      },
+      {
+        "label": "GitHub Actions",
+        "used": 1412,
+        "limit": 3000,
+        "display": "1,412 min",
+        "foot": "fast-track saved an estimated 240 min"
+      }
+    ]
+  }
+}

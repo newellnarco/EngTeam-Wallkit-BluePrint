@@ -1,0 +1,7 @@
+# --- wall -------------------------------------------------------------------
+# Derived state is reproducible from the event shards. Committing it conflicts
+# across parallel sessions every two minutes.
+.wall/derived/
+.wall/logs/
+.wall/runs/
+.wall/registry/*.lock

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="refresh" content="30">
+<title>Wall — __REPO_NAME__</title>
+<style>
+:root{
+  --ground:#10161d;
+  --board:#18212b;
+  --board-2:#1e2833;
+  --rule:#2a3742;
+  --rule-soft:#222d38;
+  --chalk:#dce3e8;
+  --chalk-dim:#7e8f9c;
+  --chalk-faint:#55646f;
+  --brass:#c9962f;
+  --brass-soft:#8a6a24;
+  --flag:#d2603f;
+  --sage:#5f9070;
+  --steel:#5c7f9c;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --text:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  color-scheme:dark;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0;background:var(--ground);color:var(--chalk);
+  font:400 13px/1.45 var(--text);
+  -webkit-font-smoothing:antialiased;
+  background-image:
+    linear-gradient(var(--rule-soft) 1px,transparent 1px),
+    linear-gradient(90deg,var(--rule-soft) 1px,transparent 1px);
+  background-size:64px 64px,64px 64px;
+  background-position:-1px -1px;
+}
+.sheet{max-width:1320px;margin:0 auto;padding:0 20px 64px}
+
+/* ---- ribbon ---- */
+.ribbon{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 22px;
+  padding:22px 0 16px;border-bottom:2px solid var(--rule);
+}
+.repo{font-size:21px;font-weight:600;letter-spacing:-.015em;margin:0}
+.repo .branch{color:var(--chalk-faint);font-weight:400;font-family:var(--mono);font-size:14px;margin-left:8px}
+.ribbon .spacer{flex:1 1 auto}
+.sweep{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12px;color:var(--chalk-dim)}
+.lamp{width:9px;height:9px;border-radius:50%;background:var(--sage);box-shadow:0 0 0 3px rgba(95,144,112,.16);flex:none}
+.lamp.warm{background:var(--brass);box-shadow:0 0 0 3px rgba(201,150,47,.16)}
+.lamp.cold{background:var(--flag);box-shadow:0 0 0 3px rgba(210,96,63,.18)}
+.lamp.live{animation:breathe 3.2s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.42}}
+@media (prefers-reduced-motion:reduce){.lamp.live{animation:none}}
+.courier-note{font-family:var(--mono);font-size:11.5px;color:var(--chalk-faint)}
+
+/* ---- tabs ---- */
+nav.tabs{display:flex;gap:2px;margin:0 0 2px;border-bottom:1px solid var(--rule);overflow-x:auto}
+nav.tabs button{
+  appearance:none;background:none;border:0;border-bottom:2px solid transparent;
+  color:var(--chalk-dim);font:inherit;font-size:13px;padding:11px 15px;cursor:pointer;white-space:nowrap;
+  margin-bottom:-1px;
+}
+nav.tabs button:hover{color:var(--chalk)}
+nav.tabs button[aria-selected="true"]{color:var(--chalk);border-bottom-color:var(--brass)}
+nav.tabs button:focus-visible{outline:2px solid var(--brass);outline-offset:-2px}
+nav.tabs .count{font-family:var(--mono);font-size:11px;color:var(--chalk-faint);margin-left:6px}
+nav.tabs button[aria-selected="true"] .count{color:var(--brass)}
+nav.tabs .count.hot{color:var(--flag)}
+[role="tabpanel"][hidden]{display:none}
+
+/* ---- panels & tables ---- */
+.panel{background:var(--board);border:1px solid var(--rule);border-radius:2px;margin-top:18px;overflow:hidden}
+.panel > h2{
+  margin:0;padding:12px 16px;font-size:13px;font-weight:600;letter-spacing:.005em;
+  border-bottom:1px solid var(--rule);color:var(--chalk);
+  display:flex;align-items:baseline;gap:10px;
+}
+.panel > h2 .sub{font-weight:400;color:var(--chalk-faint);font-size:12px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule-soft);vertical-align:baseline}
+th{color:var(--chalk-faint);font-weight:500;font-size:11.5px;background:var(--board-2);position:sticky;top:0;z-index:1}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:12px}
+td.num{color:var(--chalk-dim)}
+td.num.lead{color:var(--chalk)}
+tr.rolebar td{
+  background:var(--board-2);border-bottom:1px solid var(--rule);
+  padding:7px 12px;font-size:11.5px;color:var(--brass);letter-spacing:.02em;
+}
+tr.rolebar .cap{color:var(--chalk-faint);font-family:var(--mono);margin-left:8px}
+
+/* ---- crew ---- */
+.who{display:flex;flex-direction:column;gap:1px}
+.who b{font-weight:600;font-size:13px;letter-spacing:-.005em}
+.who span{color:var(--chalk-faint);font-family:var(--mono);font-size:11px}
+.model{font-family:var(--mono);font-size:11.5px;color:var(--steel)}
+.model.routed{color:var(--brass)}
+.model.routed::after{content:" ⇢ routed";color:var(--chalk-faint);font-size:10.5px}
+.state{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--chalk-faint)}
+.dot.working{background:var(--sage)}
+.dot.blocked{background:var(--flag)}
+.dot.waiting{background:var(--brass)}
+.dot.idle{background:var(--chalk-faint)}
+.dot.stale{background:var(--flag);box-shadow:0 0 0 2px rgba(210,96,63,.2)}
+.task{color:var(--chalk-dim)}
+.task .id{font-family:var(--mono);font-size:11px;color:var(--chalk-faint);margin-right:7px}
+.task.none{color:var(--chalk-faint);font-style:italic}
+
+/* ---- board ---- */
+.arc{border-bottom:1px solid var(--rule)}
+.arc:last-child{border-bottom:0}
+.arc > header{display:flex;align-items:baseline;gap:12px;padding:12px 16px;background:var(--board-2)}
+.arc > header h3{margin:0;font-size:13px;font-weight:600}
+.arc > header .id{font-family:var(--mono);font-size:11px;color:var(--chalk-faint)}
+.arc > header .spacer{flex:1}
+.meter{width:120px;height:4px;background:var(--rule);border-radius:2px;overflow:hidden;flex:none}
+.meter i{display:block;height:100%;background:var(--brass)}
+.chip{
+  display:inline-block;font-family:var(--mono);font-size:10.5px;padding:2px 7px;
+  border:1px solid var(--rule);border-radius:2px;color:var(--chalk-dim);white-space:nowrap;
+}
+.chip.done{color:var(--sage);border-color:rgba(95,144,112,.45)}
+.chip.active{color:var(--brass);border-color:var(--brass-soft)}
+.chip.blocked{color:var(--flag);border-color:rgba(210,96,63,.45)}
+.chip.review{color:var(--steel);border-color:rgba(92,127,156,.45)}
+.chip.bug{color:var(--flag);border-color:rgba(210,96,63,.35)}
+.dupe{color:var(--flag);font-size:11px;margin-left:8px}
+
+/* ---- waiting ---- */
+.ask{padding:14px 16px;border-bottom:1px solid var(--rule-soft);display:flex;gap:14px;align-items:flex-start}
+.ask:last-child{border-bottom:0}
+.ask .age{font-family:var(--mono);font-size:11.5px;color:var(--flag);flex:none;min-width:52px;padding-top:1px}
+.ask .age.calm{color:var(--chalk-faint)}
+.ask .body{flex:1;min-width:0}
+.ask .q{margin:0 0 5px;font-size:13.5px;line-height:1.4}
+.ask .from{font-family:var(--mono);font-size:11px;color:var(--chalk-faint)}
+.ask .from .cmd{color:var(--steel)}
+
+/* ---- ledger ---- */
+.gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:1px;background:var(--rule)}
+.gauge{background:var(--board);padding:15px 16px}
+.gauge h4{margin:0 0 3px;font-size:12px;font-weight:500;color:var(--chalk-dim)}
+.gauge .big{font-family:var(--mono);font-size:24px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.gauge .of{font-family:var(--mono);font-size:12px;color:var(--chalk-faint);margin-left:5px}
+.bar{height:5px;background:var(--rule);border-radius:2px;overflow:hidden;margin:11px 0 6px}
+.bar i{display:block;height:100%;background:var(--steel)}
+.bar i.warm{background:var(--brass)}
+.bar i.hot{background:var(--flag)}
+.gauge .foot{font-family:var(--mono);font-size:11px;color:var(--chalk-faint)}
+.advisory{
+  padding:10px 16px;border-top:1px solid var(--rule);
+  font-size:12px;color:var(--chalk-dim);background:var(--board-2);
+}
+
+/* ---- integrity ---- */
+.flags{padding:0}
+.flag-row{display:flex;gap:12px;padding:11px 16px;border-bottom:1px solid var(--rule-soft);align-items:baseline}
+.flag-row:last-child{border-bottom:0}
+.flag-row .k{font-family:var(--mono);font-size:11.5px;color:var(--flag);flex:none;min-width:130px}
+.flag-row .k.ok{color:var(--sage)}
+.flag-row .v{color:var(--chalk-dim);font-size:12.5px}
+.empty{padding:26px 16px;color:var(--chalk-faint);font-size:13px}
+
+footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--rule-soft);
+  font-family:var(--mono);font-size:11px;color:var(--chalk-faint);
+  display:flex;flex-wrap:wrap;gap:6px 20px}
+@media (max-width:640px){
+  .sheet{padding:0 12px 48px}
+  .repo{font-size:18px}
+}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="ribbon">
+    <h1 class="repo" id="repoName">—<span class="branch" id="repoBranch"></span></h1>
+    <span class="spacer"></span>
+    <div class="sweep">
+      <span class="lamp" id="lamp" aria-hidden="true"></span>
+      <span id="sweepAge">—</span>
+    </div>
+    <div class="courier-note" id="courierNote"></div>
+  </div>
+
+  <nav class="tabs" role="tablist" id="tabs"></nav>
+
+  <section role="tabpanel" id="panel-crew" aria-labelledby="tab-crew">
+    <div class="panel">
+      <h2>Crew<span class="sub" id="crewSub"></span></h2>
+      <div class="scroll"><table>
+        <thead><tr>
+          <th>Name</th><th>Model</th><th>Status</th><th>Working on</th>
+          <th class="num">Runs</th><th class="num">Tokens</th><th class="num">Cached</th>
+          <th class="num">Cost</th><th class="num">GH min</th>
+        </tr></thead>
+        <tbody id="crewBody"></tbody>
+      </table></div>
+    </div>
+    <div class="panel">
+      <h2>Integrity<span class="sub">what the last sweep could and could not verify</span></h2>
+      <div class="flags" id="integrity"></div>
+    </div>
+  </section>
+
+  <section role="tabpanel" id="panel-board" aria-labelledby="tab-board" hidden>
+    <div class="panel">
+      <h2>Board<span class="sub" id="boardSub"></span></h2>
+      <div id="arcs"></div>
+    </div>
+  </section>
+
+  <section role="tabpanel" id="panel-waiting" aria-labelledby="tab-waiting" hidden>
+    <div class="panel">
+      <h2>Waiting on you<span class="sub">work is parked until these are answered</span></h2>
+      <div id="asks"></div>
+    </div>
+  </section>
+
+  <section role="tabpanel" id="panel-ledger" aria-labelledby="tab-ledger" hidden>
+    <div class="panel">
+      <h2>Ledger<span class="sub" id="ledgerSub"></span></h2>
+      <div class="gauges" id="gauges"></div>
+      <div class="advisory" id="advisory"></div>
+    </div>
+    <div class="panel">
+      <h2>By role<span class="sub">this billing period</span></h2>
+      <div class="scroll"><table>
+        <thead><tr>
+          <th>Role</th><th>Model</th><th class="num">Runs</th><th class="num">Tokens in</th>
+          <th class="num">Tokens out</th><th class="num">Cache read</th><th class="num">Cost</th>
+        </tr></thead>
+        <tbody id="rollupBody"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <footer>
+    <span id="fSchema"></span><span id="fEvents"></span><span id="fShards"></span><span id="fSessions"></span>
+  </footer>
+</div>
+
+<script id="wall-data" type="application/json">__WALL_DATA__</script>
+<script>
+(function(){
+  "use strict";
+  var D = JSON.parse(document.getElementById('wall-data').textContent);
+
+  // Two delivery modes, one file. Opened from file:// the page uses the JSON
+  // inlined at render time and the <meta refresh> keeps it current. Served over
+  // http it polls wall.json instead and repaints in place, so scroll position,
+  // the active tab and focus all survive — and the meta refresh is removed so
+  // the two mechanisms never fight.
+  var POLL_MS = 10000;
+
+  function live() {
+    return fetch('wall.json', {cache: 'no-store'})
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { if (j && j.generated_at !== D.generated_at) { D = j; paint(); } })
+      .catch(function () { /* courier or server down; the lamp goes cold on its own */ });
+  }
+
+  if (location.protocol === 'http:' || location.protocol === 'https:') {
+    var meta = document.querySelector('meta[http-equiv="refresh"]');
+    if (meta) meta.parentNode.removeChild(meta);
+    live();
+    setInterval(function () {
+      // Don't poll a tab nobody is looking at.
+      if (!document.hidden) live();
+    }, POLL_MS);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) live();
+    });
+  }
+
+  var $ = function(id){ return document.getElementById(id); };
+  var nf = new Intl.NumberFormat('en-US');
+  function num(n){ return nf.format(Math.round(n||0)); }
+  function compact(n){
+    n = n || 0;
+    if (n >= 1e9) return (n/1e9).toFixed(n<1e10?2:1)+'B';
+    if (n >= 1e6) return (n/1e6).toFixed(n<1e7?2:1)+'M';
+    if (n >= 1e3) return (n/1e3).toFixed(n<1e4?1:0)+'k';
+    return String(Math.round(n));
+  }
+  function money(n){ return '$' + (n||0).toFixed(2); }
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function ago(iso){
+    if (!iso) return '—';
+    var s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+    if (s < 60)    return Math.floor(s) + 's';
+    if (s < 3600)  return Math.floor(s/60) + 'm';
+    if (s < 86400) return Math.floor(s/3600) + 'h';
+    return Math.floor(s/86400) + 'd';
+  }
+
+  var TABS = [
+    {id:'crew',    label:'Crew',           count:function(d){ return (d.crew||[]).length; }},
+    {id:'board',   label:'Board',          count:function(d){ return (d.board&&d.board.arcs||[]).length; }},
+    {id:'waiting', label:'Waiting on you', count:function(d){ return (d.waiting_on_you||[]).length; }, hot:true},
+    {id:'ledger',  label:'Ledger',         count:function(){ return null; }}
+  ];
+  var active = location.hash.replace('#','') || 'crew';
+  if (!TABS.some(function(t){ return t.id === active; })) active = 'crew';
+
+  function paintTabs(){
+    $('tabs').innerHTML = TABS.map(function(t){
+      var c = t.count(D), sel = t.id === active;
+      var hot = t.hot && c > 0 ? ' hot' : '';
+      return '<button role="tab" id="tab-'+t.id+'" aria-controls="panel-'+t.id+'" '+
+             'aria-selected="'+sel+'" data-tab="'+t.id+'">'+esc(t.label)+
+             (c === null ? '' : '<span class="count'+hot+'">'+c+'</span>')+'</button>';
+    }).join('');
+    TABS.forEach(function(t){ $('panel-'+t.id).hidden = (t.id !== active); });
+  }
+  $('tabs').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-tab]');
+    if (!b) return;
+    active = b.dataset.tab;
+    history.replaceState(null,'','#'+active);
+    paintTabs();
+  });
+
+  function paintSweep(){
+    var s = Math.max(0, (Date.now() - Date.parse(D.generated_at)) / 1000);
+    var lamp = $('lamp'), cls = 'lamp live';
+    if (s > 300) cls = 'lamp cold';
+    else if (s > 150) cls = 'lamp warm live';
+    lamp.className = cls;
+    $('sweepAge').textContent = s > 300
+      ? 'no sweep for ' + ago(D.generated_at) + ' — check the courier'
+      : 'swept ' + ago(D.generated_at) + ' ago';
+  }
+
+  function paintCrew(){
+    var crew = D.crew || [], limits = D.role_limits || {};
+    var order = ['foreman','maestro','architect','adjudicator','builder','researcher','reviewer','courier'];
+    var byRole = {};
+    crew.forEach(function(a){ (byRole[a.role] = byRole[a.role] || []).push(a); });
+    var roles = order.filter(function(r){ return byRole[r]; })
+      .concat(Object.keys(byRole).filter(function(r){ return order.indexOf(r) < 0; }));
+
+    var rows = roles.map(function(role){
+      var list = byRole[role];
+      var cap = limits[role];
+      var bar = '<tr class="rolebar"><td colspan="9">' + esc(role) +
+        '<span class="cap">' + list.length + (cap ? ' of ' + cap + ' slots' : '') + '</span></td></tr>';
+      return bar + list.map(function(a){
+        var t = a.tokens || {};
+        var live = (t.in||0) + (t.out||0);
+        var routed = a.model_used && a.model_requested && a.model_used !== a.model_requested;
+        var task = a.item_id
+          ? '<span class="task"><span class="id">' + esc(a.item_id) + '</span>' + esc(a.item_title||'') + '</span>'
+          : '<span class="task none">' + esc(a.idle_note || 'nothing assigned') + '</span>';
+        return '<tr>' +
+          '<td><div class="who"><b>' + esc(a.name) + '</b>' +
+            '<span>' + esc(a.agent_key) + '</span></div></td>' +
+          '<td><span class="model' + (routed ? ' routed' : '') + '">' +
+            esc(a.model_used || a.model_requested || '—') + '</span></td>' +
+          '<td><span class="state"><span class="dot ' + esc(a.status) + '"></span>' +
+            esc(a.status) + (a.since ? ' · ' + ago(a.since) : '') + '</span></td>' +
+          '<td>' + task + '</td>' +
+          '<td class="num">' + num(a.runs) + '</td>' +
+          '<td class="num lead">' + compact(live) + '</td>' +
+          '<td class="num">' + compact(t.cache_read) + '</td>' +
+          '<td class="num">' + money(a.cost_usd) + '</td>' +
+          '<td class="num">' + (a.gh_minutes == null ? '—' : num(a.gh_minutes)) + '</td>' +
+        '</tr>';
+      }).join('');
+    }).join('');
+
+    $('crewBody').innerHTML = rows || '<tr><td colspan="9" class="empty">No crew on shift.</td></tr>';
+    var working = crew.filter(function(a){ return a.status === 'working'; }).length;
+    var stuck = crew.filter(function(a){ return a.status === 'blocked'; }).length;
+    $('crewSub').textContent = working + ' working' + (stuck ? ', ' + stuck + ' blocked' : '') +
+      ' · ' + (D.sessions || []).length + ' session' + ((D.sessions||[]).length === 1 ? '' : 's');
+  }
+
+  function paintIntegrity(){
+    var i = D.integrity || {};
+    var checks = [
+      ['sequence gaps', (i.seq_gaps||[]).length, function(n){ return n + ' missing event' + (n===1?'':'s') + ' — a write was lost'; }],
+      ['unfinished runs', (i.orphan_runs||[]).length, function(n){ return n + ' run' + (n===1?'':'s') + ' started with no result recorded'; }],
+      ['state drift', i.state_drift||0, function(n){ return n + ' item' + (n===1?'':'s') + ' on disk disagree with the ledger'; }],
+      ['duplicate items', (i.duplicates||[]).length, function(n){ return n + ' possible duplicate' + (n===1?'':'s') + ' on the board'; }],
+      ['stale claims', (i.stale_claims||[]).length, function(n){ return n + ' item' + (n===1?'':'s') + ' claimed in progress with no commits'; }]
+    ];
+    $('integrity').innerHTML = checks.map(function(c){
+      var n = c[1];
+      return '<div class="flag-row"><span class="k' + (n ? '' : ' ok') + '">' + esc(c[0]) + '</span>' +
+        '<span class="v">' + (n ? esc(c[2](n)) : 'clean') + '</span></div>';
+    }).join('');
+  }
+
+  function paintBoard(){
+    var arcs = (D.board && D.board.arcs) || [];
+    if (!arcs.length){ $('arcs').innerHTML = '<div class="empty">Nothing on the board yet.</div>'; return; }
+    $('arcs').innerHTML = arcs.map(function(arc){
+      var items = arc.items || [];
+      var done = items.filter(function(i){ return i.status === 'done'; }).length;
+      var pct = items.length ? Math.round(done / items.length * 100) : 0;
+      var rows = items.map(function(i){
+        return '<tr>' +
+          '<td><span class="task"><span class="id">' + esc(i.item_id) + '</span>' + esc(i.title) +
+            (i.duplicate_of ? '<span class="dupe">dup of ' + esc(i.duplicate_of) + '</span>' : '') + '</span></td>' +
+          '<td><span class="chip ' + esc(i.kind === 'bug' ? 'bug' : '') + '">' + esc(i.kind) + '</span></td>' +
+          '<td><span class="chip ' + esc(i.status) + '">' + esc(i.status.replace(/_/g,' ')) + '</span></td>' +
+          '<td>' + esc(i.assignee || '—') + '</td>' +
+          '<td class="num">' + esc(i.estimate || '—') + '</td>' +
+          '<td class="num">' + esc(i.actual || '—') + '</td>' +
+          '<td class="num">' + ago(i.updated_at) + '</td>' +
+        '</tr>';
+      }).join('');
+      return '<div class="arc"><header>' +
+        '<span class="id">' + esc(arc.arc_id) + '</span><h3>' + esc(arc.title) + '</h3>' +
+        '<span class="spacer"></span>' +
+        '<span class="chip">' + done + '/' + items.length + '</span>' +
+        '<span class="meter"><i style="width:' + pct + '%"></i></span>' +
+        '</header><div class="scroll"><table><thead><tr>' +
+        '<th>Item</th><th>Kind</th><th>Status</th><th>Assignee</th>' +
+        '<th class="num">Est</th><th class="num">Actual</th><th class="num">Updated</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody></table></div></div>';
+    }).join('');
+    var all = arcs.reduce(function(n,a){ return n + (a.items||[]).length; }, 0);
+    $('boardSub').textContent = arcs.length + ' arcs · ' + all + ' items';
+  }
+
+  function paintWaiting(){
+    var asks = D.waiting_on_you || [];
+    if (!asks.length){
+      $('asks').innerHTML = '<div class="empty">Nothing needs you. The crew is unblocked.</div>';
+      return;
+    }
+    $('asks').innerHTML = asks.map(function(a){
+      var mins = (Date.now() - Date.parse(a.since)) / 60000;
+      return '<div class="ask">' +
+        '<span class="age' + (mins < 15 ? ' calm' : '') + '">' + ago(a.since) + '</span>' +
+        '<div class="body"><p class="q">' + esc(a.question) + '</p>' +
+        '<span class="from">' + esc(a.agent) + ' · ' + esc(a.item_id) +
+        ' · <span class="cmd">wall answer ' + esc(a.ask_id) + '</span></span></div></div>';
+    }).join('');
+  }
+
+  function paintLedger(){
+    var b = D.budget || {};
+    var gauges = (b.meters || []).map(function(m){
+      var pct = m.limit ? Math.min(100, m.used / m.limit * 100) : 0;
+      var cls = pct > 85 ? 'hot' : pct > 70 ? 'warm' : '';
+      return '<div class="gauge"><h4>' + esc(m.label) + '</h4>' +
+        '<div><span class="big">' + esc(m.display || compact(m.used)) + '</span>' +
+        (m.limit ? '<span class="of">of ' + compact(m.limit) + '</span>' : '') + '</div>' +
+        '<div class="bar"><i class="' + cls + '" style="width:' + pct.toFixed(1) + '%"></i></div>' +
+        '<div class="foot">' + esc(m.foot || '') + '</div></div>';
+    }).join('');
+    $('gauges').innerHTML = gauges || '<div class="gauge"><div class="foot">No budget data yet.</div></div>';
+    $('advisory').textContent = b.advisory ||
+      'Budgets are advisory. Nothing here stops work — it tells you when to.';
+    $('ledgerSub').textContent = b.period || '';
+
+    $('rollupBody').innerHTML = (D.rollup_by_role || []).map(function(r){
+      return '<tr><td>' + esc(r.role) + '</td><td><span class="model">' + esc(r.model) + '</span></td>' +
+        '<td class="num">' + num(r.runs) + '</td>' +
+        '<td class="num">' + compact(r.tokens_in) + '</td>' +
+        '<td class="num lead">' + compact(r.tokens_out) + '</td>' +
+        '<td class="num">' + compact(r.cache_read) + '</td>' +
+        '<td class="num">' + money(r.cost_usd) + '</td></tr>';
+    }).join('') || '<tr><td colspan="7" class="empty">No runs recorded.</td></tr>';
+  }
+
+  function paint(){
+    document.title = 'Wall — ' + (D.repo && D.repo.name || '');
+    $('repoName').firstChild.nodeValue = (D.repo && D.repo.name) || '—';
+    $('repoBranch').textContent = (D.repo && D.repo.branch) ? D.repo.branch : '';
+    var c = D.courier || {};
+    $('courierNote').textContent = 'courier ' + (c.last_run_ms != null ? c.last_run_ms + 'ms' : '—') +
+      ' · ' + num(c.events) + ' events';
+    $('fSchema').textContent = 'schema v' + (D.schema_version || '?');
+    $('fEvents').textContent = num(c.events) + ' events merged';
+    $('fShards').textContent = num(c.shards) + ' shards';
+    $('fSessions').textContent = (D.sessions || []).length + ' sessions';
+    paintTabs(); paintSweep(); paintCrew(); paintIntegrity();
+    paintBoard(); paintWaiting(); paintLedger();
+  }
+
+  paint();
+  setInterval(paintSweep, 1000);
+})();
+</script>
+</body>
+</html>

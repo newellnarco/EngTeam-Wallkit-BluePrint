@@ -1,0 +1,54 @@
+{
+  "repo_name": "MAX3",
+  "app_path": "C:\\Dev\\MAX3",
+
+  "role_limits": { "builder": 4, "reviewer": 2, "researcher": 6 },
+
+  "stale_after_min": 30,
+
+  "sla_minutes": {
+    "question_assigned": 5,
+    "researcher_first_run": 10,
+    "escalate_to_architect": 30,
+    "escalate_to_human": 60
+  },
+
+  "max_rework_cycles": 3,
+
+  "fast_track": {
+    "allow": ["**/*.md", "docs/**/*.docx", "TREE_INTEGRITY_LEDGER.txt",
+              "MANIFEST.sha256"],
+    "deny":  ["frontend/src/**", "backend/**/*.py", "**/*.bat", "**/*.ps1",
+              ".github/workflows/**", "tools/**", ".wall/config/**",
+              "**/CLAUDE.md"],
+    "significant": ["docs/architecture/**", "docs/decisions/**"]
+  },
+
+  "definition_of_done": [
+    "every acceptance criterion maps to a source",
+    "tests written and passing",
+    "lint and typecheck clean",
+    "CI green or fast-track route confirmed",
+    "item file updated",
+    "docs touched if architectural",
+    "decisions consumed are referenced",
+    "reviewer pass complete"
+  ],
+
+  "researcher_network": {
+    "enabled": false,
+    "_comment": "Local-only by default. See OPEN_QUESTIONS.md #10.",
+    "allowlist": []
+  },
+
+  "budget": {
+    "period": "week to date",
+    "advisory": "Advisory only. Nothing here stops work — it tells you when to.",
+    "meters": [
+      { "label": "Claude — Opus 5",    "used": 0, "limit": 60000000, "foot": "" },
+      { "label": "Claude — Sonnet 5",  "used": 0, "limit": 90000000, "foot": "" },
+      { "label": "Claude — Fable 5.1", "used": 0, "limit": 20000000, "foot": "" },
+      { "label": "GitHub Actions",     "used": 0, "limit": 3000,     "foot": "minutes" }
+    ]
+  }
+}

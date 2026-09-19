@@ -1,0 +1,567 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-09-19T21:23:45.757Z",
+  "repo": {
+    "name": "atlas-core",
+    "path": "/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kitzip/wallkit/max3-wall-kit/sample",
+    "branch": ""
+  },
+  "courier": {
+    "last_run_ms": 1,
+    "events": 57,
+    "shards": 2
+  },
+  "integrity": {
+    "seq_gaps": [
+      {
+        "session_id": "s_b19e",
+        "seq": 10
+      }
+    ],
+    "orphan_runs": [
+      {
+        "run_id": "run_024",
+        "agent": "Coretta",
+        "started": "2026-09-19T13:32:09.000Z",
+        "item_id": "ST-104"
+      },
+      {
+        "run_id": "run_orphan_1",
+        "agent": "Nadia",
+        "started": "2026-09-19T18:23:45.700Z",
+        "item_id": "ST-121"
+      }
+    ],
+    "duplicates": [
+      [
+        "ST-120",
+        "ST-112"
+      ]
+    ],
+    "state_drift": 0,
+    "stale_claims": [
+      {
+        "agent": "Nadia",
+        "item_id": "ST-121",
+        "since": "2026-09-19T18:23:45.700Z"
+      }
+    ]
+  },
+  "role_limits": {
+    "builder": 4,
+    "researcher": 6,
+    "reviewer": 2
+  },
+  "crew": [
+    {
+      "agent_key": "adj_5c02ea",
+      "name": "Coretta",
+      "title": "",
+      "role": "adjudicator",
+      "model_requested": "claude-fable-5-1",
+      "model_used": "claude-fable-5-1",
+      "status": "idle",
+      "item_id": null,
+      "item_title": null,
+      "since": "2026-09-19T13:49:14.000Z",
+      "runs": 3,
+      "cost_usd": 3.7710000000000004,
+      "gh_minutes": 2,
+      "tokens": {
+        "in": 31615,
+        "out": 5940,
+        "cache_read": 182565,
+        "cache_write": 19995
+      },
+      "last_event": "2026-09-19T13:49:14.000Z"
+    },
+    {
+      "agent_key": "arc_bb1740",
+      "name": "Edmund",
+      "title": "",
+      "role": "architect",
+      "model_requested": "claude-fable-5-1",
+      "model_used": "claude-fable-5-1",
+      "status": "idle",
+      "item_id": null,
+      "item_title": null,
+      "since": "2026-09-19T13:40:07.000Z",
+      "runs": 3,
+      "cost_usd": 4.625,
+      "gh_minutes": 4,
+      "tokens": {
+        "in": 62235,
+        "out": 8875,
+        "cache_read": 177088,
+        "cache_write": 18548
+      },
+      "last_event": "2026-09-19T21:12:45.700Z"
+    },
+    {
+      "agent_key": "bld_a41f09",
+      "name": "Desmond",
+      "title": "",
+      "role": "builder",
+      "model_requested": "claude-opus-5",
+      "model_used": "claude-opus-5",
+      "status": "working",
+      "item_id": "ST-106",
+      "item_title": "Checkpointed tail reads per shard",
+      "since": "2026-09-19T21:05:45.700Z",
+      "runs": 0,
+      "cost_usd": 0.0,
+      "gh_minutes": null,
+      "tokens": {
+        "in": 0,
+        "out": 0,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "last_event": "2026-09-19T21:05:45.700Z"
+    },
+    {
+      "agent_key": "bld_7e33d1",
+      "name": "Priya",
+      "title": "",
+      "role": "builder",
+      "model_requested": "claude-opus-5",
+      "model_used": "claude-opus-5",
+      "status": "blocked",
+      "item_id": "BG-021",
+      "item_title": "Duplicate event_id on retry",
+      "since": "2026-09-19T20:42:45.700Z",
+      "runs": 1,
+      "cost_usd": 1.42,
+      "gh_minutes": null,
+      "tokens": {
+        "in": 42258,
+        "out": 4568,
+        "cache_read": 205466,
+        "cache_write": 17578
+      },
+      "last_event": "2026-09-19T20:45:45.700Z"
+    },
+    {
+      "agent_key": "bld_2fc885",
+      "name": "Theo",
+      "title": "",
+      "role": "builder",
+      "model_requested": "claude-sonnet-5",
+      "model_used": "claude-sonnet-5",
+      "status": "working",
+      "item_id": "ST-111",
+      "item_title": "Atomic publish + heartbeat",
+      "since": "2026-09-19T21:17:45.700Z",
+      "runs": 0,
+      "cost_usd": 0.0,
+      "gh_minutes": null,
+      "tokens": {
+        "in": 0,
+        "out": 0,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "last_event": "2026-09-19T21:17:45.700Z"
+    },
+    {
+      "agent_key": "frm_4a91c2",
+      "name": "Alistair",
+      "title": "",
+      "role": "foreman",
+      "model_requested": "claude-sonnet-5",
+      "model_used": "claude-sonnet-5",
+      "status": "working",
+      "item_id": null,
+      "item_title": null,
+      "since": "2026-09-19T21:22:45.700Z",
+      "runs": 0,
+      "cost_usd": 0.0,
+      "gh_minutes": null,
+      "tokens": {
+        "in": 0,
+        "out": 0,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "last_event": "2026-09-19T21:22:45.700Z"
+    },
+    {
+      "agent_key": "mst_08de37",
+      "name": "Rosalind",
+      "title": "",
+      "role": "maestro",
+      "model_requested": "claude-opus-5",
+      "model_used": "claude-opus-5",
+      "status": "idle",
+      "item_id": null,
+      "item_title": null,
+      "since": "2026-09-19T14:05:16.000Z",
+      "runs": 6,
+      "cost_usd": 7.971,
+      "gh_minutes": 16,
+      "tokens": {
+        "in": 92817,
+        "out": 22690,
+        "cache_read": 562679,
+        "cache_write": 28589
+      },
+      "last_event": "2026-09-19T21:19:45.700Z"
+    },
+    {
+      "agent_key": "res_66c1b3",
+      "name": "Nadia",
+      "title": "",
+      "role": "researcher",
+      "model_requested": "claude-sonnet-5",
+      "model_used": "claude-sonnet-5",
+      "status": "stale",
+      "item_id": "ST-121",
+      "item_title": "No-op status check",
+      "since": "2026-09-19T18:23:45.700Z",
+      "runs": 3,
+      "cost_usd": 2.431,
+      "gh_minutes": 4,
+      "tokens": {
+        "in": 50797,
+        "out": 7702,
+        "cache_read": 362242,
+        "cache_write": 16618
+      },
+      "last_event": "2026-09-19T18:23:45.700Z"
+    },
+    {
+      "agent_key": "res_d470af",
+      "name": "Silas",
+      "title": "",
+      "role": "researcher",
+      "model_requested": "claude-sonnet-5",
+      "model_used": "claude-sonnet-5",
+      "status": "working",
+      "item_id": "BG-021",
+      "item_title": "Find prior art on seq-gap recovery",
+      "since": "2026-09-19T21:20:45.700Z",
+      "runs": 0,
+      "cost_usd": 0.0,
+      "gh_minutes": null,
+      "tokens": {
+        "in": 0,
+        "out": 0,
+        "cache_read": 0,
+        "cache_write": 0
+      },
+      "last_event": "2026-09-19T21:20:45.700Z"
+    },
+    {
+      "agent_key": "rev_913b6e",
+      "name": "Junia",
+      "title": "",
+      "role": "reviewer",
+      "model_requested": "claude-sonnet-5",
+      "model_used": "claude-sonnet-5",
+      "status": "idle",
+      "item_id": null,
+      "item_title": null,
+      "since": "2026-09-19T13:45:58.000Z",
+      "runs": 3,
+      "cost_usd": 5.905,
+      "gh_minutes": 4,
+      "tokens": {
+        "in": 45806,
+        "out": 7876,
+        "cache_read": 309706,
+        "cache_write": 13692
+      },
+      "last_event": "2026-09-19T13:45:58.000Z"
+    }
+  ],
+  "board": {
+    "arcs": [
+      {
+        "arc_id": "ARC-01",
+        "title": "Event ledger and consolidation",
+        "items": [
+          {
+            "item_id": "BG-021",
+            "kind": "bug",
+            "status": "blocked",
+            "title": "Duplicate event_id on retry",
+            "arc_id": "ARC-01",
+            "arc_title": "Event ledger and consolidation",
+            "assignee": "Priya",
+            "estimate": "S",
+            "actual": null,
+            "duplicate_of": null,
+            "updated_at": "2026-09-19T12:20:37.000Z"
+          },
+          {
+            "item_id": "ST-104",
+            "kind": "story",
+            "status": "done",
+            "title": "Append-only shard writer",
+            "arc_id": "ARC-01",
+            "arc_title": "Event ledger and consolidation",
+            "assignee": "Desmond",
+            "estimate": "M",
+            "actual": "M",
+            "duplicate_of": null,
+            "updated_at": "2026-09-19T12:08:25.000Z"
+          },
+          {
+            "item_id": "ST-105",
+            "kind": "story",
+            "status": "in_review",
+            "title": "Deterministic merge with dedupe",
+            "arc_id": "ARC-01",
+            "arc_title": "Event ledger and consolidation",
+            "assignee": "Priya",
+            "estimate": "L",
+            "actual": "XL",
+            "duplicate_of": null,
+            "updated_at": "2026-09-19T12:10:22.000Z"
+          },
+          {
+            "item_id": "ST-106",
+            "kind": "story",
+            "status": "active",
+            "title": "Checkpointed tail reads per shard",
+            "arc_id": "ARC-01",
+            "arc_title": "Event ledger and consolidation",
+            "assignee": "Desmond",
+            "estimate": "M",
+            "actual": null,
+            "duplicate_of": null,
+            "updated_at": "2026-09-19T12:14:24.000Z"
+          }
+        ]
+      },
+      {
+        "arc_id": "ARC-02",
+        "title": "Wall renderer and propagation",
+        "items": [
+          {
+            "item_id": "ST-110",
+            "kind": "story",
+            "status": "done",
+            "title": "Self-contained HTML template",
+            "arc_id": "ARC-02",
+            "arc_title": "Wall renderer and propagation",
+            "assignee": "Theo",
+            "estimate": "S",
+            "actual": "S",
+            "duplicate_of": null,
+            "updated_at": "2026-09-19T12:21:41.000Z"
+          },
+          {
+            "item_id": "ST-111",
+            "kind": "story",
+            "status": "active",
+            "title": "Atomic publish + heartbeat",
+            "arc_id": "ARC-02",
+            "arc_title": "Wall renderer and propagation",
+            "assignee": "Theo",
+            "estimate": "M",
+            "actual": null,
+            "duplicate_of": null,
+            "updated_at": "2026-09-19T12:22:58.000Z"
+          },
+          {
+            "item_id": "ST-112",
+            "kind": "story",
+            "status": "ready",
+            "title": "Live-poll upgrade path",
+            "arc_id": "ARC-02",
+            "arc_title": "Wall renderer and propagation",
+            "assignee": null,
+            "estimate": "M",
+            "actual": null,
+            "duplicate_of": null,
+            "updated_at": "2026-09-19T12:28:12.000Z"
+          }
+        ]
+      },
+      {
+        "arc_id": "ARC-03",
+        "title": "Fast-track routing",
+        "items": [
+          {
+            "item_id": "BG-024",
+            "kind": "bug",
+            "status": "triage",
+            "title": "Mixed changeset takes wrong route",
+            "arc_id": "ARC-03",
+            "arc_title": "Fast-track routing",
+            "assignee": null,
+            "estimate": "S",
+            "actual": null,
+            "duplicate_of": null,
+            "updated_at": "2026-09-19T12:39:05.000Z"
+          },
+          {
+            "item_id": "ST-120",
+            "kind": "story",
+            "status": "ready",
+            "title": "Path-based route classifier",
+            "arc_id": "ARC-03",
+            "arc_title": "Fast-track routing",
+            "assignee": null,
+            "estimate": "S",
+            "actual": null,
+            "duplicate_of": "ST-112",
+            "updated_at": "2026-09-19T12:29:40.000Z"
+          },
+          {
+            "item_id": "ST-121",
+            "kind": "story",
+            "status": "ready",
+            "title": "No-op status check for protection",
+            "arc_id": "ARC-03",
+            "arc_title": "Fast-track routing",
+            "assignee": null,
+            "estimate": "M",
+            "actual": null,
+            "duplicate_of": null,
+            "updated_at": "2026-09-19T12:33:27.000Z"
+          }
+        ]
+      }
+    ]
+  },
+  "waiting_on_you": [
+    {
+      "ask_id": "ask_0007",
+      "question": "Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?",
+      "agent": "Priya",
+      "item_id": "BG-021",
+      "since": "2026-09-19T20:45:45.700Z",
+      "trace_id": "tr_bg-021"
+    },
+    {
+      "ask_id": "ask_0008",
+      "question": "Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?",
+      "agent": "Edmund",
+      "item_id": "ST-112",
+      "since": "2026-09-19T21:12:45.700Z",
+      "trace_id": "tr_st-112"
+    },
+    {
+      "ask_id": "ask_0009",
+      "question": "Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?",
+      "agent": "Rosalind",
+      "item_id": "ARC-03",
+      "since": "2026-09-19T21:19:45.700Z",
+      "trace_id": "tr_arc-03"
+    }
+  ],
+  "budget": {
+    "period": "week of 14 Sep 2026",
+    "advisory": "Advisory only. Nothing here stops work — it tells you when to.",
+    "meters": [
+      {
+        "label": "Claude — Opus 5",
+        "used": 41200000,
+        "limit": 60000000,
+        "display": "41.2M",
+        "foot": "builders account for 78% of this"
+      },
+      {
+        "label": "Claude — Sonnet 5",
+        "used": 12800000,
+        "limit": 90000000,
+        "display": "12.8M",
+        "foot": "researchers and review"
+      },
+      {
+        "label": "Claude — Fable 5.1",
+        "used": 3100000,
+        "limit": 20000000,
+        "display": "3.1M",
+        "foot": "1 run routed to Opus by safeguards"
+      },
+      {
+        "label": "GitHub Actions",
+        "used": 1412,
+        "limit": 3000,
+        "display": "1,412 min",
+        "foot": "fast-track saved an estimated 240 min"
+      }
+    ]
+  },
+  "rollup_by_role": [
+    {
+      "role": "adjudicator",
+      "model": "claude-fable-5-1",
+      "runs": 3,
+      "tokens_in": 31615,
+      "tokens_out": 5940,
+      "cache_read": 182565,
+      "cost_usd": 3.7710000000000004
+    },
+    {
+      "role": "architect",
+      "model": "claude-fable-5-1",
+      "runs": 3,
+      "tokens_in": 62235,
+      "tokens_out": 8875,
+      "cache_read": 177088,
+      "cost_usd": 4.625
+    },
+    {
+      "role": "builder",
+      "model": "claude-opus-5",
+      "runs": 1,
+      "tokens_in": 42258,
+      "tokens_out": 4568,
+      "cache_read": 205466,
+      "cost_usd": 1.42
+    },
+    {
+      "role": "builder",
+      "model": "claude-sonnet-5",
+      "runs": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "cache_read": 0,
+      "cost_usd": 0.0
+    },
+    {
+      "role": "foreman",
+      "model": "claude-sonnet-5",
+      "runs": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "cache_read": 0,
+      "cost_usd": 0.0
+    },
+    {
+      "role": "maestro",
+      "model": "claude-opus-5",
+      "runs": 6,
+      "tokens_in": 92817,
+      "tokens_out": 22690,
+      "cache_read": 562679,
+      "cost_usd": 7.971
+    },
+    {
+      "role": "researcher",
+      "model": "claude-sonnet-5",
+      "runs": 3,
+      "tokens_in": 50797,
+      "tokens_out": 7702,
+      "cache_read": 362242,
+      "cost_usd": 2.431
+    },
+    {
+      "role": "reviewer",
+      "model": "claude-sonnet-5",
+      "runs": 3,
+      "tokens_in": 45806,
+      "tokens_out": 7876,
+      "cache_read": 309706,
+      "cost_usd": 5.905
+    }
+  ],
+  "sessions": [
+    "s_7f3a",
+    "s_b19e"
+  ]
+}

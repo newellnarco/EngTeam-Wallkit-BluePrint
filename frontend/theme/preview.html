@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MAX3 theme — preview</title>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="primitives.css">
+<style>
+  /* Preview-only scaffolding. Not part of the theme. */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); }
+  .sw { background: var(--surface-panel); padding: var(--space-3); }
+  .sw i { display: block; height: 34px; border-radius: var(--radius-sm); border: 1px solid var(--line); margin-bottom: var(--space-2); }
+  .sw code { font-size: var(--text-xs); color: var(--text-muted); display: block; }
+  .sw b { font-size: var(--text-sm); font-weight: 500; }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: var(--space-4); }
+  .scale > div { border-bottom: 1px solid var(--line-soft); padding: var(--space-2) 0; }
+  .scale span { color: var(--text-muted); font-family: var(--font-mono); font-size: var(--text-xs); margin-left: var(--space-3); }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <div class="masthead">
+    <h1>MAX3</h1>
+    <span class="meta">theme preview · drop 49</span>
+    <span class="spacer"></span>
+    <button class="btn btn--quiet" id="toggle">Switch to light</button>
+  </div>
+
+  <nav class="tabs" style="margin-bottom:var(--space-4)">
+    <button aria-selected="true">Overview</button>
+    <button aria-selected="false">Drops<span class="count">49</span></button>
+    <button aria-selected="false">Integrity</button>
+    <button aria-selected="false">Settings</button>
+  </nav>
+
+  <div class="stack">
+
+    <div class="notice notice--warn">
+      <div><strong>Ledger drift on two files.</strong>
+      README.md and CLAUDE.md have changed on disk since Drop 49 was recorded.
+      Update the ledger entries, or revert the files.</div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel__head">Install state<span class="sub">C:\Dev\MAX3</span></div>
+        <div class="panel__body stack">
+          <div class="row row--baseline">
+            <span class="state"><span class="dot dot--good"></span>Manifest matches</span>
+            <span class="spacer"></span><span class="ident">sha256 4f2ac19b…</span>
+          </div>
+          <div class="row row--baseline">
+            <span class="state"><span class="dot dot--alert"></span>2 files drifted</span>
+            <span class="spacer"></span><span class="chip chip--alert">action needed</span>
+          </div>
+          <div>
+            <div class="row row--baseline" style="margin-bottom:var(--space-2)">
+              <span style="font-size:var(--text-sm);color:var(--text-secondary)">Drop coverage</span>
+              <span class="spacer"></span><span class="num">47 / 49</span>
+            </div>
+            <div class="meter"><i class="warn" style="width:96%"></i></div>
+          </div>
+        </div>
+        <div class="panel__foot">Last verified 12 minutes ago</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head">Run a drop</div>
+        <div class="panel__body stack">
+          <div class="field">
+            <label for="drop">Drop number</label>
+            <input class="input" id="drop" value="49">
+            <span class="hint">Install bats are idempotent — safe to re-run.</span>
+          </div>
+          <div class="field">
+            <label for="mode">Mode</label>
+            <select class="select" id="mode">
+              <option>Install and verify</option>
+              <option>Verify only</option>
+            </select>
+          </div>
+          <div class="row">
+            <button class="btn btn--primary">Install drop</button>
+            <button class="btn">Dry run</button>
+            <span class="spacer"></span>
+            <button class="btn btn--danger">Reset tree</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__head">Drop history<span class="sub">newest first</span></div>
+      <div class="scroll-x">
+        <table class="data">
+          <thead><tr>
+            <th>Drop</th><th>Summary</th><th>Status</th><th>Branch</th>
+            <th class="num">Files</th><th class="num">Tests</th><th class="num">Merged</th>
+          </tr></thead>
+          <tbody>
+            <tr class="group"><td colspan="7">September<span class="count">4 drops</span></td></tr>
+            <tr>
+              <td><span class="ident">49</span></td>
+              <td>Recovery for skipped Drop 46</td>
+              <td><span class="chip chip--good">merged</span></td>
+              <td><span class="ident">work/2026-09-18</span></td>
+              <td class="num">14</td><td class="num lead">312</td><td class="num">1d</td>
+            </tr>
+            <tr>
+              <td><span class="ident">48</span></td>
+              <td>check-local-unpushed tooling</td>
+              <td><span class="chip chip--good">merged</span></td>
+              <td><span class="ident">work/2026-09-15</span></td>
+              <td class="num">3</td><td class="num lead">308</td><td class="num">4d</td>
+            </tr>
+            <tr>
+              <td><span class="ident">47</span></td>
+              <td>Ledger hash check in CI</td>
+              <td><span class="chip chip--good">merged</span></td>
+              <td><span class="ident">work/2026-09-11</span></td>
+              <td class="num">9</td><td class="num lead">308</td><td class="num">8d</td>
+            </tr>
+            <tr>
+              <td><span class="ident">46</span></td>
+              <td>push-to-github + pull-to-local bats</td>
+              <td><span class="chip chip--alert">skipped locally</span></td>
+              <td><span class="ident">work/2026-09-08</span></td>
+              <td class="num">11</td><td class="num">—</td><td class="num">11d</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="two">
+      <div class="panel">
+        <div class="panel__head">Empty state</div>
+        <div class="empty">
+          No drops are pending.<br>
+          <button class="btn">Check for updates</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__head">Type scale</div>
+        <div class="panel__body scale">
+          <div style="font-size:var(--text-2xl);letter-spacing:-.02em">Twenty-seven<span>2xl</span></div>
+          <div style="font-size:var(--text-xl);letter-spacing:-.015em">Twenty-one<span>xl</span></div>
+          <div style="font-size:var(--text-lg)">Eighteen<span>lg</span></div>
+          <div style="font-size:var(--text-md)">Fifteen<span>md</span></div>
+          <div style="font-size:var(--text-base)">Thirteen and a half<span>base</span></div>
+          <div style="font-size:var(--text-sm);color:var(--text-secondary)">Twelve and a half<span>sm</span></div>
+          <div style="font-size:var(--text-xs);color:var(--text-muted)">Eleven and a half<span>xs</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel__head">Semantic tokens<span class="sub">these are what components use</span></div>
+      <div class="swatches">
+        <div class="sw"><i style="background:var(--surface-ground)"></i><b>ground</b><code>--surface-ground</code></div>
+        <div class="sw"><i style="background:var(--surface-panel)"></i><b>panel</b><code>--surface-panel</code></div>
+        <div class="sw"><i style="background:var(--surface-raised)"></i><b>raised</b><code>--surface-raised</code></div>
+        <div class="sw"><i style="background:var(--line)"></i><b>line</b><code>--line</code></div>
+        <div class="sw"><i style="background:var(--accent)"></i><b>accent</b><code>--accent</code></div>
+        <div class="sw"><i style="background:var(--status-good)"></i><b>good</b><code>--status-good</code></div>
+        <div class="sw"><i style="background:var(--status-alert)"></i><b>alert</b><code>--status-alert</code></div>
+        <div class="sw"><i style="background:var(--status-info)"></i><b>info</b><code>--status-info</code></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  var root = document.documentElement, btn = document.getElementById('toggle');
+  btn.addEventListener('click', function () {
+    var light = root.getAttribute('data-theme') === 'light';
+    root.setAttribute('data-theme', light ? 'dark' : 'light');
+    btn.textContent = light ? 'Switch to light' : 'Switch to dark';
+  });
+  document.querySelectorAll('.tabs button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.tabs button').forEach(function (o) {
+        o.setAttribute('aria-selected', String(o === b));
+      });
+    });
+  });
+</script>
+</body>
+</html>
