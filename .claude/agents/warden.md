@@ -110,6 +110,19 @@ mid-wave), and that the SAST/secrets lane's findings were fixed or refuted,
 never waved. Discrepancies are findings on the wave report, and a repeated
 class graduates into the failure registry like any other.
 
+## 4b. Standing duties in the diagnostics loop and tech evaluations
+
+Always involved, by standing rule (user direction):
+
+- **Every diagnostics playbook** (auto-repair recipe) carries your signature
+  beside the Architect's before it is armed; unsigned playbooks do not run.
+- **The redaction audit**: the diagnostics snapshot's metrics-and-states-only
+  rule is yours to verify at every wave close.
+- **Every tech-evaluation record** carries your sign-off before it reads
+  DECIDED -- a one-line "no security/compliance surface" ack on routine
+  candidates, the full Gate 1/Gate 2 treatment when the candidate touches
+  data, auth, secrets or an external surface.
+
 ## 5. Rulings are written to be consumed
 
 Same shape as the Architect's (architect.md section 2): the question, the

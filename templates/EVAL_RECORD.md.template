@@ -21,6 +21,14 @@ HOW TO USE    Copy to docs/decisions/EVAL-<TOPIC>.md (or fold into the
 | Decided / last reviewed | <DATE> |
 | Decision record | DEC-<NNNN> |
 
+## Sign-offs (all three before Status may read DECIDED)
+
+| Party | Verdict | Date |
+|---|---|---|
+| Architect (authored) | <SIGNED / PENDING> | <DATE> |
+| Warden | <ACK - no security/compliance surface / SIGNED via Gate 1-2 / BLOCKED: reason> | <DATE> |
+| Engineer (ratified) | <CONFIRMED via human queue / PENDING> | <DATE> |
+
 ## The question
 
 <WHAT_IS_BEING_EVALUATED_AND_WHY_NOW - the trigger that opened this>

@@ -61,7 +61,8 @@ triages it under this standing autonomy grant:
    the snapshot, then fix from the evidence. The diagnostics channel gets
    better every time it fails to answer a question.
 3. **Diagnose-first routing** by a deterministic classifier over the
-   normalized signature: a known signature maps to a written playbook
+   normalized signature: a known signature maps to a written playbook —
+   every playbook Architect- and Warden-signed before arming (section 7)
    (auto-repairable → repair now + audit entry); an unknown signature files
    a story (stage four) and — only where a spend gate is explicitly armed,
    default OFF — escalates to a live session. The classifier is deliberately
@@ -121,16 +122,34 @@ Two rules make the discipline real:
    dependency-absent skip path means the fix never applies anywhere
    (seeded class F-ONESHOT).
 
-## 7. Events
+## 7. Sign-off — who is always in this loop
 
-Three ledger events carry this loop (EVENT_SCHEMA.md §7):
+The loop is autonomous, not unsupervised. Three parties are involved in every
+cycle, by standing rule (user direction), each at the point where their
+authority means something — none of them as a per-event speed bump:
+
+| Party | Always involved as |
+|---|---|
+| **Architect** | Every playbook (an auto-repair recipe the classifier may run) carries the Architect's written sign-off **before it is armed** — a repair recipe is a design. Every story filed from a finding gets its solution design authored or signed by the Architect before dispatch, per the normal authoring path. At wave close the Architect reviews the cycle's auto-repairs for design drift. |
+| **Warden** | Signs every playbook beside the Architect (a repair that touches data, credentials or an external surface is exactly what the Warden exists to see **before** it runs). Owns the standing **redaction audit**: the snapshot's metrics-and-states-only rule is verified by the Warden at wave close, every wave. Triage of every filed finding includes the Warden's risk-tier read; an in-scope finding's story hits the normal Gate 1 before dispatch. |
+| **Engineer** | Receives the advise-in-one-message heads-up per cycle (stage three), owns the verification queue (section 5), and holds the ceiling: the six escalation classes apply inside this loop exactly as outside. A playbook neither the Architect nor the Warden will sign goes to the engineer — it does not run unsigned. |
+
+The asymmetry that keeps this fast: **repairs already covered by a signed
+playbook run immediately** (the sign-off happened when the playbook was
+written); only a *new* playbook, a *new* story design, or an in-scope finding
+waits on a person — and what it waits on is written, so the wait is one
+review, not a meeting.
+
+## 8. Events
+
+Three ledger events carry this loop (EVENT_SCHEMA.md §9):
 `diagnostic_snapshot_shipped`, `diagnostic_finding`, `story_filed` — plus
 the verification pair `verify_requested` / `verified`. All ride the normal
 shard → courier → wall path; the WAITING tab shows unverified items beside
 unanswered asks, because both are the same thing: the loop holding a slot
 open for a human.
 
-## 8. Cross-references
+## 9. Cross-references
 
 - INSTALL.md — the timer, the shipper, `doctor.json`
 - WALL_STANDARDS.md §2 — the isolated-branch transport

@@ -52,7 +52,9 @@ switch: ship default-OFF, arm on the real installation, compare, then decide
 ## 3. The decision record
 
 Every evaluation ends in a record — `templates/EVAL_RECORD.md.template`,
-registered as a `DEC-NNNN` whose `Revisit if` points at the triggers. The
+registered as a `DEC-NNNN` whose `Revisit if` points at the triggers, and
+**carrying three signatures before it reads DECIDED: the Architect authored
+it, the Warden signed it (ack or full gate), the engineer ratified it.** The
 load-bearing fields, and why each earns its place:
 
 - **Status: DECIDED KEEP / DECIDED SWAP / OPEN**, with the owner of the
@@ -87,8 +89,9 @@ load-bearing fields, and why each earns its place:
 | Runs the harness, records both runs | Builder, on the story |
 | Rejects a perf/swap PR carrying no baseline | Reviewer — "adopt only on a measured win" is a DoD line for this change class |
 | Rules on a contested trade (target improved, guard arguably held) | Adjudicator, on the numbers |
-| Signs off an evaluation that touches data, auth, or an external surface | Warden, per its normal gates |
-| Writes the record; owns the KEEP/SWAP call within the product brief | Architect proposes, the engineer rules where it is a ceiling or a spend |
+| Signs **every** evaluation record — a one-line "no security/compliance surface" ack on routine ones, the full Gate 1/Gate 2 treatment when the candidate touches data, auth, secrets or an external surface (which a new integration almost always does) | Warden, always (user direction) |
+| Writes the record; proposes the KEEP/SWAP verdict | Architect, always — an evaluation without the Architect's authorship is an opinion with a benchmark |
+| Ratifies every DECIDED verdict — a one-word confirm via the human queue; ceilings and spend remain theirs outright | Engineer, always: no record moves from OPEN to DECIDED unseen |
 
 ## 5. Cross-references
 

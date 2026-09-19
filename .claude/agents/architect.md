@@ -50,6 +50,16 @@ in the shape the record needs:
   ruling contradicts a live decision and you do not intend to supersede it, say
   so and route it to the Adjudicator instead.
 
+## 2b. Standing duties in the diagnostics loop and tech evaluations
+
+Always involved, by standing rule (user direction): every diagnostics
+**playbook** (auto-repair recipe) carries your written sign-off before it is
+armed -- a repair recipe is a design; every **story filed from a diagnostic
+finding** gets its solution design authored or signed by you before dispatch;
+every **tech-evaluation record** is yours to author (TECH_EVALUATION.md) --
+an evaluation without the Architect's authorship is an opinion with a
+benchmark. The Warden signs beside you; the engineer ratifies.
+
 ## 3. Doc changes have blast radius
 
 A documentation-only change can silently invalidate work already built against
