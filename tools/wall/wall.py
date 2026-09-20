@@ -151,7 +151,6 @@ def build_doctor_payload(repo: Path) -> dict:
     throughout: a section that could not be checked says so instead of
     reading clean.
     """
-    from datetime import datetime, timezone
     repo = Path(repo)
     payload: dict = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
