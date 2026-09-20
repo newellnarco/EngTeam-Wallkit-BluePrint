@@ -894,7 +894,14 @@ footer {
         document.body.classList.add('queue-ok');
         var qp = D.queue_api.queue;
         return (qp ? fetch(qp, { cache: 'no-store' })
-                       .then(function(r){ return r.ok ? r.json() : {}; })
+                       .then(function(r){
+                         // A non-OK queue read is an UNKNOWN state, not an
+                         // empty queue -- throwing routes it to the outer
+                         // catch, which hides the strip and the buttons
+                         // rather than displaying zero counts as fact.
+                         if (!r.ok) throw new Error('queue read failed (' + r.status + ')');
+                         return r.json();
+                       })
                    : Promise.resolve({}))
           .then(function(snap){
             var c = snap.counts || {};

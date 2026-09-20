@@ -182,3 +182,14 @@ def test_strip_and_wave_panel_ship_hidden():
     html = _render(_snapshot({}))
     assert 'id="queueStrip" hidden' in html
     assert 'id="wavePanel" hidden' in html
+
+
+def test_non_ok_queue_read_is_unknown_not_empty():
+    """CodeRabbit finding on the host PR (accepted): `r.ok ? r.json() : {}`
+    rendered a queue OUTAGE as zero counts stated as fact. A non-OK read now
+    throws into the outer catch, which hides the strip and drops queue-ok.
+    Mutation: restore the empty-object substitute and the throw disappears."""
+    t = _template_text()
+    probe = t.split("function probeQueue")[1].split("function enqueue")[0]
+    assert "if (!r.ok) throw new Error('queue read failed" in probe
+    assert "r.ok ? r.json() : {}" not in probe
