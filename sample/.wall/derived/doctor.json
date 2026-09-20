@@ -1,0 +1,53 @@
+{
+ "generated_at": "2026-09-20T18:53:16+00:00",
+ "heartbeat": {
+  "corrupt_lines": 0,
+  "events": 78,
+  "last_run": "2026-09-20T18:53:16.557Z",
+  "ok": true,
+  "run_ms": 1
+ },
+ "integrity_summary": {
+  "checked": true,
+  "flags": {
+   "duplicates": 1,
+   "escalations": 3,
+   "fold_problems": 0,
+   "merged_but_open": 1,
+   "orphan_runs": 6,
+   "seq_duplicates": 1,
+   "seq_gaps": 1,
+   "stale_claims": 5,
+   "state_drift": 2
+  }
+ },
+ "plumbing": {
+  "checked": true,
+  "checks": [
+   {
+    "detail": "last sweep 0s ago",
+    "name": "heartbeat",
+    "status": "ok"
+   },
+   {
+    "detail": "no repos registered -- run `wall register`",
+    "name": "registry",
+    "status": "warn"
+   },
+   {
+    "detail": "Failed to connect to bus: No medium found",
+    "name": "timer",
+    "status": "fail"
+   },
+   {
+    "detail": "not measured (no budget-counted context doc wired yet)",
+    "name": "budget",
+    "status": "unknown"
+   }
+  ]
+ },
+ "roster": {
+  "checked": true,
+  "problems": []
+ }
+}

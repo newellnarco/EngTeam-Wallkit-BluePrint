@@ -1107,3 +1107,20 @@ def test_drift_first_is_sop_in_all_three_documents():
     workflow = (KIT / "docs" / "WORKFLOW.md").read_text(encoding="utf-8")
     assert "Confirms the drift pass (DEC-0020, G15)" in workflow
     assert "No pass, no dispatch." in workflow
+
+
+def test_readme_front_door_is_the_architects_and_upgrades_are_written():
+    """Patron direction 2026-09-20: the Architect owns the README front
+    door — runbooks, screenshots, diagrams, functionality changes — and
+    adopters get a written upgrade path, not an oral tradition. Drop the
+    ownership line or the upgrade section and this names which."""
+    roster = " ".join(
+        (KIT / "docs" / "AGENT_ROSTER_SPEC.md").read_text(encoding="utf-8").split())
+    assert "Owns the repo's front door: README.md" in roster
+    assert "README drift is Architect drift" in roster
+
+    readme = (KIT / "README.md").read_text(encoding="utf-8")
+    assert "### Upgrading an adoption" in readme
+    assert "Re-vendor verbatim, never fork" in readme
+    assert "Config is additive by contract" in readme
+    assert "One PR per upgrade, citing the kit commit" in readme

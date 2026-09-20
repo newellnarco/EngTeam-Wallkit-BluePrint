@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-19T23:55:30.562Z",
+  "generated_at": "2026-09-20T18:53:16.557Z",
   "repo": {
     "name": "Atlas-Core",
     "path": "/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kit/sample",
@@ -108,7 +108,7 @@
         "kind": "unassigned_past_sla",
         "question_id": "q_0051",
         "item_id": "ST-112",
-        "age_min": 166.5,
+        "age_min": 1304.3,
         "sla_min": 5,
         "detail": "nobody picked it up"
       },
@@ -117,9 +117,9 @@
         "question_id": "q_0051",
         "item_id": "ST-112",
         "tier": "researcher",
-        "age_min": 166.5,
+        "age_min": 1304.3,
         "sla_min": 60,
-        "detail": "open 166 min at tier 'researcher' -- escalate a tier"
+        "detail": "open 1304 min at tier 'researcher' -- escalate a tier"
       }
     ],
     "stale_claims": [
@@ -862,8 +862,10 @@
     ],
     "period_start": "2026-09-01T00:00:00+00:00",
     "period_end": "2026-10-01T00:00:00+00:00",
-    "pct_period_remaining": 36.7
+    "pct_period_remaining": 34.0
   },
+  "queue_api": null,
+  "agents_feed": null,
   "rollup_by_role": [
     {
       "role": "adjudicator",

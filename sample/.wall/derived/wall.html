@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- engteam-wall -->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -484,6 +485,54 @@ tr.child .twig { color: var(--text-muted); font-family: var(--font-mono); margin
 .note { color: var(--text-muted); font-size: var(--text-xs); margin-left: var(--space-2); }
 .dupe { color: var(--status-alert); font-size: var(--text-xs); margin-left: var(--space-2); }
 
+/* Item detail expansion: the board's long-form detail survives the redesign.
+   A toggle chip on rows that carry detail; the panel is a sibling row so the
+   table layout stays intact and a collapsed board reads exactly as before. */
+.dtoggle { border: 1px solid var(--line); background: var(--surface-raised);
+  color: var(--text-secondary); font: inherit; font-size: var(--text-xs);
+  border-radius: var(--radius-pill); padding: 0 var(--space-2);
+  margin-left: var(--space-2); cursor: pointer; line-height: 1.6; }
+.dtoggle:hover { background: var(--surface-hover); color: var(--text-primary); }
+.dtoggle[aria-expanded="true"] { color: var(--text-primary); border-color: var(--line-strong); }
+tr.detail-row td { background: var(--surface-sunken); border-bottom: 1px solid var(--line-soft);
+  padding: var(--space-3); }
+tr.detail-row[hidden] { display: none; }
+
+/* EXECUTE port (host queue integration): buttons exist only when the host
+   config declares a queue_api, and show only after the health probe answered
+   ok -- a wall served without its backend stays read-only, honestly. */
+.exec-btn { border: 1px solid var(--line-strong); background: var(--surface-raised);
+  color: var(--text-primary); font: inherit; font-size: var(--text-xs);
+  border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2);
+  cursor: pointer; display: none; }
+.exec-btn:hover:not([disabled]) { background: var(--surface-hover); }
+.exec-btn[disabled] { opacity: .5; cursor: default; }
+body.queue-ok .exec-btn { display: inline-block; }
+.exec-bar { display: flex; gap: var(--space-2); align-items: center;
+  margin-top: var(--space-2); }
+.exec-msg { color: var(--text-muted); font-size: var(--text-xs); }
+.queue-strip { display: flex; flex-wrap: wrap; gap: var(--space-3);
+  align-items: center; border: 1px solid var(--line);
+  background: var(--surface-panel); border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3); margin-bottom: var(--space-4);
+  color: var(--text-secondary); font-size: var(--text-sm); }
+.queue-strip .qs-label { color: var(--text-primary); font-weight: 600; }
+.queue-strip .qs-spacer { flex: 1; }
+.queue-strip[hidden] { display: none; }
+
+/* AGENTS port: the optional live wave feed on the CREW tab. */
+.wave-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4); }
+.wave-cols h3 { font-size: var(--text-sm); color: var(--text-primary);
+  margin: 0 0 var(--space-2); }
+.wave-cols ul { margin: 0; padding-left: var(--space-4);
+  color: var(--text-secondary); font-size: var(--text-sm); }
+.wave-cols li { margin-bottom: var(--space-1); overflow-wrap: anywhere; }
+.wave-cols .stage { color: var(--text-muted); font-size: var(--text-xs); }
+.detail-meta { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+.detail-pane { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px;
+  overflow: auto; color: var(--text-secondary); font-size: var(--text-sm); }
+
 .who { display: flex; flex-direction: column; gap: 1px; }
 .who b { font-weight: 600; font-size: var(--text-base); letter-spacing: -.005em; }
 .who span { color: var(--text-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
@@ -571,6 +620,7 @@ footer {
   </section>
 
   <section role="tabpanel" id="panel-board" aria-labelledby="tab-board">
+    <div class="queue-strip" id="queueStrip" hidden></div>
     <div class="panel">
       <h2>Arcs<span class="sub" id="arcsSub"></span></h2>
       <div id="arcs"></div>
@@ -600,6 +650,10 @@ footer {
   </section>
 
   <section role="tabpanel" id="panel-crew" aria-labelledby="tab-crew" hidden>
+    <div class="panel" id="wavePanel" hidden>
+      <h2>Live wave<span class="sub" id="waveSub"></span></h2>
+      <div id="waveBody"></div>
+    </div>
     <div class="panel">
       <h2>Crew<span class="sub" id="crewSub"></span></h2>
       <div class="scroll-x"><table class="data">
@@ -651,7 +705,7 @@ footer {
   </footer>
 </div>
 
-<script id="wall-data" type="application/json">{"schema_version":1,"generated_at":"2026-09-19T23:55:30.562Z","repo":{"name":"Atlas-Core","path":"/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kit/sample","branch":"main"},"courier":{"last_run_ms":1,"events":78,"shards":3},"integrity":{"seq_gaps":[{"session_id":"s_b19e","seq":10}],"seq_duplicates":[{"session_id":"s_c22d","seq":3,"count":2}],"orphan_runs":[{"run_id":"run_015","agent":"Edmund","started":"2026-09-19T13:35:35.000Z","item_id":"ST-104"},{"run_id":"run_orphan_1","agent":"Nadia","started":"2026-09-19T18:54:00.761Z","item_id":"ST-121"},{"run_id":"run_live_bld_a41f09","agent":"Desmond","started":"2026-09-19T21:36:00.761Z","item_id":"ST-106"},{"run_id":"run_live_bld_2fc885","agent":"Theo","started":"2026-09-19T21:48:00.761Z","item_id":"ST-111"},{"run_id":"run_live_res_d470af","agent":"Silas","started":"2026-09-19T21:51:00.761Z","item_id":"BG-021"},{"run_id":"run_live_frm_4a91c2","agent":"Alistair","started":"2026-09-19T21:53:00.761Z","item_id":null}],"duplicates":[["ST-120","ST-112"]],"state_drift":2,"state_drift_checked":true,"state_drift_detail":[{"item_id":"ST-110","kind":"field_mismatch","field":"assignee","expected":"Theo","found":"Hollis"},{"item_id":"ST-110","kind":"field_mismatch","field":"status","expected":"done","found":"active"}],"fold_problems":[],"merged_but_open":[{"item_id":"ST-105","kind":"reopened_after_ship","pr":1654,"status":"in_review","shipped_at":"2026-09-19T15:05:00.000Z","detail":"item_shipped is on the ledger but a later event put the item back to a non-terminal status"}],"escalations":[{"kind":"blocked_without_question","item_id":"BG-025","detail":"item is blocked with no open question -- blocked without asking"},{"kind":"unassigned_past_sla","question_id":"q_0051","item_id":"ST-112","age_min":166.5,"sla_min":5,"detail":"nobody picked it up"},{"kind":"escalate","question_id":"q_0051","item_id":"ST-112","tier":"researcher","age_min":166.5,"sla_min":60,"detail":"open 166 min at tier 'researcher' -- escalate a tier"}],"stale_claims":[{"agent":"Nadia","item_id":"ST-121","since":"2026-09-19T18:54:00.761Z"},{"agent":"Desmond","item_id":"ST-106","since":"2026-09-19T21:36:00.761Z"},{"agent":"Silas","item_id":"BG-021","since":"2026-09-19T21:51:00.761Z"},{"agent":"Alistair","item_id":null,"since":"2026-09-19T21:53:00.761Z"},{"agent":"Theo","item_id":"ST-111","since":"2026-09-19T21:48:00.761Z"}]},"role_limits":{"builder":4,"researcher":6,"reviewer":2},"crew":[{"agent_key":"adj_5c02ea","name":"Coretta","title":"","role":"adjudicator","model_requested":"claude-fable-5-1","model_used":"claude-opus-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:42:42.000Z","runs":2,"cost_usd":1.274,"gh_minutes":4,"tokens":{"in":34952,"out":3564,"cache_read":148362,"cache_write":12827},"last_event":"2026-09-19T13:42:42.000Z"},{"agent_key":"arc_bb1740","name":"Edmund","title":"","role":"architect","model_requested":"claude-fable-5-1","model_used":"claude-fable-5-1","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:54:03.000Z","runs":1,"cost_usd":1.285,"gh_minutes":4,"tokens":{"in":19730,"out":3969,"cache_read":136965,"cache_write":2442},"last_event":"2026-09-19T21:43:00.761Z"},{"agent_key":"bld_a41f09","name":"Desmond","title":"","role":"builder","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"stale","item_id":"ST-106","item_title":"Checkpointed tail reads per shard","since":"2026-09-19T21:36:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:36:00.761Z"},{"agent_key":"bld_7e33d1","name":"Priya","title":"","role":"builder","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"blocked","item_id":"BG-021","item_title":"Duplicate event_id on retry","since":"2026-09-19T21:13:00.761Z","runs":1,"cost_usd":1.42,"gh_minutes":null,"tokens":{"in":29382,"out":7332,"cache_read":175462,"cache_write":11768},"last_event":"2026-09-19T21:16:00.761Z"},{"agent_key":"bld_2fc885","name":"Theo","title":"","role":"builder","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"ST-111","item_title":"Atomic publish + heartbeat","since":"2026-09-19T21:48:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:48:00.761Z"},{"agent_key":"frm_4a91c2","name":"Alistair","title":"","role":"foreman","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":null,"item_title":null,"since":"2026-09-19T21:53:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:53:00.761Z"},{"agent_key":"mst_08de37","name":"Rosalind","title":"","role":"maestro","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T14:00:41.000Z","runs":6,"cost_usd":8.688,"gh_minutes":14,"tokens":{"in":85966,"out":21489,"cache_read":530631,"cache_write":29596},"last_event":"2026-09-19T21:50:00.761Z"},{"agent_key":"res_66c1b3","name":"Nadia","title":"","role":"researcher","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"ST-121","item_title":"No-op status check","since":"2026-09-19T18:54:00.761Z","runs":6,"cost_usd":6.622999999999999,"gh_minutes":14,"tokens":{"in":108391,"out":17330,"cache_read":575775,"cache_write":29736},"last_event":"2026-09-19T18:54:00.761Z"},{"agent_key":"res_d470af","name":"Silas","title":"","role":"researcher","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"BG-021","item_title":"Find prior art on seq-gap recovery","since":"2026-09-19T21:51:00.761Z","runs":1,"cost_usd":0.41,"gh_minutes":null,"tokens":{"in":11012,"out":1672,"cache_read":151271,"cache_write":5998},"last_event":"2026-09-19T21:51:00.761Z"},{"agent_key":"rev_913b6e","name":"Junia","title":"","role":"reviewer","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:40:14.000Z","runs":2,"cost_usd":4.19,"gh_minutes":4,"tokens":{"in":30270,"out":5062,"cache_read":256136,"cache_write":7748},"last_event":"2026-09-19T13:40:14.000Z"}],"board":{"arcs":[{"arc_id":"ARC-01","title":"Event ledger and consolidation","items":[{"item_id":"BG-021","title":"Duplicate event_id on retry","kind":"bug","status":"blocked","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Priya","estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg021","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:17:15.000Z","updated_at":"2026-09-19T12:18:11.000Z","events":2},{"item_id":"ST-104","title":"Append-only shard writer","kind":"story","status":"done","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Desmond","estimate":"M","actual":"M","duplicate_of":null,"trace_id":"tr_st104","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:08:25.000Z","updated_at":"2026-09-19T12:08:54.000Z","events":2},{"item_id":"ST-105","title":"Deterministic merge with dedupe","kind":"story","status":"in_review","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Priya","estimate":"L","actual":"XL","duplicate_of":null,"trace_id":"tr_st105","scope":["backend/ledger/"],"pr":1654,"shipped_at":"2026-09-19T15:05:00.000Z","created_at":"2026-09-19T12:12:56.000Z","updated_at":"2026-09-19T15:09:00.000Z","events":4,"pr_state":"open"},{"item_id":"ST-106","title":"Checkpointed tail reads per shard","kind":"story","status":"active","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Desmond","estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st106","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:14:29.000Z","updated_at":"2026-09-19T12:15:47.000Z","events":2}]},{"arc_id":"ARC-02","title":"Wall renderer and propagation","items":[{"item_id":"ST-110","title":"Self-contained HTML template","kind":"story","status":"done","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":"Theo","estimate":"S","actual":"S","duplicate_of":null,"trace_id":"tr_st110","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:23:49.000Z","updated_at":"2026-09-19T12:24:06.000Z","events":2},{"item_id":"ST-111","title":"Atomic publish + heartbeat","kind":"story","status":"active","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":"Theo","estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st111","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:29:05.000Z","updated_at":"2026-09-19T12:29:42.000Z","events":2},{"item_id":"ST-112","title":"Live-poll upgrade path","kind":"story","status":"ready","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":null,"estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st112","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:30:41.000Z","updated_at":"2026-09-19T12:31:02.000Z","events":2}]},{"arc_id":"ARC-03","title":"Fast-track routing","items":[{"item_id":"BG-024","title":"Mixed changeset takes wrong route","kind":"bug","status":"triage","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg024","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:39:48.000Z","updated_at":"2026-09-19T12:41:08.000Z","events":2},{"item_id":"BG-025","title":"Lease TTL never expires on a crashed agent","kind":"bug","status":"blocked","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":"Theo","estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg025","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:45:25.000Z","updated_at":"2026-09-19T12:45:42.000Z","events":2},{"item_id":"ST-120","title":"Path-based route classifier","kind":"story","status":"ready","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"S","actual":null,"duplicate_of":"ST-112","trace_id":"tr_st120","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:35:24.000Z","updated_at":"2026-09-19T12:36:27.000Z","events":2},{"item_id":"ST-121","title":"No-op status check for protection","kind":"story","status":"ready","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st121","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:37:42.000Z","updated_at":"2026-09-19T12:38:22.000Z","events":2}]}]},"waiting_on_you":[{"ask_id":"ask_0007","question":"Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?","agent":"Priya","item_id":"BG-021","since":"2026-09-19T21:16:00.761Z","trace_id":"tr_bg021"},{"ask_id":"ask_0008","question":"Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?","agent":"Edmund","item_id":"ST-112","since":"2026-09-19T21:43:00.761Z","trace_id":"tr_st112"},{"ask_id":"ask_0009","question":"Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?","agent":"Rosalind","item_id":"ARC-03","since":"2026-09-19T21:50:00.761Z","trace_id":"tr_arc03"}],"questions":[{"question_id":"q_0042","ask_id":null,"item_id":"ST-106","trace_id":"tr_st106","text":"AC-3 says the checkpoint is per shard; AC-4 says per session. Which survives a shard being replaced?","ambiguity_class":"unclear_acceptance","status":"answered","raised_at":"2026-09-19T14:05:00.000Z","raised_by":"Desmond","raised_by_key":"bld_a41f09","assigned_to":"Silas","assigned_to_key":"res_d470af","assigned_at":"2026-09-19T14:08:00.000Z","first_run_at":"2026-09-19T14:14:00.000Z","escalations":[{"at":"2026-09-19T14:39:00.000Z","reason":"researcher pass found prior art but no ruling","tier":"architect"}],"tier":"architect","answered_at":"2026-09-19T14:53:00.000Z","answer_source":"architect","answer":"Checkpoint per shard; a replaced shard resets its own offset and nothing else.","blocks_criteria":["AC-3","AC-4"],"dependent_scope":["backend/ledger/merge.py","backend/tests/test_merge.py"],"independent_scope":["backend/ledger/shard.py"],"outcome_hint":"partial","events":4},{"question_id":"q_0051","ask_id":null,"item_id":"ST-112","trace_id":"tr_st112","text":"Does the live-poll upgrade read wall.json or subscribe to a socket? No interface is specified either way.","ambiguity_class":"undefined_interface","status":"open","raised_at":"2026-09-19T21:09:00.761Z","raised_by":"Theo","raised_by_key":"bld_2fc885","assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"researcher","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":["AC-1"],"dependent_scope":[],"independent_scope":[],"outcome_hint":"blocked","events":1},{"question_id":"ask_0007","ask_id":"ask_0007","item_id":"BG-021","trace_id":"tr_bg021","text":"Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:16:00.761Z","raised_by":"Priya","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1},{"question_id":"ask_0008","ask_id":"ask_0008","item_id":"ST-112","trace_id":"tr_st112","text":"Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:43:00.761Z","raised_by":"Edmund","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1},{"question_id":"ask_0009","ask_id":"ask_0009","item_id":"ARC-03","trace_id":"tr_arc03","text":"Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:50:00.761Z","raised_by":"Rosalind","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1}],"budget":{"period":"week of 14 Sep 2026","advisory":"Advisory only. Nothing here stops work — it tells you when to.","meters":[{"label":"Claude — Opus 5","used":41200000,"limit":60000000,"display":"41.2M","foot":"builders account for 78% of this","measured":null,"used_total":41200000.0,"pct_remaining":31.3,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}},{"label":"Claude — Sonnet 5","used":12800000,"limit":90000000,"display":"12.8M","foot":"researchers and review","measured":null,"used_total":12800000.0,"pct_remaining":85.8,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}},{"label":"Claude — Fable 5.1","used":3100000,"limit":20000000,"display":"3.1M","foot":"adjudicator runs routed to Opus by safeguards","measured":null,"used_total":3100000.0,"pct_remaining":84.5,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}},{"label":"GitHub Actions","used":1412,"limit":3000,"display":"1,412 min","foot":"fast-track saved an estimated 240 min","measured":null,"used_total":1412.0,"pct_remaining":52.9,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}}],"period_start":"2026-09-01T00:00:00+00:00","period_end":"2026-10-01T00:00:00+00:00","pct_period_remaining":36.7},"rollup_by_role":[{"role":"adjudicator","model":"claude-opus-5","runs":2,"tokens_in":34952,"tokens_out":3564,"cache_read":148362,"cost_usd":1.274},{"role":"architect","model":"claude-fable-5-1","runs":1,"tokens_in":19730,"tokens_out":3969,"cache_read":136965,"cost_usd":1.285},{"role":"builder","model":"claude-opus-5","runs":1,"tokens_in":29382,"tokens_out":7332,"cache_read":175462,"cost_usd":1.42},{"role":"builder","model":"claude-sonnet-5","runs":0,"tokens_in":0,"tokens_out":0,"cache_read":0,"cost_usd":0.0},{"role":"foreman","model":"claude-sonnet-5","runs":0,"tokens_in":0,"tokens_out":0,"cache_read":0,"cost_usd":0.0},{"role":"maestro","model":"claude-opus-5","runs":6,"tokens_in":85966,"tokens_out":21489,"cache_read":530631,"cost_usd":8.688},{"role":"researcher","model":"claude-sonnet-5","runs":7,"tokens_in":119403,"tokens_out":19002,"cache_read":727046,"cost_usd":7.0329999999999995},{"role":"reviewer","model":"claude-sonnet-5","runs":2,"tokens_in":30270,"tokens_out":5062,"cache_read":256136,"cost_usd":4.19}],"sessions":["s_7f3a","s_b19e","s_c22d"]}</script>
+<script id="wall-data" type="application/json">{"schema_version":1,"generated_at":"2026-09-20T18:53:16.557Z","repo":{"name":"Atlas-Core","path":"/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kit/sample","branch":"main"},"courier":{"last_run_ms":1,"events":78,"shards":3},"integrity":{"seq_gaps":[{"session_id":"s_b19e","seq":10}],"seq_duplicates":[{"session_id":"s_c22d","seq":3,"count":2}],"orphan_runs":[{"run_id":"run_015","agent":"Edmund","started":"2026-09-19T13:35:35.000Z","item_id":"ST-104"},{"run_id":"run_orphan_1","agent":"Nadia","started":"2026-09-19T18:54:00.761Z","item_id":"ST-121"},{"run_id":"run_live_bld_a41f09","agent":"Desmond","started":"2026-09-19T21:36:00.761Z","item_id":"ST-106"},{"run_id":"run_live_bld_2fc885","agent":"Theo","started":"2026-09-19T21:48:00.761Z","item_id":"ST-111"},{"run_id":"run_live_res_d470af","agent":"Silas","started":"2026-09-19T21:51:00.761Z","item_id":"BG-021"},{"run_id":"run_live_frm_4a91c2","agent":"Alistair","started":"2026-09-19T21:53:00.761Z","item_id":null}],"duplicates":[["ST-120","ST-112"]],"state_drift":2,"state_drift_checked":true,"state_drift_detail":[{"item_id":"ST-110","kind":"field_mismatch","field":"assignee","expected":"Theo","found":"Hollis"},{"item_id":"ST-110","kind":"field_mismatch","field":"status","expected":"done","found":"active"}],"fold_problems":[],"merged_but_open":[{"item_id":"ST-105","kind":"reopened_after_ship","pr":1654,"status":"in_review","shipped_at":"2026-09-19T15:05:00.000Z","detail":"item_shipped is on the ledger but a later event put the item back to a non-terminal status"}],"escalations":[{"kind":"blocked_without_question","item_id":"BG-025","detail":"item is blocked with no open question -- blocked without asking"},{"kind":"unassigned_past_sla","question_id":"q_0051","item_id":"ST-112","age_min":1304.3,"sla_min":5,"detail":"nobody picked it up"},{"kind":"escalate","question_id":"q_0051","item_id":"ST-112","tier":"researcher","age_min":1304.3,"sla_min":60,"detail":"open 1304 min at tier 'researcher' -- escalate a tier"}],"stale_claims":[{"agent":"Nadia","item_id":"ST-121","since":"2026-09-19T18:54:00.761Z"},{"agent":"Desmond","item_id":"ST-106","since":"2026-09-19T21:36:00.761Z"},{"agent":"Silas","item_id":"BG-021","since":"2026-09-19T21:51:00.761Z"},{"agent":"Alistair","item_id":null,"since":"2026-09-19T21:53:00.761Z"},{"agent":"Theo","item_id":"ST-111","since":"2026-09-19T21:48:00.761Z"}]},"role_limits":{"builder":4,"researcher":6,"reviewer":2},"crew":[{"agent_key":"adj_5c02ea","name":"Coretta","title":"","role":"adjudicator","model_requested":"claude-fable-5-1","model_used":"claude-opus-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:42:42.000Z","runs":2,"cost_usd":1.274,"gh_minutes":4,"tokens":{"in":34952,"out":3564,"cache_read":148362,"cache_write":12827},"last_event":"2026-09-19T13:42:42.000Z"},{"agent_key":"arc_bb1740","name":"Edmund","title":"","role":"architect","model_requested":"claude-fable-5-1","model_used":"claude-fable-5-1","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:54:03.000Z","runs":1,"cost_usd":1.285,"gh_minutes":4,"tokens":{"in":19730,"out":3969,"cache_read":136965,"cache_write":2442},"last_event":"2026-09-19T21:43:00.761Z"},{"agent_key":"bld_a41f09","name":"Desmond","title":"","role":"builder","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"stale","item_id":"ST-106","item_title":"Checkpointed tail reads per shard","since":"2026-09-19T21:36:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:36:00.761Z"},{"agent_key":"bld_7e33d1","name":"Priya","title":"","role":"builder","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"blocked","item_id":"BG-021","item_title":"Duplicate event_id on retry","since":"2026-09-19T21:13:00.761Z","runs":1,"cost_usd":1.42,"gh_minutes":null,"tokens":{"in":29382,"out":7332,"cache_read":175462,"cache_write":11768},"last_event":"2026-09-19T21:16:00.761Z"},{"agent_key":"bld_2fc885","name":"Theo","title":"","role":"builder","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"ST-111","item_title":"Atomic publish + heartbeat","since":"2026-09-19T21:48:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:48:00.761Z"},{"agent_key":"frm_4a91c2","name":"Alistair","title":"","role":"foreman","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":null,"item_title":null,"since":"2026-09-19T21:53:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:53:00.761Z"},{"agent_key":"mst_08de37","name":"Rosalind","title":"","role":"maestro","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T14:00:41.000Z","runs":6,"cost_usd":8.688,"gh_minutes":14,"tokens":{"in":85966,"out":21489,"cache_read":530631,"cache_write":29596},"last_event":"2026-09-19T21:50:00.761Z"},{"agent_key":"res_66c1b3","name":"Nadia","title":"","role":"researcher","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"ST-121","item_title":"No-op status check","since":"2026-09-19T18:54:00.761Z","runs":6,"cost_usd":6.622999999999999,"gh_minutes":14,"tokens":{"in":108391,"out":17330,"cache_read":575775,"cache_write":29736},"last_event":"2026-09-19T18:54:00.761Z"},{"agent_key":"res_d470af","name":"Silas","title":"","role":"researcher","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"BG-021","item_title":"Find prior art on seq-gap recovery","since":"2026-09-19T21:51:00.761Z","runs":1,"cost_usd":0.41,"gh_minutes":null,"tokens":{"in":11012,"out":1672,"cache_read":151271,"cache_write":5998},"last_event":"2026-09-19T21:51:00.761Z"},{"agent_key":"rev_913b6e","name":"Junia","title":"","role":"reviewer","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:40:14.000Z","runs":2,"cost_usd":4.19,"gh_minutes":4,"tokens":{"in":30270,"out":5062,"cache_read":256136,"cache_write":7748},"last_event":"2026-09-19T13:40:14.000Z"}],"board":{"arcs":[{"arc_id":"ARC-01","title":"Event ledger and consolidation","items":[{"item_id":"BG-021","title":"Duplicate event_id on retry","kind":"bug","status":"blocked","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Priya","estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg021","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:17:15.000Z","updated_at":"2026-09-19T12:18:11.000Z","events":2},{"item_id":"ST-104","title":"Append-only shard writer","kind":"story","status":"done","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Desmond","estimate":"M","actual":"M","duplicate_of":null,"trace_id":"tr_st104","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:08:25.000Z","updated_at":"2026-09-19T12:08:54.000Z","events":2},{"item_id":"ST-105","title":"Deterministic merge with dedupe","kind":"story","status":"in_review","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Priya","estimate":"L","actual":"XL","duplicate_of":null,"trace_id":"tr_st105","scope":["backend/ledger/"],"pr":1654,"shipped_at":"2026-09-19T15:05:00.000Z","created_at":"2026-09-19T12:12:56.000Z","updated_at":"2026-09-19T15:09:00.000Z","events":4,"pr_state":"open"},{"item_id":"ST-106","title":"Checkpointed tail reads per shard","kind":"story","status":"active","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Desmond","estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st106","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:14:29.000Z","updated_at":"2026-09-19T12:15:47.000Z","events":2}]},{"arc_id":"ARC-02","title":"Wall renderer and propagation","items":[{"item_id":"ST-110","title":"Self-contained HTML template","kind":"story","status":"done","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":"Theo","estimate":"S","actual":"S","duplicate_of":null,"trace_id":"tr_st110","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:23:49.000Z","updated_at":"2026-09-19T12:24:06.000Z","events":2},{"item_id":"ST-111","title":"Atomic publish + heartbeat","kind":"story","status":"active","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":"Theo","estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st111","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:29:05.000Z","updated_at":"2026-09-19T12:29:42.000Z","events":2},{"item_id":"ST-112","title":"Live-poll upgrade path","kind":"story","status":"ready","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":null,"estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st112","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:30:41.000Z","updated_at":"2026-09-19T12:31:02.000Z","events":2}]},{"arc_id":"ARC-03","title":"Fast-track routing","items":[{"item_id":"BG-024","title":"Mixed changeset takes wrong route","kind":"bug","status":"triage","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg024","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:39:48.000Z","updated_at":"2026-09-19T12:41:08.000Z","events":2},{"item_id":"BG-025","title":"Lease TTL never expires on a crashed agent","kind":"bug","status":"blocked","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":"Theo","estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg025","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:45:25.000Z","updated_at":"2026-09-19T12:45:42.000Z","events":2},{"item_id":"ST-120","title":"Path-based route classifier","kind":"story","status":"ready","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"S","actual":null,"duplicate_of":"ST-112","trace_id":"tr_st120","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:35:24.000Z","updated_at":"2026-09-19T12:36:27.000Z","events":2},{"item_id":"ST-121","title":"No-op status check for protection","kind":"story","status":"ready","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st121","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:37:42.000Z","updated_at":"2026-09-19T12:38:22.000Z","events":2}]}]},"waiting_on_you":[{"ask_id":"ask_0007","question":"Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?","agent":"Priya","item_id":"BG-021","since":"2026-09-19T21:16:00.761Z","trace_id":"tr_bg021"},{"ask_id":"ask_0008","question":"Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?","agent":"Edmund","item_id":"ST-112","since":"2026-09-19T21:43:00.761Z","trace_id":"tr_st112"},{"ask_id":"ask_0009","question":"Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?","agent":"Rosalind","item_id":"ARC-03","since":"2026-09-19T21:50:00.761Z","trace_id":"tr_arc03"}],"questions":[{"question_id":"q_0042","ask_id":null,"item_id":"ST-106","trace_id":"tr_st106","text":"AC-3 says the checkpoint is per shard; AC-4 says per session. Which survives a shard being replaced?","ambiguity_class":"unclear_acceptance","status":"answered","raised_at":"2026-09-19T14:05:00.000Z","raised_by":"Desmond","raised_by_key":"bld_a41f09","assigned_to":"Silas","assigned_to_key":"res_d470af","assigned_at":"2026-09-19T14:08:00.000Z","first_run_at":"2026-09-19T14:14:00.000Z","escalations":[{"at":"2026-09-19T14:39:00.000Z","reason":"researcher pass found prior art but no ruling","tier":"architect"}],"tier":"architect","answered_at":"2026-09-19T14:53:00.000Z","answer_source":"architect","answer":"Checkpoint per shard; a replaced shard resets its own offset and nothing else.","blocks_criteria":["AC-3","AC-4"],"dependent_scope":["backend/ledger/merge.py","backend/tests/test_merge.py"],"independent_scope":["backend/ledger/shard.py"],"outcome_hint":"partial","events":4},{"question_id":"q_0051","ask_id":null,"item_id":"ST-112","trace_id":"tr_st112","text":"Does the live-poll upgrade read wall.json or subscribe to a socket? No interface is specified either way.","ambiguity_class":"undefined_interface","status":"open","raised_at":"2026-09-19T21:09:00.761Z","raised_by":"Theo","raised_by_key":"bld_2fc885","assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"researcher","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":["AC-1"],"dependent_scope":[],"independent_scope":[],"outcome_hint":"blocked","events":1},{"question_id":"ask_0007","ask_id":"ask_0007","item_id":"BG-021","trace_id":"tr_bg021","text":"Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:16:00.761Z","raised_by":"Priya","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1},{"question_id":"ask_0008","ask_id":"ask_0008","item_id":"ST-112","trace_id":"tr_st112","text":"Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:43:00.761Z","raised_by":"Edmund","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1},{"question_id":"ask_0009","ask_id":"ask_0009","item_id":"ARC-03","trace_id":"tr_arc03","text":"Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:50:00.761Z","raised_by":"Rosalind","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1}],"budget":{"period":"week of 14 Sep 2026","advisory":"Advisory only. Nothing here stops work — it tells you when to.","meters":[{"label":"Claude — Opus 5","used":41200000,"limit":60000000,"display":"41.2M","foot":"builders account for 78% of this","measured":null,"used_total":41200000.0,"pct_remaining":31.3,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}},{"label":"Claude — Sonnet 5","used":12800000,"limit":90000000,"display":"12.8M","foot":"researchers and review","measured":null,"used_total":12800000.0,"pct_remaining":85.8,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}},{"label":"Claude — Fable 5.1","used":3100000,"limit":20000000,"display":"3.1M","foot":"adjudicator runs routed to Opus by safeguards","measured":null,"used_total":3100000.0,"pct_remaining":84.5,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}},{"label":"GitHub Actions","used":1412,"limit":3000,"display":"1,412 min","foot":"fast-track saved an estimated 240 min","measured":null,"used_total":1412.0,"pct_remaining":52.9,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}}],"period_start":"2026-09-01T00:00:00+00:00","period_end":"2026-10-01T00:00:00+00:00","pct_period_remaining":34.0},"queue_api":null,"agents_feed":null,"rollup_by_role":[{"role":"adjudicator","model":"claude-opus-5","runs":2,"tokens_in":34952,"tokens_out":3564,"cache_read":148362,"cost_usd":1.274},{"role":"architect","model":"claude-fable-5-1","runs":1,"tokens_in":19730,"tokens_out":3969,"cache_read":136965,"cost_usd":1.285},{"role":"builder","model":"claude-opus-5","runs":1,"tokens_in":29382,"tokens_out":7332,"cache_read":175462,"cost_usd":1.42},{"role":"builder","model":"claude-sonnet-5","runs":0,"tokens_in":0,"tokens_out":0,"cache_read":0,"cost_usd":0.0},{"role":"foreman","model":"claude-sonnet-5","runs":0,"tokens_in":0,"tokens_out":0,"cache_read":0,"cost_usd":0.0},{"role":"maestro","model":"claude-opus-5","runs":6,"tokens_in":85966,"tokens_out":21489,"cache_read":530631,"cost_usd":8.688},{"role":"researcher","model":"claude-sonnet-5","runs":7,"tokens_in":119403,"tokens_out":19002,"cache_read":727046,"cost_usd":7.0329999999999995},{"role":"reviewer","model":"claude-sonnet-5","runs":2,"tokens_in":30270,"tokens_out":5062,"cache_read":256136,"cost_usd":4.19}],"sessions":["s_7f3a","s_b19e","s_c22d"]}</script>
 <script>
 (function(){
   "use strict";
@@ -814,12 +868,151 @@ footer {
     var cur = TABS.filter(function(t){ return t.id === active; })[0];
     $('screenName').textContent = cur ? cur.label.toLowerCase() : '';
   }
+  // One delegated handler for every detail toggle, present and future rows.
+  document.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('.dtoggle') : null;
+    if (!b) return;
+    var tr = b.closest('tr');
+    var next = tr && tr.nextElementSibling;
+    if (!next || !next.classList.contains('detail-row')) return;
+    var opening = next.hasAttribute('hidden');
+    if (opening) next.removeAttribute('hidden'); else next.setAttribute('hidden', '');
+    b.setAttribute('aria-expanded', opening ? 'true' : 'false');
+  });
+
+  // ---- EXECUTE port (host queue integration) -----------------------------
+  // Present only when the host config declares queue_api {health, queue, add}.
+  // The wall stays read-only unless the health probe answers ok same-origin:
+  // served standalone without its backend, the probe fails and nothing shows.
+  function probeQueue(){
+    if (!D.queue_api || !D.queue_api.health) return;
+    var strip = $('queueStrip');
+    fetch(D.queue_api.health, { cache: 'no-store' })
+      .then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(health){
+        if (!health.ok) throw new Error('not ready');
+        document.body.classList.add('queue-ok');
+        var qp = D.queue_api.queue;
+        return (qp ? fetch(qp, { cache: 'no-store' })
+                       .then(function(r){
+                         // A non-OK queue read is an UNKNOWN state, not an
+                         // empty queue -- throwing routes it to the outer
+                         // catch, which hides the strip and the buttons
+                         // rather than displaying zero counts as fact.
+                         if (!r.ok) throw new Error('queue read failed (' + r.status + ')');
+                         return r.json();
+                       })
+                   : Promise.resolve({}))
+          .then(function(snap){
+            var c = snap.counts || {};
+            strip.innerHTML =
+              '<span class="qs-label">QUEUE</span>' +
+              '<span>' + (snap.open || 0) + ' open</span>' +
+              '<span>in-progress ' + (c.in_progress || 0) +
+                ' &middot; queued ' + (c.queued || 0) +
+                ' &middot; done ' + (c.done || 0) + '</span>' +
+              '<span class="qs-spacer"></span>' +
+              '<span>' + (health.auto_drain ? 'auto-drain ON'
+                          : 'open a detail &#8594; EXECUTE to enqueue') + '</span>';
+            strip.removeAttribute('hidden');
+          });
+      })
+      .catch(function(){
+        document.body.classList.remove('queue-ok');
+        strip.setAttribute('hidden', '');
+      });
+  }
+
+  function enqueue(payload, msgEl){
+    if (msgEl) msgEl.textContent = 'enqueuing\u2026';
+    return fetch(D.queue_api.add, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ source: 'wall_click', priority: 'P2' }, payload)),
+    }).then(function(r){
+      if (!r.ok) { if (msgEl) msgEl.textContent = 'enqueue failed (' + r.status + ')'; return; }
+      return r.json().then(function(item){
+        if (msgEl) msgEl.textContent = 'queued: ' + (item.title || item.id || 'ok');
+        probeQueue();
+      });
+    }).catch(function(e){
+      if (msgEl) msgEl.textContent = 'enqueue error: ' + String(e);
+    });
+  }
+
+  // One EXECUTE click, one directive: a synchronous busy flag blocks a
+  // double-fire, and the button stays disabled until the POST settles plus a
+  // short cooldown (the reference wall's re-entrancy discipline, kept).
+  document.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('.exec-btn') : null;
+    if (!b || b.dataset.busy === '1') return;
+    var bar = b.closest('.exec-bar');
+    if (!bar) return;
+    var msgEl = bar.querySelector('[data-role="exec-msg"]');
+    var payload = null;
+    if (b.getAttribute('data-exec') === 'item' && bar.getAttribute('data-key')) {
+      var key = bar.getAttribute('data-key');
+      payload = { directive: 'execute_item', target_key: key, title: 'Execute ' + key };
+    } else if (b.getAttribute('data-exec') === 'arc' && bar.getAttribute('data-arc')) {
+      var arcId = bar.getAttribute('data-arc');
+      payload = { directive: 'execute_arc', target_arch: arcId, title: 'Execute arc ' + arcId };
+    }
+    if (!payload) return;
+    b.dataset.busy = '1';
+    b.disabled = true;
+    enqueue(payload, msgEl).then(function(){
+      setTimeout(function(){ b.dataset.busy = ''; b.disabled = false; }, 1500);
+    });
+  });
+
+  // ---- AGENTS port (optional live wave feed) -----------------------------
+  // Present only when the host config declares agents_feed (a same-origin
+  // path to a wave-status JSON). Polled while the CREW tab is open; a
+  // missing or unparseable feed reads as an honest note, never a blank.
+  function waveList(items){
+    if (!items || !items.length) return '<ul><li class="stage">none</li></ul>';
+    return '<ul>' + items.map(function(x){
+      if (x && typeof x === 'object') {
+        return '<li>' + esc(x.agent || '?') + ' &mdash; ' + esc(x.unit || '') +
+          (x.stage ? ' <span class="stage">(' + esc(x.stage) + ')</span>' : '') + '</li>';
+      }
+      return '<li>' + esc(String(x)) + '</li>';
+    }).join('') + '</ul>';
+  }
+
+  function paintWave(){
+    if (!D.agents_feed || active !== 'crew') return;
+    var panel = $('wavePanel');
+    fetch(D.agents_feed + (D.agents_feed.indexOf('?') < 0 ? '?_=' : '&_=') + Date.now(),
+          { cache: 'no-store' })
+      .then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(w){
+        var hc = w.headcount || {};
+        $('waveSub').textContent = 'updated ' + ago(w.updated) +
+          ' ago \u00b7 developers ' + (hc.developers || 0) +
+          ' \u00b7 researchers ' + (hc.researchers || 0) +
+          ' \u00b7 cap ' + (hc.cap || '?');
+        $('waveBody').innerHTML = '<div class="wave-cols">' +
+          '<div><h3>Completed</h3>' + waveList(w.completed) + '</div>' +
+          '<div><h3>In progress</h3>' + waveList(w.in_progress) + '</div>' +
+          '<div><h3>New</h3>' + waveList(w.new) + '</div></div>';
+        panel.removeAttribute('hidden');
+      })
+      .catch(function(){
+        $('waveSub').textContent = '';
+        $('waveBody').innerHTML = '<div class="empty">No live wave feed at ' +
+          esc(D.agents_feed) + ' \u2014 nothing streaming, or the feed has not been dropped.</div>';
+        panel.removeAttribute('hidden');
+      });
+  }
+
   $('tabs').addEventListener('click', function(e){
     var b = e.target.closest('button[data-tab]');
     if (!b) return;
     active = b.dataset.tab;
     history.replaceState(null,'','#'+active);
     paintTabs();
+    paintWave();
   });
 
   function paintSweep(){
@@ -841,13 +1034,16 @@ footer {
   function itemRow(it, depth){
     var pad = depth ? ' style="padding-left:calc(var(--space-3) + ' + (depth * 20) + 'px)"' : '';
     var twig = depth ? '<span class="twig" aria-hidden="true">&#8627;</span>' : '';
-    return '<tr' + (depth ? ' class="child"' : '') + '>' +
+    var hasDetail = !!(it.detail && String(it.detail).trim());
+    var row = '<tr' + (depth ? ' class="child"' : '') + '>' +
       '<td' + pad + '>' + twig +
         '<span class="chip chip--id">' + esc(it.item_id) + '</span> ' +
         '<span class="task"><span class="title">' + esc(it.title || '(untitled)') + '</span>' +
         (it.note ? '<span class="note">' + esc(it.note) + '</span>' : '') +
         (it.duplicate_of ? '<span class="dupe">dup of ' + esc(it.duplicate_of) + '</span>' : '') +
-        '</span></td>' +
+        '</span>' +
+        (hasDetail ? '<button class="dtoggle" type="button" aria-expanded="false">detail</button>' : '') +
+      '</td>' +
       '<td>' + kindChip(it.kind) + '</td>' +
       '<td>' + statusChip(it.status) + '</td>' +
       '<td>' + esc(it.assignee || '—') + '</td>' +
@@ -855,6 +1051,27 @@ footer {
       '<td class="num">' + esc(it.actual || '—') + '</td>' +
       '<td class="num">' + ago(it.updated_at) + '</td>' +
     '</tr>';
+    if (hasDetail) row += detailRow(it);
+    return row;
+  }
+
+  // The detail panel is a sibling row, hidden until its toggle opens it, so
+  // the columns of every board table stay aligned and a board with no detail
+  // renders byte-identically to before this feature existed.
+  function detailRow(it){
+    var meta = ['pr', 'priority', 'area', 'phase', 'issue'].map(function(k){
+      return it[k] ? '<span class="chip">' + esc(k) + ' ' + esc(it[k]) + '</span>' : '';
+    }).join('');
+    var exec = D.queue_api
+      ? '<div class="exec-bar" data-key="' + esc(it.item_id) + '">' +
+          '<button class="exec-btn" type="button" data-exec="item">EXECUTE THIS &#8594;</button>' +
+          '<span class="exec-msg" data-role="exec-msg"></span></div>'
+      : '';
+    return '<tr class="detail-row" hidden><td colspan="7">' +
+      (meta ? '<div class="detail-meta">' + meta + '</div>' : '') +
+      '<div class="detail-pane">' + esc(String(it.detail)) + '</div>' +
+      exec +
+    '</td></tr>';
   }
 
   // Children nest under their parent when parent_id links them, and a child
@@ -905,9 +1122,14 @@ footer {
       var done = items.filter(isDone).length;
       var pct = items.length ? Math.round(done / items.length * 100) : 0;
       var cls = pct >= 100 ? '' : (pct >= 50 ? 'warn' : 'alert');
+      var execArc = D.queue_api
+        ? '<span class="exec-bar" data-arc="' + esc(arc.arc_id) + '">' +
+            '<button class="exec-btn" type="button" data-exec="arc">EXECUTE ARC &#8594;</button>' +
+            '<span class="exec-msg" data-role="exec-msg"></span></span>'
+        : '';
       return '<div class="arc"><header>' +
         '<span class="id">' + esc(arc.arc_id) + '</span><h3>' + esc(arc.title || arc.arc_id) + '</h3>' +
-        '<span class="spacer"></span>' +
+        '<span class="spacer"></span>' + execArc +
         '<span class="chip">' + done + '/' + items.length + '</span>' +
         '<span class="meter"><i class="' + cls + '" style="width:' + pct + '%"></i></span>' +
         '</header><div class="scroll-x"><table class="data board">' + HEAD +
@@ -1115,6 +1337,9 @@ footer {
 
   paint();
   setInterval(paintSweep, 1000);
+  probeQueue();
+  paintWave();
+  setInterval(paintWave, 5000);
 })();
 </script>
 </body>

@@ -441,6 +441,38 @@ MAX3 is the reference adoption: an existing repository with its own rules,
 registry and checklist, where the kit's job was mapping and filling gaps rather
 than installing a second set of standards.
 
+### Upgrading an adoption
+
+Taking a newer kit into a repo that already adopted one is a routine, not
+an event — the discipline the reference adoption runs on every change,
+written down (the Architect owns running it; DEC-0020 makes it part of
+the drift pass):
+
+1. **Read the delta as decisions first, code second.** The decision
+   index (`docs/decisions/index.md`) is the changelog of *rulings*; the
+   commit log is the changelog of *code*. A new DEC may bind your
+   adoption (a new standing constraint, a new tool allowlist) even where
+   no file you vendored changed.
+2. **Re-vendor verbatim, never fork.** Copy the kit files your adoption
+   carries (`tools/wall/` in the reference layout) over your copies,
+   whole files. A local patch to a vendored file is drift with a byline:
+   if the kit is wrong, fix it **upstream first**, then re-vendor — the
+   reference adoption has done this for every fix it ever needed.
+3. **Config is additive by contract.** New config keys default to
+   absent-means-old-behavior (`queue_api`, `agents_feed`, `role` all
+   arrived this way), so an un-updated `wall.json` keeps yesterday's
+   wall working. Read `wall.example.json`'s new `_` notes for what a new
+   key would give you, and bind it only against a real host rule.
+4. **Run your own pins, then the kit's.** Your adoption-side tests (the
+   reference repo pins the projection, the serving allowlists, the
+   config↔server agreement) are what catch a kit change that breaks
+   *your* binding; the kit's own suite ships green or the upgrade
+   doesn't start.
+5. **One PR per upgrade, citing the kit commit.** The upgrade lands in
+   your repo as one reviewable change naming the upstream range it
+   vendors, through your normal gates — never as drive-by edits inside
+   feature work.
+
 ### Looking ahead: more than one adopting repository
 
 Nothing below is needed for the first adoption. It is written down now because

@@ -134,6 +134,12 @@ Owns requirements, design and documentation.
   Maestro sequences from current dependencies and order of operations,
   never from memory of them.
 - Expert of record for enterprise, solution and product architecture.
+- **Owns the repo's front door: README.md** (Patron direction
+  2026-09-20) — the adoption runbooks (first-time, into a new or an
+  existing repo), the docs table, the screenshots and diagrams, what
+  changed (new and old functionality), and the **Upgrading an
+  adoption** path adopters follow over time. README drift is Architect
+  drift, caught by the DEC-0020 pass like any other document of record.
 - Reconciles documentation, diagrams and decisions; output lands in
   `docs/architecture/`.
 - Answers escalated questions and writes the ruling.
