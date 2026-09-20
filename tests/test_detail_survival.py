@@ -92,6 +92,46 @@ def test_template_carries_the_page_marker():
     assert "<!-- engteam-wall -->" in template.read_text(encoding="utf-8")
 
 
+def test_clearing_a_field_on_the_board_clears_it_on_the_wall(repo):
+    """The omitted-key hole (review finding, MAX3 #1658): a field cleared on
+    the source board must not survive on the wall. Mutation that kills this:
+    go back to omitting blank fields in map_item and both asserts fail --
+    the idempotence check re-reports the item unchanged and the fold keeps
+    the stale detail and the stale deferred note."""
+    board = {"updated": "2026-09-20", "items": [
+        {"key": "infra:clearing", "title": "Clearing probe", "status": "Deferred",
+         "arch": "INFRA", "pr": "#7", "detail": "SOON_GONE"},
+    ]}
+    bi.import_board(repo, board, bi.PROFILE_MAX3)
+    board["items"][0]["detail"] = ""      # cleared on the tracker
+    board["items"][0]["pr"] = "--"        # reset to the null token
+    board["items"][0]["status"] = "in CI" # leaves the noted status too
+    result = bi.import_board(repo, board, bi.PROFILE_MAX3)
+    assert result["updated"] == 1, "the clear must register as a change"
+
+    import items as items_mod
+    folded = items_mod.fold_items(bi._read_ledger(repo))
+    it = folded["infra:clearing"]
+    assert it["detail"] is None
+    assert it["pr"] is None
+    assert it["note"] is None, "the deferred note must not outlive the status"
+
+
+def test_non_dict_json_lines_count_as_corrupt(repo):
+    """`null` and bare scalars parse fine and then vanish in merge();
+    without this they left the heartbeat reading ok (review finding,
+    MAX3 #1658). Mutation: drop the isinstance check and ok reads true."""
+    import json as _json
+    path = repo / ".wall" / "events" / "2026-09-19" / "s_a.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("null\n[1, 2]\n\"scalar\"\n", encoding="utf-8")
+    courier.run_once(repo)
+    hb = _json.loads(
+        (repo / ".wall" / "derived" / "heartbeat.json").read_text(encoding="utf-8"))
+    assert hb["ok"] is False
+    assert hb["corrupt_lines"] == 3
+
+
 def test_import_to_render_roundtrip_carries_detail(repo):
     """The full path a real adoption takes: tracker JSON -> import_board ->
     courier sweep -> rendered wall.html containing the detail text."""

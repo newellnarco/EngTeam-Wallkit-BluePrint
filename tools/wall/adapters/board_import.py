@@ -312,9 +312,11 @@ def map_item(raw: dict, profile: dict, *, default_ts: str) -> dict | None:
         "status": status,
     }
 
-    note = (profile.get("status_notes") or {}).get(key)
-    if note:
-        fields["note"] = note
+    # Always present, None when there is nothing to say: a status that HAD a
+    # note (deferred) and moved to one that does not must CLEAR the note on
+    # the wall, and an omitted key clears nothing -- the fold keeps the old
+    # value and the idempotence check never sees the difference.
+    fields["note"] = (profile.get("status_notes") or {}).get(key)
 
     arc_id = raw.get(profile["arc_id_field"]) if profile.get("arc_id_field") else None
     if isinstance(arc_id, str) and arc_id.strip():
@@ -327,6 +329,12 @@ def map_item(raw: dict, profile: dict, *, default_ts: str) -> dict | None:
         fields["arc_id"] = UNASSIGNED_ARC_ID
         fields["arc_title"] = UNASSIGNED_ARC_TITLE
 
+    # Importer-owned optional fields are ALWAYS emitted, as None when blank.
+    # Omitting a blank key looks tidier but is a data-integrity hole: an item
+    # whose `detail` (or pr, or assignee) was cleared on the source board
+    # would keep its old value on the wall forever -- the idempotence check
+    # compares only the keys present, and the fold preserves what a snapshot
+    # event does not mention.
     for wall_field, source_key in (
         ("assignee", profile.get("assignee_field")),
         ("estimate", profile.get("estimate_field")),
@@ -336,13 +344,11 @@ def map_item(raw: dict, profile: dict, *, default_ts: str) -> dict | None:
         if not source_key:
             continue
         value = raw.get(source_key)
-        if not _is_blank(value):
-            fields[wall_field] = value
+        fields[wall_field] = None if _is_blank(value) else value
 
     for wall_field, source_key in (profile.get("extra_fields") or {}).items():
         value = raw.get(source_key)
-        if not _is_blank(value):
-            fields[wall_field] = value
+        fields[wall_field] = None if _is_blank(value) else value
 
     updated = raw.get(profile["updated_field"]) if profile.get("updated_field") else None
     return {

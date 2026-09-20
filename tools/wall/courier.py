@@ -247,9 +247,17 @@ def read_shards(events_dir: Path, checkpoints: dict) -> tuple[list[dict], dict, 
             if not line:
                 continue
             try:
-                events.append(json.loads(line))
+                record = json.loads(line)
             except json.JSONDecodeError:
                 corrupt += 1  # skipped, but counted -- the heartbeat reports it
+                continue
+            if not isinstance(record, dict):
+                # `null`, a bare list or a scalar parse fine and then get
+                # silently dropped by merge() -- corrupt in effect, so
+                # corrupt in the count, or the heartbeat lies ok.
+                corrupt += 1
+                continue
+            events.append(record)
         checkpoints[key] = consumed
     return events, checkpoints, len(shards), corrupt
 
