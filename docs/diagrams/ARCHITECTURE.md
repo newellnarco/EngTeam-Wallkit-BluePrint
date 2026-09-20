@@ -48,6 +48,9 @@ flowchart TB
     subgraph Presentation
         Server[local server<br/>127.0.0.1, no-cache]
         Wall[wall.html]
+        Summary[wall summary<br/>CLI digest]
+        MCP[mcp_server.py<br/>stdio, role-gated<br/>DEC-0019]
+        Editors([VS Code / Cursor /<br/>Claude Code])
     end
 
     Human -->|intent| Maestro
@@ -69,6 +72,11 @@ flowchart TB
     Derived --> Server
     Server --> Wall
     Wall --> Human
+    Derived --> Summary
+    Derived --> MCP
+    MCP --> Editors
+    Editors --> Human
+    Human -->|answer / enqueue| MCP
     Derived --> Foreman
     Foreman --> Maestro
 ```
@@ -79,6 +87,14 @@ to Maestro; if an agent could write it, the ledger would stop being
 reproducible. And nothing in `Presentation` reaches back into `Cognition`: the
 wall is a mirror, so a broken wall cannot stop work, and a stalled crew cannot
 fake a healthy wall.
+
+The three presentation surfaces are one fold worn three ways (DEC-0018):
+`wall.html`, `wall summary` and the MCP server's `wall_status` all derive
+from the same `Derived` snapshot — none holds facts of its own. The MCP
+server is the ENGINEER'S SEAT made portable (DEC-0019), not a new role:
+its `answer`/`enqueue` verbs are the human's existing verbs carried over
+stdio into whatever editor the human is sitting in, and an agent-role
+attachment gets the reads only.
 
 ---
 

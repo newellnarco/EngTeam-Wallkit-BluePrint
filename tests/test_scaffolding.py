@@ -154,10 +154,11 @@ def parse_front_matter(body: str) -> dict[str, str]:
 
 def test_decision_seed_set_present():
     names = [p.name for p in decision_files()]
-    # 13-16 are the Patron's recorded rulings (2026-09-19); 17-18 the
-    # portability + reporting-economy charters (Patron, 2026-09-20). The equality
+    # 13-16 are the Patron's recorded rulings (2026-09-19); 17-19 the
+    # portability / reporting-economy / MCP-surface charters (Patron,
+    # 2026-09-20). The equality
     # still guards against holes and strays.
-    expected = [f"DEC-{n:04d}.md" for n in range(1, 19)]
+    expected = [f"DEC-{n:04d}.md" for n in range(1, 20)]
     assert names == expected, f"decision seed set drifted: {names}"
 
 

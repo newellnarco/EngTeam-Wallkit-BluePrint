@@ -321,8 +321,16 @@ python3 tools/wall/wall.py run-once
 
 ```bash
 python3 tools/wall/wall.py doctor        # heartbeat, integrity flags, roster
+python3 tools/wall/wall.py summary       # one-screen human digest (--json for machines)
 open .wall/derived/wall.html
 ```
+
+**From an editor instead of a terminal:** `tools/wall/mcp_server.py` is
+the same seat over MCP stdio — `wall_status`/`wall_waiting` to stay
+current, `wall_answer`/`wall_enqueue` to rule and hand out work — from
+VS Code, Cursor, Claude Code or any MCP client. Three-line client
+configs and the role gate (engineer vs agent) are in
+`docs/MCP_INTEGRATION.md` (DEC-0019).
 
 Two properties are not optional if you serve it yourself: bind `127.0.0.1`
 explicitly, and send no-cache headers on the polled JSON. A wall showing a
@@ -510,6 +518,7 @@ authority on which commands are in that state today.
 | `TESTING_STANDARDS.md` | Tiers, mutation protocol, SAST lane, sharding + rebalance |
 | `LOGGING_AND_AUDIT.md` | Three planes, per-run artifacts, trace commands |
 | `FAST_TRACK.md` | Doc-only routing, and the CI meter economics that go with it |
+| `MCP_INTEGRATION.md` | The wall as an MCP server: one integration point for every editor and agent, role-gated |
 | `FLEET.md` | More than one adopting repository: exit-code verdicts, the spin-off exchange, one byte-identical artifact, dispositions |
 | `INSTALL.md` | Machine-wide timer, serving, platform specifics |
 | `OPEN_QUESTIONS.md` | Settled decisions, and whatever is open now |
