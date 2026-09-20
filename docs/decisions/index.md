@@ -24,6 +24,7 @@ Format and front-matter contract: `docs/WALL_STANDARDS.md` section 6.
 | [DEC-0014](DEC-0014.md) | active | Scoped CI only where escape-rate-validated; the pyramid gates the merge | CI | 2026-09-19 |
 | [DEC-0015](DEC-0015.md) | active | Leases are the invariant; worktrees recommended for git-writing builders | isolation | 2026-09-19 |
 | [DEC-0016](DEC-0016.md) | active | Cooperative parallel PRs; merges + per-PR pushes stay serialized | integration | 2026-09-19 |
+| [DEC-0017](DEC-0017.md) | active | Portability is a standing requirement, mechanically ratcheted | portability | 2026-09-20 |
 
 ---
 
