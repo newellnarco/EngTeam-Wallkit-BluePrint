@@ -244,9 +244,22 @@ industries: `docs/COMPLIANCE_POSTURE.md`.
 Start to first wave. Each step is a real command or a real decision; none of it
 assumes anything already exists.
 
-**1. Copy the kit in.** Drop `tools/wall/`, `docs/`, `frontend/theme/` and
-`.gitignore` into the new repository. Nothing is installed and nothing runs yet;
-these are files.
+**1. Copy the kit in — one command (DEC-0021).** From a kit checkout:
+
+```bash
+python3 tools/wall/bootstrap.py fresh --into ../your-repo --apply \
+        --mcp claude-code cursor vscode
+```
+
+Dry-run first (drop `--apply`) to see exactly what lands: the bounded
+side-repo subtree (`tools/wall/`, `docs/`, `frontend/theme/`,
+`templates/`), the `.wall/` skeleton, every MISSING context document
+from `templates/` (an existing file is never overwritten), a
+`kit_source.json` stamp for later upgrades, and your editors' MCP
+configs pointing at the wall server as the engineer's seat. Same
+command on a laptop, VM, Docker, cluster node or cloud box —
+stdlib-only, nothing to install first. Steps 2-6 below are what the
+script deliberately leaves to you.
 
 **2. Copy the context documents to the root and fill them.** From
 `templates/`, copy and rename:
@@ -423,6 +436,19 @@ interpreter resolution, the name of the gating check, where derived files come
 from - while only one unit is exposed to the answer. The findings from that one
 item usually belong in the host's rules appendix as environment seams.
 
+**The inventory, as one command (DEC-0021):**
+
+```bash
+python3 tools/wall/bootstrap.py adopt --into ../your-repo          # report
+python3 tools/wall/bootstrap.py adopt --into ../your-repo --apply  # + vendor the machine
+```
+
+It detects what already serves each adoption function (by the names
+those things actually go by), vendors only the machine — your
+documents stay the documents of record — and names the gaps to fill
+from `templates/`. The checklist below is what you then do with the
+report.
+
 ### Adoption checklist
 
 | Exists? | Action |
@@ -446,7 +472,17 @@ than installing a second set of standards.
 Taking a newer kit into a repo that already adopted one is a routine, not
 an event — the discipline the reference adoption runs on every change,
 written down (the Architect owns running it; DEC-0020 makes it part of
-the drift pass):
+the drift pass). As one command from the NEWER kit's checkout
+(DEC-0021):
+
+```bash
+python3 tools/wall/bootstrap.py upgrade --into ../your-repo          # delta + dry run
+python3 tools/wall/bootstrap.py upgrade --into ../your-repo --apply  # re-vendor verbatim
+```
+
+It shows the upstream commit range since your stamped kit source and
+reminds you to read the decision index first. The numbered discipline
+it automates:
 
 1. **Read the delta as decisions first, code second.** The decision
    index (`docs/decisions/index.md`) is the changelog of *rulings*; the
