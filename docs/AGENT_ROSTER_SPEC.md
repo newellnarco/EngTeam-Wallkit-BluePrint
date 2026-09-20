@@ -30,6 +30,7 @@ reads as one set of rules rather than seven copies.
 | **G0b** | Evidence over self-report, for every role. A builder's own CI claim was superseded twice by reading the check runs. |
 | **G14** | Report in transitions, not narration. A bullet earns its place by recording a state change; prose about in-progress work buys nothing the wall does not already carry, and every reader pays for it every cycle. |
 | **In-flight files** | No role commits or pushes another unit's working-tree files while that unit is live -- **including when a hook demands it**. That ships unvalidated mid-build work past the owning unit's own gate. Decline and say why, so the refusal is visible. |
+| **G15** | Drift-first (DEC-0020, Patron direction 2026-09-20). Every role's first act on taking a surface is reading its documents of record; drift found there is reported to the Architect via the question queue (or fixed in-scope where the role owns the document), never silently built over. The Architect's drift PASS over docs, diagrams and instructions precedes dispatch of any wave or arc. |
 
 ---
 
@@ -125,6 +126,13 @@ Owns process and dispatch.
 
 Owns requirements, design and documentation.
 
+- **First act of any wave or arc: the drift pass (DEC-0020).** Audit
+  the platform docs, diagrams and instructions the coming work touches
+  against what is actually built; update, add or REMOVE (a stale
+  document kept is drift with a byline). Only then are stories written
+  and briefs cut — builders build from current documents, and the
+  Maestro sequences from current dependencies and order of operations,
+  never from memory of them.
 - Expert of record for enterprise, solution and product architecture.
 - Reconciles documentation, diagrams and decisions; output lands in
   `docs/architecture/`.

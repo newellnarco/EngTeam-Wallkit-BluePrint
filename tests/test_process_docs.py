@@ -1086,3 +1086,24 @@ def test_cooperative_prs_replace_the_single_slot_everywhere():
     wf = " ".join(_text(KIT / "docs" / "WORKFLOW.md").replace("**", "").split())
     assert "never push to a branch whose checks are running" in wf
     assert "one at a time" in wf
+
+
+# ---------------------------------------------------- drift-first (DEC-0020)
+
+def test_drift_first_is_sop_in_all_three_documents():
+    """Patron direction 2026-09-20: the docs/diagrams/instructions drift
+    pass is the Architect's FIRST act and SOP for every role. Pinned in
+    the roster (the Architect duty + the G15 row), the session-start SOP
+    (step 3b) and the dispatch order (step 0) — drop any one and the SOP
+    has a hole a role can honestly claim not to have seen."""
+    roster = (KIT / "docs" / "AGENT_ROSTER_SPEC.md").read_text(encoding="utf-8")
+    assert "First act of any wave or arc: the drift pass (DEC-0020)" in roster
+    assert "**G15**" in roster and "Drift-first (DEC-0020" in roster
+
+    lifecycle = (KIT / "docs" / "SESSION_LIFECYCLE.md").read_text(encoding="utf-8")
+    assert "The drift pass (DEC-0020)" in lifecycle
+    assert "dispatches from stale documents" in lifecycle
+
+    workflow = (KIT / "docs" / "WORKFLOW.md").read_text(encoding="utf-8")
+    assert "Confirms the drift pass (DEC-0020, G15)" in workflow
+    assert "No pass, no dispatch." in workflow

@@ -77,6 +77,12 @@ is what makes "no answer contradicts another" enforceable rather than aspiration
 
 Before assigning any work, Maestro:
 
+0. **Confirms the drift pass (DEC-0020, G15).** The Architect's audit of
+   the platform docs, diagrams and instructions for the surfaces this
+   wave touches — updated, added or removed — has run first, so every
+   dispatch brief cites documents at their POST-pass state and the
+   sequence / dependencies / order of operations the Maestro plans from
+   are current, not remembered. No pass, no dispatch.
 1. **Checks the budget.** Advisory, but recorded. Admission control belongs
    before dispatch, not after the overrun.
 2. **Checks the lease table.** Subagents in one session share a working tree.

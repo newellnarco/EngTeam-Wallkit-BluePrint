@@ -31,6 +31,13 @@ In order. Each step exists because skipping it produced a measured failure.
    ahead-of-origin tree is not a safe base for a crew (WALL_STANDARDS
    section 5). If the tree is dirty with work a previous session left, that is
    startup question Q4 — do not stash it silently and do not build on it.
+3b. **The drift pass (DEC-0020).** Before any dispatch: confirm the
+   Architect's drift pass covered the platform docs, diagrams and
+   instructions for the surfaces this session will touch — or run it
+   now. Update, add or remove; a stale document kept is drift with a
+   byline. A session that dispatches from stale documents has its
+   builders building a different system that shares file names with
+   this one.
 4. **Sweep and diagnose the wall.** `wall run-once` then `wall doctor`. The
    integrity flags and the roster audit are the previous session's honest
    residue; read them before trusting any item's status.
