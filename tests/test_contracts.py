@@ -147,3 +147,16 @@ def test_doc_maps_are_complete():
 def test_relay_failure_kinds_are_the_three_sentences():
     assert {k.value for k in c.RelayFailureKind} == {
         "max_http_error", "max_unreachable", "relay_refused"}
+
+
+def test_enqueue_payload_normalizes_a_raw_string_directive():
+    """CodeRabbit finding (accepted): a raw "execute_item" string used to
+    slip past the identity checks and skip target validation entirely.
+    Now it normalizes to the enum — and still demands its target."""
+    p = c.EnqueuePayload(directive="execute_item",
+                         target_key="k", title="t")
+    assert p.directive is c.Directive.EXECUTE_ITEM
+    with pytest.raises(ValueError, match="target_key"):
+        c.EnqueuePayload(directive="execute_item", title="t")
+    with pytest.raises(ValueError, match="unknown directive"):
+        c.EnqueuePayload(directive="delete_everything", title="t")

@@ -145,7 +145,13 @@ def format_summary(s: WallSummary, now: datetime | None = None) -> str:
     lines = [
         f"{s.repo} · {s.branch} — wall as of {_age(s.generated_at, now)}",
     ]
-    if s.heartbeat_ok is not None:
+    if s.heartbeat_ok is None:
+        # Absent is a STATE, not a nothing: hiding the courier line would
+        # let unknown health read as fine. (CodeRabbit finding, accepted —
+        # with honest wording: a snapshot may exist while the heartbeat
+        # file is gone, so "missing" is claimed, not "never ran".)
+        lines.append("courier: heartbeat MISSING — run `wall run-once`")
+    else:
         health = "ok" if s.heartbeat_ok else (
             f"DEGRADED — {s.heartbeat_corrupt} corrupt ledger line(s)")
         lines.append(f"courier: {health} · {s.heartbeat_events} events")

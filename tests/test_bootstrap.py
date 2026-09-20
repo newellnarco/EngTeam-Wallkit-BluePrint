@@ -163,3 +163,51 @@ def test_upgrade_noop_says_so(tmp_path, capsys):
     capsys.readouterr()
     assert run("upgrade", repo, "--apply") == 0
     assert "nothing to change" in capsys.readouterr().out
+
+
+# ---------------------------------------------------- preflight + remove
+
+def test_preflight_names_the_dependency_surface(capsys):
+    """DEC-0022 clause 1: verified and named, never assumed. On this
+    interpreter (3.11+) it passes; the pins are the NAMES."""
+    assert bs.preflight() == []
+    out = capsys.readouterr().out
+    assert "python 3." in out
+    assert "git" in out
+    assert "no pip installs" in out
+
+
+def test_remove_keeps_the_ledger_by_default_and_strips_only_the_wall(tmp_path, capsys):
+    """DEC-0022 clause 2. Mutations: purge .wall/ without the flag, or
+    delete a config that holds other servers."""
+    repo = tmp_path / "r"
+    assert run("fresh", repo, "--apply", "--mcp", "claude-code") == 0
+    mcp = repo / ".mcp.json"
+    cfg = json.loads(mcp.read_text(encoding="utf-8"))
+    cfg["mcpServers"]["other"] = {"command": "x"}
+    mcp.write_text(json.dumps(cfg), encoding="utf-8")
+    (repo / ".wall" / "events").mkdir(parents=True, exist_ok=True)
+    (repo / ".wall" / "events" / "probe.jsonl").write_text("{}\n", encoding="utf-8")
+
+    capsys.readouterr()
+    assert run("remove", repo) == 0  # dry run
+    assert (repo / "tools" / "wall").exists(), "a dry run removed files"
+
+    assert run("remove", repo, "--apply") == 0
+    assert not (repo / "tools" / "wall").exists()
+    assert not (repo / "templates").exists()
+    assert (repo / ".wall" / "events" / "probe.jsonl").exists(), (
+        "the LEDGER must survive a default remove")
+    assert (repo / "RULES.md").exists(), "context documents are the host's"
+    assert (repo / "docs").exists(), "docs/ is never script-deleted"
+    left = json.loads(mcp.read_text(encoding="utf-8"))
+    assert list(left["mcpServers"]) == ["other"], (
+        "remove strips exactly the wall's entry")
+
+
+def test_remove_purge_state_deletes_the_ledger_only_when_said(tmp_path):
+    repo = tmp_path / "r"
+    assert run("fresh", repo, "--apply") == 0
+    assert run("remove", repo, "--apply", "--purge-state") == 0
+    assert not (repo / ".wall").exists()
+    assert (repo / "RULES.md").exists()

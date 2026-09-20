@@ -52,7 +52,8 @@ def test_heartbeat_is_optional_and_honest():
     s = summary_mod.build_summary(SAMPLE_SNAP, heartbeat=None)
     assert s.heartbeat_ok is None
     out = summary_mod.format_summary(s)
-    assert "courier:" not in out  # no fabricated health line
+    # absent is a STATE, named — not a fabricated ok and not a hidden line
+    assert "heartbeat MISSING" in out and "wall run-once" in out
 
     degraded = summary_mod.build_summary(
         SAMPLE_SNAP, heartbeat={"ok": False, "events": 78, "corrupt_lines": 2})
@@ -106,3 +107,19 @@ def test_naive_timestamp_ages_instead_of_crashing():
     out = summary_mod.format_summary(
         s, now=datetime(2026, 9, 20, 13, 0, tzinfo=UTC))
     assert "wall as of 1h ago" in out
+
+
+def test_corrupt_snapshot_is_a_named_condition_not_a_traceback(tmp_path, capsys):
+    """CodeRabbit finding (accepted): a damaged wall.json exits 1 with the
+    recovery command; a damaged heartbeat degrades to the MISSING line."""
+    derived = tmp_path / ".wall" / "derived"
+    derived.mkdir(parents=True)
+    (derived / "wall.json").write_text("{corrupt", encoding="utf-8")
+    a = types.SimpleNamespace(repo=str(tmp_path), as_json=False)
+    assert wall_mod.cmd_summary(a) == 1
+    assert "wall run-once" in capsys.readouterr().out
+
+    (derived / "wall.json").write_text(json.dumps(SAMPLE_SNAP), encoding="utf-8")
+    (derived / "heartbeat.json").write_text("{also corrupt", encoding="utf-8")
+    assert wall_mod.cmd_summary(a) == 0
+    assert "heartbeat MISSING" in capsys.readouterr().out

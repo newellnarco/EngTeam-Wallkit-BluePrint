@@ -55,9 +55,18 @@ class EnqueuePayload:
     priority: str = ENQUEUE_PRIORITY
 
     def __post_init__(self) -> None:
-        if self.directive is Directive.EXECUTE_ITEM and not self.target_key:
+        # Normalize FIRST: a caller passing the raw string "execute_item"
+        # would fail the identity checks below and skip target validation
+        # entirely — a half-validated payload sneaking out as valid.
+        # (CodeRabbit review finding on the host PR, accepted.)
+        try:
+            directive = Directive(self.directive)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"unknown directive: {self.directive!r}") from exc
+        object.__setattr__(self, "directive", directive)
+        if directive is Directive.EXECUTE_ITEM and not self.target_key:
             raise ValueError("execute_item requires target_key")
-        if self.directive is Directive.EXECUTE_ARC and not self.target_arch:
+        if directive is Directive.EXECUTE_ARC and not self.target_arch:
             raise ValueError("execute_arc requires target_arch")
         if not self.title:
             raise ValueError("an enqueue payload carries a human title")

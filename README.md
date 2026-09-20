@@ -509,6 +509,29 @@ it automates:
    vendors, through your normal gates — never as drive-by edits inside
    feature work.
 
+### Dependencies, and uninstalling
+
+**Dependencies are verified, not bundled (DEC-0022).** Every bootstrap
+install and upgrade runs a preflight naming what this machine needs and
+why: Python 3.11+ (the one hard dependency), git (a warning if absent —
+stamps degrade honestly), and nothing else — stdlib only, no pip
+installs, ever. Optional surfaces bring their own host (an MCP editor,
+a browser, the platform scheduler), and the preflight says which.
+
+**Uninstall is one command, with the audit record protected:**
+
+```bash
+python3 tools/wall/bootstrap.py remove --into ../your-repo          # dry run
+python3 tools/wall/bootstrap.py remove --into ../your-repo --apply  # do it
+```
+
+It un-vendors the machine and strips exactly the wall's entry from each
+MCP client config (other servers kept). **The `.wall/` ledger survives
+by default** — it is the audit trail; only an explicit `--purge-state`
+deletes it. Context documents, `docs/` and your decision log are never
+touched: by uninstall time they are your documents. Run
+`wall uninstall` (the machine timer) *before* removing `tools/wall`.
+
 ### Looking ahead: more than one adopting repository
 
 Nothing below is needed for the first adoption. It is written down now because

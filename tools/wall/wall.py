@@ -238,10 +238,21 @@ def cmd_summary(a):
     if not snap_path.exists():
         print("no snapshot at .wall/derived/wall.json — run `wall run-once` first")
         return 1
-    snap = json.loads(snap_path.read_text(encoding="utf-8"))
+    # A damaged derived file is a NAMED condition with its recovery
+    # command, never a traceback — the courier's atomic writes make this
+    # rare, but rare is not never. (CodeRabbit finding, accepted.)
+    try:
+        snap = json.loads(snap_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"wall.json unreadable ({exc}) — run `wall run-once` to "
+              f"regenerate it")
+        return 1
     hb_path = repo / ".wall" / "derived" / "heartbeat.json"
-    hb = (json.loads(hb_path.read_text(encoding="utf-8"))
-          if hb_path.exists() else None)
+    try:
+        hb = (json.loads(hb_path.read_text(encoding="utf-8"))
+              if hb_path.exists() else None)
+    except (OSError, json.JSONDecodeError):
+        hb = None  # summary says: heartbeat MISSING — run `wall run-once`
     s = summary_mod.build_summary(snap, hb)
     if getattr(a, "as_json", False):
         from dataclasses import asdict

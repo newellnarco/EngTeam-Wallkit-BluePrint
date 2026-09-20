@@ -29,6 +29,7 @@ Format and front-matter contract: `docs/WALL_STANDARDS.md` section 6.
 | [DEC-0019](DEC-0019.md) | active | The wall speaks MCP: six tools exactly, stdio only, role-gated, schemas from contracts | integration | 2026-09-20 |
 | [DEC-0020](DEC-0020.md) | active | Drift-first: the docs pass precedes dispatch, for the Architect and every role | process | 2026-09-20 |
 | [DEC-0021](DEC-0021.md) | active | One-command bootstrap; the kit lives as a bounded subtree beside the product | deployment | 2026-09-20 |
+| [DEC-0022](DEC-0022.md) | active | Dependencies verified and named at install; uninstall is a first-class mode | deployment | 2026-09-20 |
 
 ---
 

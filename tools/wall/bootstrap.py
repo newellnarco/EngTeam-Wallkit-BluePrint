@@ -213,6 +213,38 @@ def _next_steps(repo: Path, mode: str) -> None:
          "queue_api in .wall/config/wall.json (docs/MCP_INTEGRATION.md).")
 
 
+def preflight() -> list[str]:
+    """Verify the dependencies the kit actually has (DEC-0022): the kit
+    bundles nothing on purpose (DEC-0017 — stdlib only), so 'dependencies
+    included' honestly means VERIFIED AND NAMED here, in every install and
+    upgrade, rather than silently assumed. Returns the list of problems;
+    empty means go."""
+    problems: list[str] = []
+    _say("preflight — what the kit needs on this machine:")
+    py = sys.version_info
+    if py < (3, 11):
+        problems.append(f"Python {py.major}.{py.minor} < 3.11")
+        _say(f"  FAIL  python {py.major}.{py.minor}  (need 3.11+ — StrEnum, "
+             f"tomllib; install from python.org or your package manager)")
+    else:
+        _say(f"  ok    python {py.major}.{py.minor}.{py.micro}")
+    try:
+        gitv = subprocess.run(["git", "--version"], capture_output=True,
+                              text=True, timeout=10).stdout.strip()
+        _say(f"  ok    {gitv}  (stamping, `wall ship`, upgrades' delta log)")
+    except (OSError, subprocess.SubprocessError):
+        # A warning, not a blocker: the stamp degrades to 'unknown'
+        # honestly and everything else runs. Only a too-old Python — the
+        # one dependency nothing can degrade around — stops an --apply.
+        _say("  WARN  git not found — kit_source stamps read 'unknown', "
+             "`wall ship` and upgrade deltas need it (git-scm.com)")
+    _say("  note  everything else is stdlib — no pip installs, ever "
+         "(DEC-0017). Optional surfaces bring their own host: an MCP "
+         "editor for the engineer seat, a browser for the wall, a "
+         "scheduler for the timer (wall install names each platform's).")
+    return problems
+
+
 # ----------------------------------------------------------------- modes
 
 def cmd_fresh(a) -> int:
@@ -328,6 +360,75 @@ def cmd_upgrade(a) -> int:
     return 0
 
 
+def cmd_remove(a) -> int:
+    """Uninstall (DEC-0022): the reverse of fresh/adopt, with the audit
+    record protected by default. Removes the vendored machine and strips
+    the wall's MCP entry; the LEDGER (.wall/) survives unless --purge-state
+    is said explicitly — an audit trail deleted by default is not an audit
+    trail. Context documents and the host's decision log are NEVER touched:
+    by uninstall time they are the host's documents, whoever seeded them."""
+    repo = Path(a.into).resolve()
+    apply = a.apply
+    _say(f"remove the kit from {repo}  "
+         f"({'APPLYING' if apply else 'dry run — pass --apply to do it'})")
+    if repo == KIT_ROOT:
+        _say("refusing: --into is the kit checkout itself")
+        return 2
+    _say("\nun-vendor the machine:")
+    for prefix in ("tools/wall", "frontend/theme", "templates"):
+        target = repo / prefix
+        if target.exists():
+            _say(f"  remove  {prefix}/")
+            if apply:
+                shutil.rmtree(target)
+    _say("  keep    docs/  (process corpus may be cited by YOUR documents; "
+         "delete deliberately, not by script)")
+    _say("\nengineer interface entries (only the wall's own):")
+    for client, (rel, key) in MCP_CONFIGS.items():
+        path = repo / rel
+        if not path.exists():
+            continue
+        try:
+            cfg = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            _say(f"  skip    {rel}  (not valid JSON — not ours to touch)")
+            continue
+        servers = cfg.get(key) or {}
+        if "wall" not in servers:
+            continue
+        others = {k: v for k, v in servers.items() if k != "wall"}
+        if others:
+            _say(f"  strip   {rel}  (wall entry only; "
+                 f"{len(others)} other server(s) kept)")
+            if apply:
+                cfg[key] = others
+                path.write_text(json.dumps(cfg, indent=2) + "\n",
+                                encoding="utf-8")
+        else:
+            _say(f"  remove  {rel}  (held only the wall)")
+            if apply:
+                path.unlink()
+    _say("\nstate and audit record:")
+    wall_dir = repo / ".wall"
+    if a.purge_state:
+        _say("  PURGE   .wall/  (--purge-state said: the event ledger, "
+             "config and registry go — this is the audit trail, and it "
+             "does not come back)")
+        if apply and wall_dir.exists():
+            shutil.rmtree(wall_dir)
+    else:
+        _say("  keep    .wall/  (the LEDGER is the audit record; pass "
+             "--purge-state to delete it too)")
+    _say("\nstill yours to do, because a script must not (DEC-0010):")
+    _say("  - the machine timer: `wall uninstall` BEFORE removing "
+         "tools/wall (it needs the adapter code), or your platform's "
+         "scheduler UI after")
+    _say("  - context documents (CLAUDE.md, RULES.md, ...) and docs/: "
+         "they are your documents now — keep, edit or delete them "
+         "deliberately")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="wall-bootstrap",
                                 description=__doc__.split("\n")[0])
@@ -335,7 +436,9 @@ def main(argv: list[str] | None = None) -> int:
     for name, fn, help_ in (
             ("fresh", cmd_fresh, "empty-repo runbook, automated"),
             ("adopt", cmd_adopt, "existing-repo inventory + machine vendor"),
-            ("upgrade", cmd_upgrade, "re-vendor a newer kit, verbatim")):
+            ("upgrade", cmd_upgrade, "re-vendor a newer kit, verbatim"),
+            ("remove", cmd_remove, "uninstall; the ledger survives unless "
+                                   "--purge-state")):
         s = sub.add_parser(name, help=help_)
         s.add_argument("--into", required=True,
                        help="the product repository root")
@@ -346,8 +449,19 @@ def main(argv: list[str] | None = None) -> int:
                        default=[],
                        help="also write these clients' MCP configs "
                             "(--role engineer)")
+        if name == "remove":
+            s.add_argument("--purge-state", action="store_true",
+                           help="also delete .wall/ — the event ledger is "
+                                "the audit record, so this is never implied")
         s.set_defaults(fn=fn)
     a = p.parse_args(argv)
+    if a.cmd != "remove":
+        problems = preflight()
+        if problems and a.apply:
+            _say(f"\npreflight failed ({'; '.join(problems)}) — fix the "
+                 f"named dependencies, then re-run")
+            return 2
+        _say("")
     return a.fn(a)
 
 
