@@ -122,6 +122,14 @@ def _age(iso: str, now: datetime) -> str:
         then = datetime.fromisoformat(iso.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
         return "unknown age"
+    if then.tzinfo is None:
+        # A naive timestamp parses fine and then CRASHES the subtraction
+        # against aware `now` (TypeError, which the except above rightly
+        # does not swallow — it is not a parse failure). A host snapshot
+        # that omits the offset means UTC here by every producer's
+        # convention, so say so instead of crashing the summary over it.
+        # (Gemini review finding on the host PR, accepted.)
+        then = then.replace(tzinfo=UTC)
     s = max(0, (now - then).total_seconds())
     if s < 90:
         return "just now"

@@ -92,3 +92,17 @@ def test_cli_missing_snapshot_is_a_named_instruction(tmp_path, capsys):
     a = types.SimpleNamespace(repo=str(tmp_path), as_json=False)
     assert wall_mod.cmd_summary(a) == 1
     assert "wall run-once" in capsys.readouterr().out
+
+
+def test_naive_timestamp_ages_instead_of_crashing():
+    """Gemini finding on the host PR (accepted): a naive generated_at
+    parses fine, then the subtraction against aware `now` raised an
+    uncaught TypeError -- the summary crashed over a snapshot that was
+    merely offset-less. Naive means UTC by every producer's convention.
+    Mutation: drop the tzinfo backfill and this raises."""
+    snap = dict(SAMPLE_SNAP)
+    snap["generated_at"] = "2026-09-20T12:00:00"  # no offset
+    s = summary_mod.build_summary(snap)
+    out = summary_mod.format_summary(
+        s, now=datetime(2026, 9, 20, 13, 0, tzinfo=UTC))
+    assert "wall as of 1h ago" in out
