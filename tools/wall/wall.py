@@ -329,11 +329,25 @@ def classify_files(files: list[str], cfg: dict) -> dict:
     }
 
 
+#: Ceiling on every local git call this CLI makes. Local plumbing that
+#: takes longer than this is stuck, not slow.
+GIT_TIMEOUT_S = 30
+
+
 def changed_files(repo: Path, staged: bool = False) -> list[str]:
     args = ["git", "-C", str(repo), "diff", "--name-only"]
     if staged:
         args.append("--cached")
-    out = subprocess.run(args, capture_output=True, text=True, check=False)
+    # Bounded: a hung git (stale lock, fsmonitor) must fail loudly here --
+    # an empty list would silently classify the change set as "nothing
+    # changed", which is the dangerous direction for a routing gate.
+    try:
+        out = subprocess.run(args, capture_output=True, text=True, check=False,
+                             timeout=GIT_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        raise SystemExit("git diff timed out after %ss -- cannot classify the "
+                         "change set; check for a stuck git process or stale "
+                         ".git/index.lock" % GIT_TIMEOUT_S)
     return [f for f in out.stdout.split("\n") if f.strip()]
 
 
@@ -800,8 +814,14 @@ def fast_track_gates(repo: Path, config: dict) -> tuple[list[dict], list[dict]]:
 
 
 def _git(repo: Path, *args: str) -> tuple[int, str, str]:
-    out = subprocess.run(["git", "-C", str(repo), *args],
-                         capture_output=True, text=True, check=False)
+    # Bounded: a timeout comes back as an ordinary failure (rc 124) so every
+    # caller's existing nonzero-rc handling covers it -- never a hang.
+    try:
+        out = subprocess.run(["git", "-C", str(repo), *args],
+                             capture_output=True, text=True, check=False,
+                             timeout=GIT_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        return 124, "", "git %s timed out after %ss" % (" ".join(args), GIT_TIMEOUT_S)
     return out.returncode, out.stdout.strip(), out.stderr.strip()
 
 

@@ -541,7 +541,7 @@ def load_events(repo: Path) -> list[dict]:
     events_dir = repo / ".wall" / "events"
     if not events_dir.is_dir():
         return []
-    fresh, _, _ = courier.read_shards(events_dir, {})
+    fresh, _, _, _ = courier.read_shards(events_dir, {})
     return courier.merge(repo / ".wall" / "derived" / "__absent__.jsonl", fresh)
 
 

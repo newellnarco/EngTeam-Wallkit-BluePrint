@@ -82,7 +82,7 @@ tests were assigned before any of them existed. Re-score the committed map
 against the latest durations:
 
 ```
-python3 tools/wall/testkit.py check --repo . --input <durations>
+pytest --durations=0 -q 2>&1 | python3 tools/wall/testkit.py check --repo . --input -
 ```
 
 Exit 0 is balanced and you move on. Exit 1 means one of two things, both named

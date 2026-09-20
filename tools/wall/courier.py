@@ -214,9 +214,16 @@ def git(repo: Path, *args: str) -> str:
 
 # ------------------------------------------------------------------- merge
 
-def read_shards(events_dir: Path, checkpoints: dict) -> tuple[list[dict], dict, int]:
-    """Read only the unread tail of each shard. Returns (events, checkpoints, shard_count)."""
+def read_shards(events_dir: Path, checkpoints: dict) -> tuple[list[dict], dict, int, int]:
+    """Read only the unread tail of each shard.
+
+    Returns (events, checkpoints, shard_count, corrupt_lines). corrupt_lines
+    counts complete lines that failed to parse this run -- they are skipped so
+    the sweep survives, but they are COUNTED so the heartbeat can say so
+    instead of folding "some events were unreadable" into ok: true.
+    """
     events: list[dict] = []
+    corrupt = 0
     shards = sorted(events_dir.rglob("*.jsonl"))
     for shard in shards:
         key = str(shard.relative_to(events_dir))
@@ -242,9 +249,9 @@ def read_shards(events_dir: Path, checkpoints: dict) -> tuple[list[dict], dict, 
             try:
                 events.append(json.loads(line))
             except json.JSONDecodeError:
-                continue  # surfaced as a sequence gap rather than crashing the sweep
+                corrupt += 1  # skipped, but counted -- the heartbeat reports it
         checkpoints[key] = consumed
-    return events, checkpoints, len(shards)
+    return events, checkpoints, len(shards), corrupt
 
 
 def merge(ledger_path: Path, new_events: list[dict]) -> list[dict]:
@@ -529,7 +536,8 @@ def run_once(repo: Path, template: Path | None = None, rebuild: bool = False) ->
 
     events_dir = wall / "events"
     events_dir.mkdir(parents=True, exist_ok=True)
-    new_events, checkpoints, shard_count = read_shards(events_dir, state.get("checkpoints", {}))
+    new_events, checkpoints, shard_count, corrupt_lines = read_shards(
+        events_dir, state.get("checkpoints", {}))
     all_events = merge(ledger, new_events)
 
     run_ms = int((time.perf_counter() - started) * 1000)
@@ -540,9 +548,12 @@ def run_once(repo: Path, template: Path | None = None, rebuild: bool = False) ->
     atomic_write(derived / "wall.json", json.dumps(snapshot, ensure_ascii=False, indent=2))
     atomic_write(derived / "wall.html", render(snapshot, template))
     atomic_write(state_path, json.dumps({"checkpoints": checkpoints}, indent=2))
+    # ok is a verdict about THIS run's read health, not a constant: a run that
+    # had to skip unparseable shard lines completed, but not cleanly.
     atomic_write(wall / "derived" / "heartbeat.json", json.dumps({
         "last_run": snapshot["generated_at"], "run_ms": run_ms,
-        "events": len(all_events), "ok": True,
+        "events": len(all_events), "ok": corrupt_lines == 0,
+        "corrupt_lines": corrupt_lines,
     }, indent=2))
     return snapshot
 
