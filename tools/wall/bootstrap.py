@@ -42,7 +42,7 @@ and stay manual on purpose: filling RULES.md Part 1, `wall install`
 from __future__ import annotations
 
 import argparse
-import difflib
+import contextlib
 import filecmp
 import json
 import shutil
@@ -333,12 +333,10 @@ def cmd_upgrade(a) -> int:
     stamp_path = repo / ".wall" / "config" / "kit_source.json"
     old_commit = "unknown"
     if stamp_path.exists():
-        try:
+        with contextlib.suppress(json.JSONDecodeError):
             old_commit = json.loads(
                 stamp_path.read_text(encoding="utf-8")).get(
                     "kit_commit", "unknown")
-        except json.JSONDecodeError:
-            pass
     new_commit = _kit_stamp()["kit_commit"]
     _say(f"  stamped source: {old_commit[:12]}  ->  this kit: {new_commit[:12]}")
     _say("  read the delta as DECISIONS first: docs/decisions/index.md "
@@ -393,7 +391,7 @@ def _timer_registration(repo: Path) -> str | None:
     an unreadable registry is not ours to rule on (returns None)."""
     try:
         sys.path.insert(0, str(Path(__file__).parent))
-        import service  # noqa: PLC0415
+        import service
         rows = service.read_registry().get("repos") or []
         for row in rows:
             if Path(row.get("path", "")) == repo:
@@ -436,7 +434,7 @@ def cmd_remove(a) -> int:
     _say("  keep    docs/  (process corpus may be cited by YOUR documents; "
          "delete deliberately, not by script)")
     _say("\nengineer interface entries (only the wall's own):")
-    for client, (rel, key) in MCP_CONFIGS.items():
+    for _client, (rel, key) in MCP_CONFIGS.items():
         path = repo / rel
         if not path.exists():
             continue
