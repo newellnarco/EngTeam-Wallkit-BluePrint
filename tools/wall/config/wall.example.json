@@ -48,6 +48,10 @@
     "reviewer pass complete"
   ],
 
+  "_integrations": "Optional host seams; absent or null means the wall stays a purely read-only static page. queue_api = {health, queue, add}: same-origin paths to the host's work-queue REST surface. The page shows EXECUTE buttons (per item detail + per arc) ONLY after GET health answers {ok:true}; EXECUTE POSTs add with {source:'wall_click', priority:'P2', directive: execute_item|execute_arc, target_key|target_arch, title}. agents_feed: a same-origin path to a live wave-status JSON ({updated, headcount:{developers,researchers,cap}, completed, in_progress, new}) rendered on the CREW tab, polled every 5s while that tab is open.",
+  "queue_api": null,
+  "agents_feed": null,
+
   "research": {
     "network": "none",
     "_comment": "none | allowlist | session-default. Local-only by default; researchers state the mode in every finding. See .claude/agents/researcher.md section 2.",

@@ -497,6 +497,38 @@ tr.child .twig { color: var(--text-muted); font-family: var(--font-mono); margin
 tr.detail-row td { background: var(--surface-sunken); border-bottom: 1px solid var(--line-soft);
   padding: var(--space-3); }
 tr.detail-row[hidden] { display: none; }
+
+/* EXECUTE port (host queue integration): buttons exist only when the host
+   config declares a queue_api, and show only after the health probe answered
+   ok -- a wall served without its backend stays read-only, honestly. */
+.exec-btn { border: 1px solid var(--line-strong); background: var(--surface-raised);
+  color: var(--text-primary); font: inherit; font-size: var(--text-xs);
+  border-radius: var(--radius-sm); padding: var(--space-1) var(--space-2);
+  cursor: pointer; display: none; }
+.exec-btn:hover:not([disabled]) { background: var(--surface-hover); }
+.exec-btn[disabled] { opacity: .5; cursor: default; }
+body.queue-ok .exec-btn { display: inline-block; }
+.exec-bar { display: flex; gap: var(--space-2); align-items: center;
+  margin-top: var(--space-2); }
+.exec-msg { color: var(--text-muted); font-size: var(--text-xs); }
+.queue-strip { display: flex; flex-wrap: wrap; gap: var(--space-3);
+  align-items: center; border: 1px solid var(--line);
+  background: var(--surface-panel); border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3); margin-bottom: var(--space-4);
+  color: var(--text-secondary); font-size: var(--text-sm); }
+.queue-strip .qs-label { color: var(--text-primary); font-weight: 600; }
+.queue-strip .qs-spacer { flex: 1; }
+.queue-strip[hidden] { display: none; }
+
+/* AGENTS port: the optional live wave feed on the CREW tab. */
+.wave-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4); }
+.wave-cols h3 { font-size: var(--text-sm); color: var(--text-primary);
+  margin: 0 0 var(--space-2); }
+.wave-cols ul { margin: 0; padding-left: var(--space-4);
+  color: var(--text-secondary); font-size: var(--text-sm); }
+.wave-cols li { margin-bottom: var(--space-1); overflow-wrap: anywhere; }
+.wave-cols .stage { color: var(--text-muted); font-size: var(--text-xs); }
 .detail-meta { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
 .detail-pane { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px;
   overflow: auto; color: var(--text-secondary); font-size: var(--text-sm); }
@@ -588,6 +620,7 @@ footer {
   </section>
 
   <section role="tabpanel" id="panel-board" aria-labelledby="tab-board">
+    <div class="queue-strip" id="queueStrip" hidden></div>
     <div class="panel">
       <h2>Arcs<span class="sub" id="arcsSub"></span></h2>
       <div id="arcs"></div>
@@ -617,6 +650,10 @@ footer {
   </section>
 
   <section role="tabpanel" id="panel-crew" aria-labelledby="tab-crew" hidden>
+    <div class="panel" id="wavePanel" hidden>
+      <h2>Live wave<span class="sub" id="waveSub"></span></h2>
+      <div id="waveBody"></div>
+    </div>
     <div class="panel">
       <h2>Crew<span class="sub" id="crewSub"></span></h2>
       <div class="scroll-x"><table class="data">
@@ -843,12 +880,132 @@ footer {
     b.setAttribute('aria-expanded', opening ? 'true' : 'false');
   });
 
+  // ---- EXECUTE port (host queue integration) -----------------------------
+  // Present only when the host config declares queue_api {health, queue, add}.
+  // The wall stays read-only unless the health probe answers ok same-origin:
+  // served standalone without its backend, the probe fails and nothing shows.
+  function probeQueue(){
+    if (!D.queue_api || !D.queue_api.health) return;
+    var strip = $('queueStrip');
+    fetch(D.queue_api.health, { cache: 'no-store' })
+      .then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(health){
+        if (!health.ok) throw new Error('not ready');
+        document.body.classList.add('queue-ok');
+        var qp = D.queue_api.queue;
+        return (qp ? fetch(qp, { cache: 'no-store' })
+                       .then(function(r){ return r.ok ? r.json() : {}; })
+                   : Promise.resolve({}))
+          .then(function(snap){
+            var c = snap.counts || {};
+            strip.innerHTML =
+              '<span class="qs-label">QUEUE</span>' +
+              '<span>' + (snap.open || 0) + ' open</span>' +
+              '<span>in-progress ' + (c.in_progress || 0) +
+                ' &middot; queued ' + (c.queued || 0) +
+                ' &middot; done ' + (c.done || 0) + '</span>' +
+              '<span class="qs-spacer"></span>' +
+              '<span>' + (health.auto_drain ? 'auto-drain ON'
+                          : 'open a detail &#8594; EXECUTE to enqueue') + '</span>';
+            strip.removeAttribute('hidden');
+          });
+      })
+      .catch(function(){
+        document.body.classList.remove('queue-ok');
+        strip.setAttribute('hidden', '');
+      });
+  }
+
+  function enqueue(payload, msgEl){
+    if (msgEl) msgEl.textContent = 'enqueuing\u2026';
+    return fetch(D.queue_api.add, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ source: 'wall_click', priority: 'P2' }, payload)),
+    }).then(function(r){
+      if (!r.ok) { if (msgEl) msgEl.textContent = 'enqueue failed (' + r.status + ')'; return; }
+      return r.json().then(function(item){
+        if (msgEl) msgEl.textContent = 'queued: ' + (item.title || item.id || 'ok');
+        probeQueue();
+      });
+    }).catch(function(e){
+      if (msgEl) msgEl.textContent = 'enqueue error: ' + String(e);
+    });
+  }
+
+  // One EXECUTE click, one directive: a synchronous busy flag blocks a
+  // double-fire, and the button stays disabled until the POST settles plus a
+  // short cooldown (the reference wall's re-entrancy discipline, kept).
+  document.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('.exec-btn') : null;
+    if (!b || b.dataset.busy === '1') return;
+    var bar = b.closest('.exec-bar');
+    if (!bar) return;
+    var msgEl = bar.querySelector('[data-role="exec-msg"]');
+    var payload = null;
+    if (b.getAttribute('data-exec') === 'item' && bar.getAttribute('data-key')) {
+      var key = bar.getAttribute('data-key');
+      payload = { directive: 'execute_item', target_key: key, title: 'Execute ' + key };
+    } else if (b.getAttribute('data-exec') === 'arc' && bar.getAttribute('data-arc')) {
+      var arcId = bar.getAttribute('data-arc');
+      payload = { directive: 'execute_arc', target_arch: arcId, title: 'Execute arc ' + arcId };
+    }
+    if (!payload) return;
+    b.dataset.busy = '1';
+    b.disabled = true;
+    enqueue(payload, msgEl).then(function(){
+      setTimeout(function(){ b.dataset.busy = ''; b.disabled = false; }, 1500);
+    });
+  });
+
+  // ---- AGENTS port (optional live wave feed) -----------------------------
+  // Present only when the host config declares agents_feed (a same-origin
+  // path to a wave-status JSON). Polled while the CREW tab is open; a
+  // missing or unparseable feed reads as an honest note, never a blank.
+  function waveList(items){
+    if (!items || !items.length) return '<ul><li class="stage">none</li></ul>';
+    return '<ul>' + items.map(function(x){
+      if (x && typeof x === 'object') {
+        return '<li>' + esc(x.agent || '?') + ' &mdash; ' + esc(x.unit || '') +
+          (x.stage ? ' <span class="stage">(' + esc(x.stage) + ')</span>' : '') + '</li>';
+      }
+      return '<li>' + esc(String(x)) + '</li>';
+    }).join('') + '</ul>';
+  }
+
+  function paintWave(){
+    if (!D.agents_feed || active !== 'crew') return;
+    var panel = $('wavePanel');
+    fetch(D.agents_feed + (D.agents_feed.indexOf('?') < 0 ? '?_=' : '&_=') + Date.now(),
+          { cache: 'no-store' })
+      .then(function(r){ if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function(w){
+        var hc = w.headcount || {};
+        $('waveSub').textContent = 'updated ' + ago(w.updated) +
+          ' ago \u00b7 developers ' + (hc.developers || 0) +
+          ' \u00b7 researchers ' + (hc.researchers || 0) +
+          ' \u00b7 cap ' + (hc.cap || '?');
+        $('waveBody').innerHTML = '<div class="wave-cols">' +
+          '<div><h3>Completed</h3>' + waveList(w.completed) + '</div>' +
+          '<div><h3>In progress</h3>' + waveList(w.in_progress) + '</div>' +
+          '<div><h3>New</h3>' + waveList(w.new) + '</div></div>';
+        panel.removeAttribute('hidden');
+      })
+      .catch(function(){
+        $('waveSub').textContent = '';
+        $('waveBody').innerHTML = '<div class="empty">No live wave feed at ' +
+          esc(D.agents_feed) + ' \u2014 nothing streaming, or the feed has not been dropped.</div>';
+        panel.removeAttribute('hidden');
+      });
+  }
+
   $('tabs').addEventListener('click', function(e){
     var b = e.target.closest('button[data-tab]');
     if (!b) return;
     active = b.dataset.tab;
     history.replaceState(null,'','#'+active);
     paintTabs();
+    paintWave();
   });
 
   function paintSweep(){
@@ -898,9 +1055,15 @@ footer {
     var meta = ['pr', 'priority', 'area', 'phase', 'issue'].map(function(k){
       return it[k] ? '<span class="chip">' + esc(k) + ' ' + esc(it[k]) + '</span>' : '';
     }).join('');
+    var exec = D.queue_api
+      ? '<div class="exec-bar" data-key="' + esc(it.item_id) + '">' +
+          '<button class="exec-btn" type="button" data-exec="item">EXECUTE THIS &#8594;</button>' +
+          '<span class="exec-msg" data-role="exec-msg"></span></div>'
+      : '';
     return '<tr class="detail-row" hidden><td colspan="7">' +
       (meta ? '<div class="detail-meta">' + meta + '</div>' : '') +
       '<div class="detail-pane">' + esc(String(it.detail)) + '</div>' +
+      exec +
     '</td></tr>';
   }
 
@@ -952,9 +1115,14 @@ footer {
       var done = items.filter(isDone).length;
       var pct = items.length ? Math.round(done / items.length * 100) : 0;
       var cls = pct >= 100 ? '' : (pct >= 50 ? 'warn' : 'alert');
+      var execArc = D.queue_api
+        ? '<span class="exec-bar" data-arc="' + esc(arc.arc_id) + '">' +
+            '<button class="exec-btn" type="button" data-exec="arc">EXECUTE ARC &#8594;</button>' +
+            '<span class="exec-msg" data-role="exec-msg"></span></span>'
+        : '';
       return '<div class="arc"><header>' +
         '<span class="id">' + esc(arc.arc_id) + '</span><h3>' + esc(arc.title || arc.arc_id) + '</h3>' +
-        '<span class="spacer"></span>' +
+        '<span class="spacer"></span>' + execArc +
         '<span class="chip">' + done + '/' + items.length + '</span>' +
         '<span class="meter"><i class="' + cls + '" style="width:' + pct + '%"></i></span>' +
         '</header><div class="scroll-x"><table class="data board">' + HEAD +
@@ -1162,6 +1330,9 @@ footer {
 
   paint();
   setInterval(paintSweep, 1000);
+  probeQueue();
+  paintWave();
+  setInterval(paintWave, 5000);
 })();
 </script>
 </body>

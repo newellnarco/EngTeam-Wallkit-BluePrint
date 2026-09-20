@@ -501,6 +501,12 @@ def build_snapshot(repo: Path, events: list[dict], config: dict, shard_count: in
                             key=lambda q: (q.get("raised_at") or "", q["question_id"])),
         "budget": enrich_budget(config.get("budget", DEFAULT_BUDGET), events,
                                 datetime.now(timezone.utc)),
+        # Host integration seams, verbatim from config (None when unset, and
+        # the template renders nothing for either): queue_api lights the
+        # EXECUTE actions ONLY where the named health endpoint answers ok;
+        # agents_feed lights the CREW tab's live-wave section.
+        "queue_api": config.get("queue_api"),
+        "agents_feed": config.get("agents_feed"),
         "rollup_by_role": sorted(rollup.values(), key=lambda r: (r["role"], r["model"])),
         "sessions": sorted(sessions),
     }
