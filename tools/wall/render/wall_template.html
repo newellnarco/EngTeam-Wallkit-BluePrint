@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+<!-- engteam-wall -->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -484,6 +485,22 @@ tr.child .twig { color: var(--text-muted); font-family: var(--font-mono); margin
 .note { color: var(--text-muted); font-size: var(--text-xs); margin-left: var(--space-2); }
 .dupe { color: var(--status-alert); font-size: var(--text-xs); margin-left: var(--space-2); }
 
+/* Item detail expansion: the board's long-form detail survives the redesign.
+   A toggle chip on rows that carry detail; the panel is a sibling row so the
+   table layout stays intact and a collapsed board reads exactly as before. */
+.dtoggle { border: 1px solid var(--line); background: var(--surface-raised);
+  color: var(--text-secondary); font: inherit; font-size: var(--text-xs);
+  border-radius: var(--radius-pill); padding: 0 var(--space-2);
+  margin-left: var(--space-2); cursor: pointer; line-height: 1.6; }
+.dtoggle:hover { background: var(--surface-hover); color: var(--text-primary); }
+.dtoggle[aria-expanded="true"] { color: var(--text-primary); border-color: var(--line-strong); }
+tr.detail-row td { background: var(--surface-sunken); border-bottom: 1px solid var(--line-soft);
+  padding: var(--space-3); }
+tr.detail-row[hidden] { display: none; }
+.detail-meta { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-2); }
+.detail-pane { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 320px;
+  overflow: auto; color: var(--text-secondary); font-size: var(--text-sm); }
+
 .who { display: flex; flex-direction: column; gap: 1px; }
 .who b { font-weight: 600; font-size: var(--text-base); letter-spacing: -.005em; }
 .who span { color: var(--text-muted); font-family: var(--font-mono); font-size: var(--text-xs); }
@@ -814,6 +831,18 @@ footer {
     var cur = TABS.filter(function(t){ return t.id === active; })[0];
     $('screenName').textContent = cur ? cur.label.toLowerCase() : '';
   }
+  // One delegated handler for every detail toggle, present and future rows.
+  document.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('.dtoggle') : null;
+    if (!b) return;
+    var tr = b.closest('tr');
+    var next = tr && tr.nextElementSibling;
+    if (!next || !next.classList.contains('detail-row')) return;
+    var opening = next.hasAttribute('hidden');
+    if (opening) next.removeAttribute('hidden'); else next.setAttribute('hidden', '');
+    b.setAttribute('aria-expanded', opening ? 'true' : 'false');
+  });
+
   $('tabs').addEventListener('click', function(e){
     var b = e.target.closest('button[data-tab]');
     if (!b) return;
@@ -841,13 +870,16 @@ footer {
   function itemRow(it, depth){
     var pad = depth ? ' style="padding-left:calc(var(--space-3) + ' + (depth * 20) + 'px)"' : '';
     var twig = depth ? '<span class="twig" aria-hidden="true">&#8627;</span>' : '';
-    return '<tr' + (depth ? ' class="child"' : '') + '>' +
+    var hasDetail = !!(it.detail && String(it.detail).trim());
+    var row = '<tr' + (depth ? ' class="child"' : '') + '>' +
       '<td' + pad + '>' + twig +
         '<span class="chip chip--id">' + esc(it.item_id) + '</span> ' +
         '<span class="task"><span class="title">' + esc(it.title || '(untitled)') + '</span>' +
         (it.note ? '<span class="note">' + esc(it.note) + '</span>' : '') +
         (it.duplicate_of ? '<span class="dupe">dup of ' + esc(it.duplicate_of) + '</span>' : '') +
-        '</span></td>' +
+        '</span>' +
+        (hasDetail ? '<button class="dtoggle" type="button" aria-expanded="false">detail</button>' : '') +
+      '</td>' +
       '<td>' + kindChip(it.kind) + '</td>' +
       '<td>' + statusChip(it.status) + '</td>' +
       '<td>' + esc(it.assignee || '—') + '</td>' +
@@ -855,6 +887,21 @@ footer {
       '<td class="num">' + esc(it.actual || '—') + '</td>' +
       '<td class="num">' + ago(it.updated_at) + '</td>' +
     '</tr>';
+    if (hasDetail) row += detailRow(it);
+    return row;
+  }
+
+  // The detail panel is a sibling row, hidden until its toggle opens it, so
+  // the columns of every board table stay aligned and a board with no detail
+  // renders byte-identically to before this feature existed.
+  function detailRow(it){
+    var meta = ['pr', 'priority', 'area', 'phase', 'issue'].map(function(k){
+      return it[k] ? '<span class="chip">' + esc(k) + ' ' + esc(it[k]) + '</span>' : '';
+    }).join('');
+    return '<tr class="detail-row" hidden><td colspan="7">' +
+      (meta ? '<div class="detail-meta">' + meta + '</div>' : '') +
+      '<div class="detail-pane">' + esc(String(it.detail)) + '</div>' +
+    '</td></tr>';
   }
 
   // Children nest under their parent when parent_id links them, and a child

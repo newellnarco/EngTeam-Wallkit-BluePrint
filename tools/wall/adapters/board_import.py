@@ -157,8 +157,12 @@ PROFILE_MAX3: dict[str, Any] = {
     "estimate_field": "size",
     "actual_field": None,
     "parent_field": None,
+    # `detail` is MAX3's long-form item prose (design notes, as-builts --
+    # routinely kilobytes). It rides through verbatim: the wall's STORIES tab
+    # renders it behind a per-row toggle, and dropping it would violate the
+    # adoption requirement that every item's detail survives the new wall.
     "extra_fields": {"pr": "pr", "priority": "priority", "area": "area",
-                     "issue": "issue", "phase": "phase"},
+                     "issue": "issue", "phase": "phase", "detail": "detail"},
 
     "status_map": {
         "todo": "planned", "backlog": "planned", "planned": "planned",
