@@ -322,6 +322,17 @@ def serve(repo: Path, stdin=None, stdout=None, role: str = "engineer") -> int:
     message must not kill the server every editor is attached to."""
     stdin = stdin or sys.stdin
     stdout = stdout or sys.stdout
+    # MCP clients speak UTF-8; a Windows console stream defaults to the
+    # locale codepage (cp1252), which silently mojibakes any non-ASCII in
+    # an inbound message — including the engineer's own wall_answer text
+    # on its way into the s_human shard, the audit record. Re-encode both
+    # ways where the stream allows it (a test's StringIO does not, and
+    # needs nothing: it is already text). Output is ensure_ascii JSON, so
+    # the stdout half is belt-and-braces, not a live crash path.
+    for stream in (stdin, stdout):
+        if hasattr(stream, "reconfigure"):
+            with contextlib.suppress(Exception):
+                stream.reconfigure(encoding="utf-8")
     for line in stdin:
         line = line.strip()
         if not line:

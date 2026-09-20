@@ -82,6 +82,31 @@ def test_malformed_line_answers_and_the_loop_survives():
     assert lines[1] == {"jsonrpc": "2.0", "id": 9, "result": {}}
 
 
+def test_serve_reconfigures_real_streams_to_utf8():
+    """MCP clients speak UTF-8; a Windows console stream defaults to the
+    locale codepage, which mojibakes non-ASCII inbound — the engineer's
+    own wall_answer text on its way into the s_human shard. serve() must
+    re-encode any stream that can be re-encoded, and must not touch one
+    that cannot (the StringIO tests above already prove the latter).
+    Mutation: drop the reconfigure loop and the recorder stays empty.
+    Host-review finding (Gemini, MAX3 PR #1662), fixed kit-first."""
+
+    class Recorder(io.StringIO):
+        def __init__(self, *a):
+            super().__init__(*a)
+            self.encodings: list[str] = []
+
+        def reconfigure(self, *, encoding):
+            self.encodings.append(encoding)
+
+    stdin = Recorder('{"jsonrpc":"2.0","id":1,"method":"ping"}\n')
+    stdout = Recorder()
+    assert srv.serve(SAMPLE, stdin=stdin, stdout=stdout) == 0
+    assert stdin.encodings == ["utf-8"], "inbound stream was not re-encoded"
+    assert stdout.encodings == ["utf-8"]
+    assert json.loads(stdout.getvalue())["result"] == {}
+
+
 # ------------------------------------------------------------ read tools
 
 def test_wall_status_is_byte_identical_to_the_cli_summary():
