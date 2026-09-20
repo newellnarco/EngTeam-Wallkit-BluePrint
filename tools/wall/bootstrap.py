@@ -60,9 +60,13 @@ VENDORED = ("tools/wall", "docs", "frontend/theme", "templates")
 
 #: The subset of VENDORED that carries NOTHING of the host's: an upgrade
 #: may prune here (a file the kit dropped must not survive as a stale
-#: half-upgrade) and a remove deletes exactly these. docs/ is copy-only
-#: both ways — it mixes host documents, the decision log above all.
-KIT_OWNED_PREFIXES = ("tools/wall", "frontend/theme", "templates")
+#: half-upgrade) and a remove deletes exactly these trees. docs/ is
+#: copy-only both ways — it mixes host documents, the decision log above
+#: all. templates/ is deliberately NOT here: it is a generic root name
+#: (Flask/Django hosts keep their web views there), so the kit owns it
+#: FILE-BY-FILE — never prune it, and remove deletes only the filenames
+#: the kit itself vendored (host-review finding, Gemini on MAX3 #1662).
+KIT_OWNED_PREFIXES = ("tools/wall", "frontend/theme")
 
 #: Context documents `fresh` materializes at the product root — only
 #: where the target does not already exist.
@@ -431,6 +435,27 @@ def cmd_remove(a) -> int:
             _say(f"  remove  {prefix}/")
             if apply:
                 shutil.rmtree(target)
+    # templates/ is a generic host directory name (a Flask/Django app's
+    # web views live there), so it is owned FILE-BY-FILE: delete exactly
+    # the filenames the kit vendored, keep anything else, and drop the
+    # directory only when that leaves it empty.
+    tdir = repo / "templates"
+    if tdir.exists():
+        for src in sorted((KIT_ROOT / "templates").rglob("*")):
+            if not src.is_file():
+                continue
+            rel = src.relative_to(KIT_ROOT / "templates")
+            tgt = tdir / rel
+            if tgt.exists():
+                _say(f"  remove  templates/{rel}")
+                if apply:
+                    tgt.unlink()
+        if apply:
+            if any(p.is_file() for p in tdir.rglob("*")):
+                _say("  keep    templates/  (host files present — "
+                     "not the kit's to delete)")
+            else:
+                shutil.rmtree(tdir)
     _say("  keep    docs/  (process corpus may be cited by YOUR documents; "
          "delete deliberately, not by script)")
     _say("\nengineer interface entries (only the wall's own):")

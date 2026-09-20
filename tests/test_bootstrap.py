@@ -264,3 +264,27 @@ def test_remove_refuses_while_the_machine_timer_knows_the_repo(
     (home / "registry.json").write_text('{"repos": []}', encoding="utf-8")
     assert run("remove", repo, "--apply") == 0
     assert not (repo / "tools" / "wall").exists()
+
+
+def test_templates_is_owned_file_by_file_never_as_a_tree(tmp_path):
+    """'templates/' is a generic root name — a Flask/Django host keeps
+    its web views there. So the kit never prunes it on upgrade, and a
+    remove deletes exactly the filenames the kit vendored, keeping the
+    host's files and the directory holding them (host-review finding,
+    Gemini on MAX3 PR #1662). Mutation: put 'templates' back into
+    KIT_OWNED_PREFIXES and both halves fail."""
+    repo = tmp_path / "webapp"
+    assert run("fresh", repo, "--apply") == 0
+    host_view = repo / "templates" / "index.html"
+    host_view.write_text("<h1>the host's web view</h1>", encoding="utf-8")
+    assert run("upgrade", repo, "--apply") == 0
+    assert host_view.exists(), "upgrade pruned a host file in templates/"
+    assert run("remove", repo, "--apply") == 0
+    assert host_view.exists(), "remove deleted a host file in templates/"
+    assert not (repo / "templates" / "RULES.md.template").exists(), (
+        "the kit's own template files must still be removed")
+    # a repo holding ONLY kit templates loses the directory too
+    repo2 = tmp_path / "clean"
+    assert run("fresh", repo2, "--apply") == 0
+    assert run("remove", repo2, "--apply") == 0
+    assert not (repo2 / "templates").exists()
