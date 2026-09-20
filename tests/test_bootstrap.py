@@ -211,3 +211,56 @@ def test_remove_purge_state_deletes_the_ledger_only_when_said(tmp_path):
     assert run("remove", repo, "--apply", "--purge-state") == 0
     assert not (repo / ".wall").exists()
     assert (repo / "RULES.md").exists()
+
+
+def test_mcp_config_uses_the_validated_interpreter(tmp_path):
+    """DEC-0022: preflight validates THIS interpreter, so the generated
+    config must launch the same one — "python3" does not exist on a
+    stock Windows install (host-review finding, MAX3 PR #1662).
+    Mutation: hard-code a spelled interpreter name again."""
+    bs.emit_mcp_configs(tmp_path, ["claude-code"], apply=True)
+    cfg = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
+    assert cfg["mcpServers"]["wall"]["command"] == sys.executable
+
+
+def test_upgrade_prunes_kit_owned_strays_and_never_docs(tmp_path):
+    """VERBATIM includes subtraction on the wholly kit-owned trees: a
+    file the kit dropped must not survive as a stale half-upgrade
+    (host-review finding). docs/ mixes host documents, so it stays
+    copy-only. Mutations: drop the prune loop, or widen it to docs/."""
+    repo = tmp_path / "adopted"
+    assert run("fresh", repo, "--apply") == 0
+    stale = repo / "tools" / "wall" / "retired_module.py"
+    stale.write_text("# dropped upstream\n", encoding="utf-8")
+    host_doc = repo / "docs" / "HOST_NOTE.md"
+    host_doc.write_text("host-authored\n", encoding="utf-8")
+    assert run("upgrade", repo) == 0
+    assert stale.exists(), "a dry run must not prune"
+    assert run("upgrade", repo, "--apply") == 0
+    assert not stale.exists(), "kit-owned stray survived the upgrade"
+    assert host_doc.read_text(encoding="utf-8") == "host-authored\n", (
+        "docs/ is copy-only — pruning there would eat host documents")
+
+
+def test_remove_refuses_while_the_machine_timer_knows_the_repo(
+        tmp_path, monkeypatch, capsys):
+    """DEC-0022 clause 3: `wall uninstall` runs BEFORE the remove, since
+    it needs the adapter code the remove deletes. A repo still in the
+    machine registry refuses --apply and names the order (host-review
+    finding). Mutation: drop the guard and the machine sweeper strands
+    a failing row on every sweep."""
+    repo = tmp_path / "r"
+    assert run("fresh", repo, "--apply") == 0
+    home = tmp_path / "wallhome"
+    home.mkdir()
+    (home / "registry.json").write_text(json.dumps(
+        {"repos": [{"path": str(repo.resolve()), "name": "r"}]}),
+        encoding="utf-8")
+    monkeypatch.setenv("WALL_HOME", str(home))
+    capsys.readouterr()
+    assert run("remove", repo, "--apply") == 2
+    assert (repo / "tools" / "wall").exists(), "refusal must delete nothing"
+    assert "uninstall" in capsys.readouterr().out
+    (home / "registry.json").write_text('{"repos": []}', encoding="utf-8")
+    assert run("remove", repo, "--apply") == 0
+    assert not (repo / "tools" / "wall").exists()

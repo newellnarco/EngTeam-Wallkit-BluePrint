@@ -309,3 +309,25 @@ def test_unknown_role_degrades_down_never_up():
                                     "method": "tools/list"}, role="superuser")
     names = [t["name"] for t in r["result"]["tools"]]
     assert "wall_answer" not in names and "wall_enqueue" not in names
+
+
+def test_array_params_are_invalid_params_not_a_crash():
+    """JSON-RPC allows array params but every method here is by-name: a
+    request gets INVALID_PARAMS, a notification is ignored, and the
+    AttributeError that would kill every attached editor never escapes
+    serve(). Host-review finding (CodeRabbit, MAX3 PR #1662), fixed
+    kit-first. Mutation: drop the isinstance guard and this raises."""
+    r = srv.handle_request(SAMPLE, {
+        "jsonrpc": "2.0", "id": 5, "method": "initialize", "params": [1]})
+    assert r["error"]["code"] == srv.INVALID_PARAMS
+    assert srv.handle_request(SAMPLE, {
+        "jsonrpc": "2.0", "method": "notifications/initialized",
+        "params": [1]}) is None
+    stdin = io.StringIO(
+        '{"jsonrpc":"2.0","id":6,"method":"tools/list","params":[7]}\n'
+        '{"jsonrpc":"2.0","id":7,"method":"ping"}\n')
+    stdout = io.StringIO()
+    assert srv.serve(SAMPLE, stdin=stdin, stdout=stdout) == 0
+    lines = [json.loads(x) for x in stdout.getvalue().splitlines()]
+    assert lines[0]["error"]["code"] == srv.INVALID_PARAMS
+    assert lines[1]["result"] == {}

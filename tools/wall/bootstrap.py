@@ -58,6 +58,12 @@ KIT_ROOT = Path(__file__).resolve().parents[2]
 #: the root context documents the templates become.
 VENDORED = ("tools/wall", "docs", "frontend/theme", "templates")
 
+#: The subset of VENDORED that carries NOTHING of the host's: an upgrade
+#: may prune here (a file the kit dropped must not survive as a stale
+#: half-upgrade) and a remove deletes exactly these. docs/ is copy-only
+#: both ways — it mixes host documents, the decision log above all.
+KIT_OWNED_PREFIXES = ("tools/wall", "frontend/theme", "templates")
+
 #: Context documents `fresh` materializes at the product root — only
 #: where the target does not already exist.
 TEMPLATE_TARGETS = {
@@ -150,7 +156,11 @@ def _write(path: Path, text: str, apply: bool, label: str) -> None:
 def emit_mcp_configs(repo: Path, clients: list[str], apply: bool) -> None:
     """The engineer's preferred interface, configured: three lines per
     client, --role engineer (DEC-0019 — this is the human's seat)."""
-    server = {"command": "python3",
+    # sys.executable, not a spelled name: these configs are generated ON
+    # the machine that will run them, and the one interpreter preflight
+    # actually validated is the one running this script — "python3" does
+    # not exist on a stock Windows install (host-review finding).
+    server = {"command": sys.executable,
               "args": ["tools/wall/mcp_server.py", "--repo", ".",
                        "--role", "engineer"]}
     for client in clients:
@@ -352,12 +362,45 @@ def cmd_upgrade(a) -> int:
         src = KIT_ROOT / prefix
         if (repo / prefix).exists() or prefix in ("tools/wall",):
             changed += _copy_tree(src, repo / prefix, apply)
+    # VERBATIM means subtraction too — but only where the tree is wholly
+    # kit-owned: a file the kit dropped or renamed must not survive as a
+    # stale half-upgrade (host-review finding). docs/ stays copy-only.
+    for prefix in KIT_OWNED_PREFIXES:
+        src, dst = KIT_ROOT / prefix, repo / prefix
+        if not (src.exists() and dst.exists()):
+            continue
+        for f in sorted(p for p in dst.rglob("*") if p.is_file()):
+            rel = f.relative_to(dst)
+            if "__pycache__" in f.parts:
+                continue
+            if not (src / rel).exists():
+                _say(f"  remove  {prefix}/{rel}  (no longer in the kit)")
+                changed += 1
+                if apply:
+                    f.unlink()
     if changed == 0:
         _say("  nothing to change — already at this kit")
     _stamp(repo, apply)
     _say("\nthen: run YOUR pins first, the kit's second; one PR per "
          "upgrade, citing the kit commit range above.")
     return 0
+
+
+def _timer_registration(repo: Path) -> str | None:
+    """The machine registry's row for this repo, if the DEC-0010 timer's
+    sweeper still knows it. Read through the sibling service module so
+    the WALL_HOME override and the registry shape stay single-sourced;
+    an unreadable registry is not ours to rule on (returns None)."""
+    try:
+        sys.path.insert(0, str(Path(__file__).parent))
+        import service  # noqa: PLC0415
+        rows = service.read_registry().get("repos") or []
+        for row in rows:
+            if Path(row.get("path", "")) == repo:
+                return str(service.registry_path())
+    except Exception:
+        return None
+    return None
 
 
 def cmd_remove(a) -> int:
@@ -374,8 +417,17 @@ def cmd_remove(a) -> int:
     if repo == KIT_ROOT:
         _say("refusing: --into is the kit checkout itself")
         return 2
+    still = _timer_registration(repo)
+    if still:
+        _say(f"\nmachine timer: this repo is STILL registered ({still}).")
+        _say("  run `python tools/wall/wall.py uninstall` first — the "
+             "uninstall needs the adapter code this remove would delete "
+             "(DEC-0022 clause 3 / DEC-0010 consent discipline).")
+        if apply:
+            _say("refusing --apply until the timer registration is gone.")
+            return 2
     _say("\nun-vendor the machine:")
-    for prefix in ("tools/wall", "frontend/theme", "templates"):
+    for prefix in KIT_OWNED_PREFIXES:
         target = repo / prefix
         if target.exists():
             _say(f"  remove  {prefix}/")

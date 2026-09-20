@@ -278,6 +278,14 @@ def handle_request(repo: Path, msg: dict, role: str = "engineer") -> dict | None
         return {"jsonrpc": "2.0", "id": msg_id,
                 "error": {"code": code, "message": message}}
 
+    # JSON-RPC allows array params; this server's methods are all
+    # by-name, so a non-object is INVALID_PARAMS for a request and
+    # silently ignored for a notification — never an AttributeError
+    # escaping serve() and taking down every attached editor.
+    if not isinstance(params, dict):
+        return None if msg_id is None else err(
+            INVALID_PARAMS, "params must be an object")
+
     if method == "initialize":
         return ok({
             "protocolVersion": params.get("protocolVersion") or PROTOCOL_VERSION,
