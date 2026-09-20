@@ -170,7 +170,7 @@ class WaveStatus:
     new: tuple = ()
 
     @classmethod
-    def from_payload(cls, payload: dict) -> "WaveStatus":
+    def from_payload(cls, payload: dict) -> WaveStatus:
         missing = [k for k in WAVE_REQUIRED_KEYS if k not in payload]
         if missing:
             raise ValueError(f"wave status missing keys: {missing}")

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import types
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import summary as summary_mod
@@ -64,7 +64,7 @@ def test_format_summary_carries_every_section():
     s = summary_mod.build_summary(SAMPLE_SNAP,
                                   heartbeat={"ok": True, "events": 78,
                                              "corrupt_lines": 0})
-    now = datetime(2026, 9, 21, tzinfo=timezone.utc)
+    now = datetime(2026, 9, 21, tzinfo=UTC)
     out = summary_mod.format_summary(s, now=now)
     assert "Atlas-Core · main" in out
     assert "11 items / 3 arcs" in out

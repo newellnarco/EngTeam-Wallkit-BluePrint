@@ -15,7 +15,7 @@ Stdlib only (DEC-0017).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from contracts import IN_FLIGHT_STATUSES, ItemStatus, canon_status
 
@@ -133,7 +133,7 @@ def _age(iso: str, now: datetime) -> str:
 
 
 def format_summary(s: WallSummary, now: datetime | None = None) -> str:
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     lines = [
         f"{s.repo} · {s.branch} — wall as of {_age(s.generated_at, now)}",
     ]
