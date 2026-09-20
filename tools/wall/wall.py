@@ -227,6 +227,30 @@ def cmd_run_once(a):
     return 0
 
 
+def cmd_summary(a):
+    """One-screen human digest of the derived snapshot. The MCP adapter
+    serves the same build_summary to agents — one implementation, two
+    presentations (DEC-0018). Honest degrade: no snapshot yet is a named
+    instruction, never a traceback."""
+    import summary as summary_mod
+    repo = Path(a.repo).resolve()
+    snap_path = repo / ".wall" / "derived" / "wall.json"
+    if not snap_path.exists():
+        print("no snapshot at .wall/derived/wall.json — run `wall run-once` first")
+        return 1
+    snap = json.loads(snap_path.read_text(encoding="utf-8"))
+    hb_path = repo / ".wall" / "derived" / "heartbeat.json"
+    hb = (json.loads(hb_path.read_text(encoding="utf-8"))
+          if hb_path.exists() else None)
+    s = summary_mod.build_summary(snap, hb)
+    if getattr(a, "as_json", False):
+        from dataclasses import asdict
+        print(json.dumps(asdict(s), indent=1, sort_keys=True))
+    else:
+        print(summary_mod.format_summary(s))
+    return 0
+
+
 def cmd_doctor(a):
     """Heartbeat, sequence gaps, orphan runs, roster health. Working."""
     repo = Path(a.repo).resolve()
@@ -981,6 +1005,11 @@ def main() -> int:
     s = sub.add_parser("run-once", help="merge shards and render the wall")
     s.add_argument("--rebuild", action="store_true")
     s.set_defaults(fn=cmd_run_once)
+
+    s = sub.add_parser("summary", help="one-screen human digest of the wall")
+    s.add_argument("--json", dest="as_json", action="store_true",
+                   help="the same summary as machine-readable JSON")
+    s.set_defaults(fn=cmd_summary)
 
     s = sub.add_parser("doctor", help="heartbeat, integrity flags, roster")
     s.add_argument("--json", dest="as_json", action="store_true",
