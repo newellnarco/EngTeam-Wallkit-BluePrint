@@ -32,7 +32,16 @@ Design charter: docs/WALL_DASHBOARDS.md (kit DEC-0026/0027).
 from __future__ import annotations
 
 import hashlib
+import sys
 from pathlib import Path
+
+# The same shim mcp_server.py carries: a standalone path-load (a host's
+# integrity suite, a probe) must resolve the sibling modules without
+# depending on whoever imported something else first (measured: an
+# order-dependent pass on the reference adoption, 2026-09-21).
+_HERE = str(Path(__file__).resolve().parent)
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
 
 try:  # courier imports these as siblings (sys.path includes tools/wall)
     import compliance as compliance_mod

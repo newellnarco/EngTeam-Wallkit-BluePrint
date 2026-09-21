@@ -398,3 +398,25 @@ def test_retrospectives_bind_patron_inputs():
     assert "retro-note" in flat
     assert "must address every pending input in its record" in flat
     assert "Silence is not one of the three" in flat
+
+
+def test_oversight_loads_standalone_with_a_clean_sys_path():
+    """A host's integrity suite loads vendored modules by explicit path with
+    no kit dirs on sys.path; the sibling imports must self-resolve (the
+    mcp_server shim, mirrored). Run in a clean interpreter so this file's
+    own sys.path insert cannot mask an order dependence."""
+    import subprocess
+    code = (
+        "import importlib.util, pathlib;"
+        f"p = pathlib.Path(r'{KIT}') / 'tools' / 'wall' / 'oversight.py';"
+        "spec = importlib.util.spec_from_file_location('probe_ov', p);"
+        "m = importlib.util.module_from_spec(spec);"
+        "spec.loader.exec_module(m);"
+        "snap = m.build_oversight(pathlib.Path('.'), [], {});"
+        "assert set(snap) == {'posture','retro','docs','flow','compliance'};"
+        "print('ok')"
+    )
+    r = subprocess.run([sys.executable, "-c", code],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    assert "ok" in r.stdout
