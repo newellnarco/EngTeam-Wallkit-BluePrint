@@ -128,6 +128,11 @@ A close is a procedure, not an exit. In order:
    **Where the host has CI, the report itself is under a shape test** — sections
    present and ordered, open items a real table — and its **Open items section
    is the only to-do list**: if it is not there, it is not open.
+   **The report's RETROSPECTIVE section is written in the same pass**
+   (`docs/RETROSPECTIVES.md`): the Foreman's measured per-role signals, the
+   five-whys on any process defect, and **at most three process diffs — each
+   landed as an artifact change before the session ends**, never as advice to
+   the next one; last wave's diffs are re-measured beside them.
 7. **Every standing directive the engineer issued this session is written into
    the rules or the config, in the same working chunk it was issued.** A
    directive that exists only in the conversation is a bug: the session that

@@ -87,6 +87,9 @@ Owns observability. Never assigns work.
 - Maintains the wall's accuracy, via Courier, and raises what Courier's validator
   flags.
 - Owns the token, cost and GitHub-minute ledger and the rollups behind it.
+- Prepares the wave retrospective (`docs/RETROSPECTIVES.md`): the per-role
+  measured signals with anomalies narrated — the Foreman measures, the
+  Maestro decides what changes.
 
 **The mechanical half is script, not model.** Counting tokens, summing minutes,
 rendering the grid and detecting staleness are deterministic. A Foreman that runs
@@ -143,6 +146,14 @@ Owns requirements, design and documentation.
 - Reconciles documentation, diagrams and decisions; output lands in
   `docs/architecture/`.
 - Answers escalated questions and writes the ruling.
+- **Standing betterment duty:** beyond drift, the Architect is always
+  evaluating for a better design — gaps the last design missed, functionality
+  the outcome now needs, and candidates to replace what fights the
+  architecture (`docs/TECH_EVALUATION.md`). Retro signals
+  (`docs/RETROSPECTIVES.md` §2) and diagnostics findings feed this pass;
+  improvements enter as authored arcs, never as silent scope creep.
+- Owns `docs/UX_STANDARDS.md` and names every user-facing arc's trajectories
+  and applicable test families at design time (ITEM_AUTHORING §3.8).
 - Signs off on requirements. Does not read code — that is the Reviewer.
 
 A doc-only change by the Architect can silently invalidate work already built

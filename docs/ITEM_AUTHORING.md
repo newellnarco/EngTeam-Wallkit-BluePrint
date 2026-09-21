@@ -80,6 +80,11 @@ dispatched:
    arc's stories will touch, for development AND for the product; each gets a
    Warden verdict (allowed / synthetic-only / masked / engineer / refused)
    before the story that uses it dispatches (warden.md §3).
+8. **Trajectories and families** — for a user-facing arc, the named basic /
+   advanced / recovery trajectories (`UX_STANDARDS.md` §2 — a trajectory the
+   design does not name is one nobody tested); for every arc, which
+   non-functional families apply (TESTING_STANDARDS §1b), with a reason on
+   each one declared inapplicable.
 
 An arc closes when its stories are done or explicitly moved out — never by
 drifting. An arc may close without any release ceremony (WALL_STANDARDS
@@ -100,7 +105,13 @@ Every story carries, at authoring time:
   enough to be true and no wider. A scope discovered wrong mid-build goes back
   through the Maestro (the lease table is not self-service).
 - **Test expectation** — which tiers this story must add to (per
-  `docs/TESTING_STANDARDS.md`) and any specific regression that must be pinned.
+  `docs/TESTING_STANDARDS.md`), **which lineage each expected test serves**
+  (validation — cites the outcome; verification — cites the design;
+  TESTING_STANDARDS §1b), the non-functional families the arc declared
+  applicable, and any specific regression that must be pinned. A user-facing
+  story also names the trajectory its tests walk and carries usability
+  criteria per `UX_STANDARDS.md` §1–§4 — countable interaction budgets and
+  the no-ditch prohibitions as must-never criteria.
 - **Dependencies** — stories, decisions, or external facts this one waits on.
 - **Out of scope** — the one line that saves a rejection cycle.
 

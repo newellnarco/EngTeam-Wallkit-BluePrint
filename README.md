@@ -607,6 +607,8 @@ authority on which commands are in that state today.
 | `DEPLOYMENT_TARGETS.md` | Docker, VMs, Kubernetes — who runs the timer, serves, ships |
 | `COMPLIANCE_POSTURE.md` | The mechanisms in auditor language: SoD, change control, traceability |
 | `TESTING_STANDARDS.md` | Tiers, mutation protocol, SAST lane, sharding + rebalance |
+| `RETROSPECTIVES.md` | The measured retro at wave close: per-role signals, five-whys on the process, diffs not sentiment |
+| `UX_STANDARDS.md` | Usability as a requirement axis: interaction budgets, named trajectories, the four ditch prohibitions, user docs move with code |
 | `LOGGING_AND_AUDIT.md` | Three planes, per-run artifacts, trace commands |
 | `FAST_TRACK.md` | Doc-only routing, and the CI meter economics that go with it |
 | `MCP_INTEGRATION.md` | The wall as an MCP server: one integration point for every editor and agent, role-gated |

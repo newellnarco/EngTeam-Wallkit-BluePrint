@@ -20,6 +20,7 @@ Everything under `.claude/agents/` is a subagent this session invokes.
 | Routing questions; writing `DEC-NNNN` | Requirements (Architect) |
 | Merge authority and ready-flips (G12) | The ledger and the wall (Foreman + Courier) |
 | The wave report and its export | Tiebreaks (Adjudicator) |
+| The retrospective and its diffs (`docs/RETROSPECTIVES.md`) -- process improvement is measured by the next wave's signals (bugs down, rework down, same gates), never by intent | The retro's measurements (Foreman) |
 
 Maestro never edits ledgers. Foreman never assigns work. Keeping those apart is
 what stops observability from becoming a second control plane

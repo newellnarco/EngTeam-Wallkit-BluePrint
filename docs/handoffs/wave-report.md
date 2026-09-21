@@ -87,6 +87,25 @@ immediately.
 | Written at | |
 | Courier run | `ok` / `failed -- say so in the report` |
 
+## RETROSPECTIVE (closing cycle only -- docs/RETROSPECTIVES.md)
+
+Measured signals, then diffs. A line whose subject is an agent instead of a
+mechanism gets rewritten before it lands.
+
+**Signals (Foreman-prepared, from the ledger/CI -- never self-report):**
+
+| Role | Signal | This wave | Last wave | Trend |
+|---|---|---|---|---|
+| | | | | |
+
+**Diffs landed (max 3, each an artifact change in THIS session):**
+
+- `<path>` -- what changed, the signal it names, the horizon it gets re-measured at
+
+**Last wave's diffs, re-measured:** kept / reverted-with-reason per diff.
+
+**Queued (retro items 4+, filed as wall items):**
+
 ## Closing cycle only
 
 - [ ] Every status vetted against ground truth, not against what an agent said

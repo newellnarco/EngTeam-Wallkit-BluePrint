@@ -380,3 +380,27 @@ prevent (`docs/FLEET.md` §3).
   important gets added HERE, so the next adoption asks it as a matter of
   course. This document graduates questions the way the failure registry
   graduates bugs.
+
+---
+
+## How this set grows
+
+The twelve templates are the kit's current answer to "what documents does a
+disciplined repo need" — the answer is allowed to be incomplete, and the
+adoption path is how it stops being incomplete:
+
+1. **Every `/adopt inventory` reports unmapped kinds** — host documents
+   serving a real function the kit has no slot for — as findings with
+   evidence, beside the covered/missing verdicts.
+2. **A kind graduates to a template** when it recurs across adoptions or the
+   engineer names it wanted: the template is authored from the best field
+   specimen (never invented speculatively), gets its section HERE with a
+   question set, a row in the README docs table, and a `DEC-NNNN` recording
+   why it earned a slot.
+3. **The same rule in reverse:** a template no adoption has filled in three
+   rounds is a candidate for removal — a slot nobody needs is drift with a
+   byline, the same law as the Architect's stale-document rule.
+
+This is the failure-registry discipline applied to the template set itself:
+the field teaches, the kit graduates the lesson, and the next adoption starts
+smarter than the last one did.

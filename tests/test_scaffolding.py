@@ -156,9 +156,10 @@ def test_decision_seed_set_present():
     names = [p.name for p in decision_files()]
     # 13-16 are the Patron's recorded rulings (2026-09-19); 17-22 the
     # portability / reporting-economy / MCP-surface / drift-first /
-    # bootstrap charters (Patron, 2026-09-20). The equality
+    # bootstrap charters (Patron, 2026-09-20); 23-24 the retrospective and
+    # test-lineage/usability charters (Patron, 2026-09-21). The equality
     # still guards against holes and strays.
-    expected = [f"DEC-{n:04d}.md" for n in range(1, 23)]
+    expected = [f"DEC-{n:04d}.md" for n in range(1, 25)]
     assert names == expected, f"decision seed set drifted: {names}"
 
 

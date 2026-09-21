@@ -33,7 +33,16 @@ the kit is dropped into.
    `covered` / `missing` / `split across N files` / `duplicated` /
    `stale-conflicting`. Multiple files serving one function is the finding
    this skill exists to surface.
-4. Write the report to the wall as a note on the adoption arc (or print it,
+4. **Report the unmapped kinds.** A host document serving a REAL function the
+   kit has no slot for (a glossary, an on-call runbook, a threat model, a
+   capacity plan...) is not noise -- it is a candidate the kit has not
+   thought of yet. List each with its evidence line as an
+   `unmapped-kind: <function it serves>` row, and file the row as a finding.
+   The kit learns from every adoption (`docs/TEMPLATE_INTAKE.md`, "How this
+   set grows"): a kind that recurs across adoptions, or that the engineer
+   names as wanted, becomes a new kit template via a `DEC-NNNN` -- grown from
+   the field, never invented speculatively.
+5. Write the report to the wall as a note on the adoption arc (or print it,
    pre-kit). **Inventory never edits anything.**
 
 ## `map` -- wire the kit's expectations onto what exists

@@ -25,6 +25,36 @@ changes the gate is added there in the same change.
 
 ---
 
+## 1b. Two lineages, five families
+
+Every expected test serves one of two lineages, and the story names which:
+
+| Lineage | Derives from | Proves | Cites |
+|---|---|---|---|
+| **Validation** | The product outcome — the intake answers and the story's acceptance criteria | The built thing does what the user needed | PRODUCT_INTAKE.md answers, the story's `AC-n`, the named trajectory (UX_STANDARDS.md §2) |
+| **Verification** | The architecture and technical design | It is built as designed — contracts, invariants, boundaries hold | The `docs/architecture/` section, the `DEC-NNNN`, the schema |
+
+The two catch different failures: validation catches "built as specified, not
+what was wanted"; verification catches "wanted, but not built as designed".
+A suite that is all verification proves a design nobody asked for; all
+validation proves outcomes on an architecture nobody can maintain. The story's
+test expectation (ITEM_AUTHORING §4) names the lineage per expected test so
+the gap is visible at authoring time, not at post-mortem.
+
+On top of both lineages, five **non-functional families**. The Architect
+declares, per arc, which apply — and a family declared inapplicable is a
+recorded declaration with a reason, never an omission:
+
+| Family | Applies when | The tests |
+|---|---|---|
+| **Guardrails** | The arc touches an autonomy grant, a role gate, a ceiling | Prove the refusals refuse: the forbidden call errors, the gate blocks, the override window works — fixtures that must fire and must not |
+| **Data integrity** | The arc touches persistence, migration, or a destructive trajectory | No loss or corruption on the named trajectories; migrations proven forward and (where claimed) back; the no-silent-data-loss sweeps (UX_STANDARDS §3) |
+| **Security** | The arc's risk tier is `in-scope` (ITEM_AUTHORING §3) | The Warden's criteria as tests where testable, plus the standing SAST/secrets lane (§5) — a tier-declared arc without its security tests fails Gate 1, not review |
+| **Scalability** | The design states a volume, concurrency or growth boundary | Boundary tests at the stated numbers — the limit is exercised, not believed |
+| **Performance** | A budget exists, or the change's benefit is speed | The TECH_EVALUATION law verbatim: the measurement that shows the benefit, baseline first — no baseline means the change is not designed yet |
+
+---
+
 ## 2. The tier pyramid
 
 Three tiers, three questions:
