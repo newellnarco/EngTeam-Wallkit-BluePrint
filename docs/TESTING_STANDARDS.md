@@ -49,7 +49,7 @@ recorded declaration with a reason, never an omission:
 |---|---|---|
 | **Guardrails** | The arc touches an autonomy grant, a role gate, a ceiling | Prove the refusals refuse: the forbidden call errors, the gate blocks, the override window works — fixtures that must fire and must not |
 | **Data integrity** | The arc touches persistence, migration, or a destructive trajectory | No loss or corruption on the named trajectories; migrations proven forward and (where claimed) back; the no-silent-data-loss sweeps (UX_STANDARDS §3) |
-| **Security** | The arc's risk tier is `in-scope` (ITEM_AUTHORING §3) | The Warden's criteria as tests where testable, plus the standing SAST/secrets lane (§5) — a tier-declared arc without its security tests fails Gate 1, not review |
+| **Security** | The arc's risk tier is `in-scope` (ITEM_AUTHORING §3) | The Warden's criteria as tests where testable, plus the standing SAST/secrets lane (§5) — a tier-declared arc without its security tests fails Gate 1, not review. Test DATA is in scope too: fixtures and seeds obey the Warden's checkpoint-4 verdicts (`DATA_PROTECTION.md` §4) — production data never becomes test data by convenience, and a fixture with real PII is a finding whoever wrote it |
 | **Scalability** | The design states a volume, concurrency or growth boundary | Boundary tests at the stated numbers — the limit is exercised, not believed |
 | **Performance** | A budget exists, or the change's benefit is speed | The TECH_EVALUATION law verbatim: the measurement that shows the benefit, baseline first — no baseline means the change is not designed yet |
 

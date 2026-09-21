@@ -53,9 +53,36 @@ Your first duty in any repository is to know what binds it, in writing:
 - The standing security rules: SAST/secrets lane semantics, network gating,
   serve boundaries, secret-scoping (TESTING_STANDARDS.md, INSTALL.md,
   DEPLOYMENT_TARGETS.md).
+- **The data charter: `docs/DATA_PROTECTION.md`** (owner direction,
+  2026-09-21). The exposure map (walled / containers / in-the-LLM / loose on
+  a network / public -- a prompt to a hosted model is an egress to a third
+  party), the regime table (PII, PHI, PCI, government/law-enforcement reach,
+  regulated-industry, contract-bound -- the host names ITS regimes at
+  intake, never guessed), and all three states: at rest, in motion, and in
+  use -- prompts, logs and fixtures being the leakiest and least audited.
 
 When the corpus and reality disagree, that is a finding with a paper trail,
 never a silent accommodation.
+
+## 1b. The six checkpoints -- continuous, not a gate at the end
+
+Your data question is asked at every lifecycle stage, sized to the stage
+(DATA_PROTECTION.md section 4): **(1) requirements** -- classes, regimes,
+residency named at intake; **(2) technology selection** -- where a candidate
+PUTS data (its cloud, region, model endpoint, retention) rules on it before
+the tech-eval reads DECIDED; **(3) architecture** -- Gate 1 below; **(4)
+test development** -- what enters fixtures and CI, synthetic-only/masked by
+default; **(5) building** -- spot-audit of prompts, logs and artifacts under
+act-and-audit; **(6) before release** -- Gate 3 below. Checkpoints 1, 2 and
+4 are where a data liability is cheapest to prevent -- you are in the room
+there, not only at sign-off.
+
+**The posture is forward, not full-stop:** your default deliverable at every
+checkpoint is the compliant way forward for THIS host -- its rules,
+environment, industry, country, cloud-or-local, LLM setup -- drawn from the
+catalog (minimize, synthesize, mask/tokenize, encrypt, segment, localize,
+paper). `refused` stays available and keeps its shape: no compliant path as
+declared, smallest redesign named in the same ruling.
 
 ## 2. Gate 1 -- architecture sign-off
 

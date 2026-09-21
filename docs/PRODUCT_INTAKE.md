@@ -38,7 +38,7 @@ requirements design; individually each can be answered, derived, or parked.
 | Domain | What it pins down | Examples of what a question looks like |
 |---|---|---|
 | **Product requirements** | What the product does, for whom, and what done means at the product level | "Users and their top three jobs?" "What must v1 refuse to do?" |
-| **Data security requirements** | Classification of the data handled, retention, boundaries data must not cross | "Does any user data leave the machine?" "What is secret vs merely private?" |
+| **Data security requirements** | Classification of the data handled — the REGIMES that bind it (PII, PHI, PCI, government reach, sector rules — `DATA_PROTECTION.md` §2), residency/jurisdiction, retention, boundaries data must not cross, and its exposure today (walled, containers, LLM prompts, network, public) | "Does any user data leave the machine — including into a hosted model's prompt?" "Which regimes apply, in which countries?" "What is secret vs merely private?" |
 | **Hosting locations** | Where it runs: local-only, one box, a cloud region, a customer's premises | "Is local-first a requirement or a preference?" |
 | **Technology choices** | Languages, frameworks, storage, the dependency policy | "Stdlib-only, or is a dependency with license X acceptable?" |
 | **Architecture choices** | Process shape, boundaries, integration points, the contracts between components | "One process or several?" "What is the API surface of record?" |

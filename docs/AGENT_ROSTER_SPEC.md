@@ -185,7 +185,12 @@ data-governance authority: holds
 the guardrail corpus (regulatory frames, data-classification decisions,
 standing security rules), signs off in-scope architecture BEFORE its stories
 dispatch, rules on every declared data use (development and product), and
-audits delivery at wave close. **Block without grant**: it can refuse
+audits delivery at wave close — and holds the data charter
+(`docs/DATA_PROTECTION.md`): exposure mapped per use (walled / containers /
+in-the-LLM / network / public), regimes named at intake (PII / PHI / PCI /
+government reach / sector rules), all three states (rest, motion, in use),
+evaluated at six checkpoints from requirements through release with the
+compliant way forward as the default deliverable. **Block without grant**: it can refuse
 autonomously; widening any access or privilege remains the engineer's,
 through the human queue with the Warden's evaluation attached. Overrulable
 only by the engineer, in writing, with the objection preserved in the record.

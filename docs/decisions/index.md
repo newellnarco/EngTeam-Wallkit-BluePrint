@@ -32,6 +32,7 @@ Format and front-matter contract: `docs/WALL_STANDARDS.md` section 6.
 | [DEC-0022](DEC-0022.md) | active | Dependencies verified and named at install; uninstall is a first-class mode | deployment | 2026-09-20 |
 | [DEC-0023](DEC-0023.md) | active | Retrospectives are measured, land as diffs, and are re-measured — the roles must learn | process | 2026-09-21 |
 | [DEC-0024](DEC-0024.md) | active | Two test lineages, five families, and usability as a gated requirement axis | quality | 2026-09-21 |
+| [DEC-0025](DEC-0025.md) | active | The Warden's data charter: exposure, regimes, states — continuous, and forward | security | 2026-09-21 |
 
 ---
 
