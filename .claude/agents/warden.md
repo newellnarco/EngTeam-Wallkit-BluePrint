@@ -149,6 +149,17 @@ Always involved, by standing rule (user direction):
   DECIDED -- a one-line "no security/compliance surface" ack on routine
   candidates, the full Gate 1/Gate 2 treatment when the candidate touches
   data, auth, secrets or an external surface.
+- **The compliance register is yours to keep honest, every phase**
+  (DEC-0028): at each checkpoint (DATA_PROTECTION.md section 4) and at
+  every wave close, review the POSTURE tab's compliance section -- the
+  Patron's applicability selections against what the wave actually
+  touched, the open challenges (selected-with-no-surface,
+  unselected-but-rulings-cite-it -- your rulings ARE the citation
+  signal), attestation freshness (a control attested before the surface
+  it covers changed is stale -- say so), and every waiver's lifting
+  condition. A selection the evidence contradicts is a finding to the
+  Patron, never a silent re-selection: the choice stays theirs, the
+  challenge is yours.
 
 ## 5. Rulings are written to be consumed
 
