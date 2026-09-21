@@ -814,6 +814,37 @@ def cmd_answer(a):
     return 0
 
 
+def cmd_ack_doc(a):
+    """Acknowledge a document of record at its CURRENT sha (DOCS tab,
+    DEC-0026). Refuses a missing file -- acking what you cannot have read
+    is the defect the sha exists to prevent."""
+    import oversight as oversight_mod
+    repo = Path(a.repo).resolve()
+    config = load_config(repo)
+    rel = a.path.replace("\\", "/").lstrip("./")
+    target = repo / rel
+    if not target.is_file():
+        print(f"refusing: {rel} does not exist in this repo -- an ack records "
+              f"a read, and there is nothing to read", file=sys.stderr)
+        return 1
+    sha = oversight_mod._sha12(target)
+    if sha is None:
+        print(f"refusing: {rel} could not be hashed", file=sys.stderr)
+        return 1
+    registry = config.get("documents_of_record") or list(
+        oversight_mod.DEFAULT_DOCUMENTS_OF_RECORD)
+    note = "" if rel in registry else \
+        "  (note: not in documents_of_record -- the DOCS tab will not show it)"
+    record = items_mod.append_event(repo, a.session, {
+        "event": "doc_reviewed", "path": rel, "sha": sha, "by": a.by,
+        "role": "human", "source": "human",
+    })
+    print(f"acked {rel} at {sha} by {a.by}  (seq {record['seq']} in "
+          f"{record['session_id']}){note}")
+    print("  run `wall run-once` to refresh the DOCS tab")
+    return 0
+
+
 # -------------------------------------------------------------- fast-track
 
 def fast_track_gates(repo: Path, config: dict) -> tuple[list[dict], list[dict]]:
@@ -1062,6 +1093,13 @@ def main() -> int:
                    help="also write a DEC-NNNN skeleton and reference it")
     s.add_argument("--session", default="s_human", help="shard to append to")
     s.set_defaults(fn=cmd_answer)
+
+    s = sub.add_parser("ack-doc",
+                       help="acknowledge a document of record at its current sha")
+    s.add_argument("path", help="repo-relative path, e.g. RULES.md")
+    s.add_argument("--by", default="engineer", help="who reviewed it")
+    s.add_argument("--session", default="s_human", help="shard to append to")
+    s.set_defaults(fn=cmd_ack_doc)
 
     s = sub.add_parser("fast-track", help="classify, run local gates, stage")
     s.add_argument("--staged", action="store_true")

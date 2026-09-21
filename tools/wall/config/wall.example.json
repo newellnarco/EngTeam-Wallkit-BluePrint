@@ -2,11 +2,12 @@
   "repo_name": "",
   "app_path": "",
   "_paths": "repo_name falls back to the directory name when empty. app_path is the deployed copy `wall verify --app` compares MANIFEST.sha256 against; leave empty if the repo is not deployed as a separate tree.",
-
-  "role_limits": { "builder": 4, "reviewer": 2, "researcher": 6 },
-
+  "role_limits": {
+    "builder": 4,
+    "reviewer": 2,
+    "researcher": 6
+  },
   "stale_after_min": 30,
-
   "sla_minutes": {
     "question_assigned": 5,
     "researcher_first_run": 10,
@@ -14,24 +15,35 @@
     "escalate_to_human": 60,
     "question_open_escalate": 60
   },
-
   "max_rework_cycles": 3,
-
   "ci_checkin_minutes": 10,
-
   "decisions_dir": "docs/decisions",
-
   "fast_track": {
-    "allow": ["**/*.md", "docs/**/*.docx", "MANIFEST.sha256"],
-    "deny":  ["frontend/src/**", "backend/**/*.py", "**/*.bat", "**/*.ps1",
-              ".github/workflows/**", "tools/**", ".wall/config/**",
-              "**/CLAUDE.md"],
-    "significant": ["docs/architecture/**", "docs/decisions/**"],
-
+    "allow": [
+      "**/*.md",
+      "docs/**/*.docx",
+      "MANIFEST.sha256"
+    ],
+    "deny": [
+      "frontend/src/**",
+      "backend/**/*.py",
+      "**/*.bat",
+      "**/*.ps1",
+      ".github/workflows/**",
+      "tools/**",
+      ".wall/config/**",
+      "**/CLAUDE.md"
+    ],
+    "significant": [
+      "docs/architecture/**",
+      "docs/decisions/**"
+    ],
     "_identity": "Per-invocation commit identity for `wall fast-track --commit`. Agents never write `git config`: it is repo-global, and one agent's write lands on another agent's in-flight commit (RECONCILIATION G1). Left empty, the command refuses to commit rather than guessing.",
-    "identity": { "name": "", "email": "" }
+    "identity": {
+      "name": "",
+      "email": ""
+    }
   },
-
   "definition_of_done": [
     "every acceptance criterion maps to a source",
     "tests written and passing",
@@ -47,26 +59,50 @@
     "warden sign-off recorded for in-scope arcs; every declared data use carries a verdict",
     "reviewer pass complete"
   ],
-
   "_integrations": "Optional host seams; absent or null means the wall stays a purely read-only static page. queue_api = {health, queue, add}: same-origin paths to the host's work-queue REST surface. The page shows EXECUTE buttons (per item detail + per arc) ONLY after GET health answers {ok:true}; EXECUTE POSTs add with {source:'wall_click', priority:'P2', directive: execute_item|execute_arc, target_key|target_arch, title}. agents_feed: a same-origin path to a live wave-status JSON ({updated, headcount:{developers,researchers,cap}, completed, in_progress, new}) rendered on the CREW tab, polled every 5s while that tab is open.",
   "queue_api": null,
   "agents_feed": null,
-
   "research": {
     "network": "none",
     "_comment": "none | allowlist | session-default. Local-only by default; researchers state the mode in every finding. See .claude/agents/researcher.md section 2.",
     "allowlist": []
   },
-
   "budget": {
     "period": "month to date",
     "advisory": "Advisory only. Nothing here stops work — it tells you when to.",
     "_pacing": "The courier enriches each meter from run_end events: used_total, pct_remaining, measured velocity/day, a projected exhaustion date, and a pace verdict (slow / on pace / may speed / idle / unknown / exhausted) that CAPACITY_REBALANCING.md consumes. match_model attributes in+out tokens by model_used substring; counts attributes gh_minutes or cost_usd. strict=true marks a hard list-price cap: a projected early exhaustion becomes mandatory pacing, not advice. period_start/period_end (ISO) override the default calendar month.",
     "meters": [
-      { "label": "Claude — Opus 5",    "used": 0, "limit": 60000000, "match_model": "opus",   "foot": "" },
-      { "label": "Claude — Sonnet 5",  "used": 0, "limit": 90000000, "match_model": "sonnet", "foot": "" },
-      { "label": "Claude — Fable 5.1", "used": 0, "limit": 20000000, "match_model": "fable",  "foot": "" },
-      { "label": "GitHub Actions",     "used": 0, "limit": 3000,     "counts": "gh_minutes", "strict": true, "foot": "minutes — hard list-price cap" }
+      {
+        "label": "Claude — Opus 5",
+        "used": 0,
+        "limit": 60000000,
+        "match_model": "opus",
+        "foot": ""
+      },
+      {
+        "label": "Claude — Sonnet 5",
+        "used": 0,
+        "limit": 90000000,
+        "match_model": "sonnet",
+        "foot": ""
+      },
+      {
+        "label": "Claude — Fable 5.1",
+        "used": 0,
+        "limit": 20000000,
+        "match_model": "fable",
+        "foot": ""
+      },
+      {
+        "label": "GitHub Actions",
+        "used": 0,
+        "limit": 3000,
+        "counts": "gh_minutes",
+        "strict": true,
+        "foot": "minutes — hard list-price cap"
+      }
     ]
-  }
+  },
+  "documents_of_record": [],
+  "_documents_of_record": "Paths (repo-relative) the DOCS tab tracks for Patron review. Empty means the kit default: the adoption runbook's seven functions plus docs/ENGINEERING_STANDARD.md (oversight.py DEFAULT_DOCUMENTS_OF_RECORD). A listed file that does not exist renders as 'missing' -- absence is a state, not a filter."
 }

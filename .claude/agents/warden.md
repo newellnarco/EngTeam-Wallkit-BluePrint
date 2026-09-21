@@ -156,7 +156,11 @@ Same shape as the Architect's (architect.md section 2): the question, the
 verdict in the imperative, the scope it binds, the obligation it rests on
 (cite the corpus -- a ruling with no citable obligation is an opinion), and
 what would change it. The Maestro turns it into the record; one writer for
-decisions holds here too.
+decisions holds here too. **Every verdict is also emitted as a
+`warden_ruling` ledger event** (gate + subject + verdict + tier +
+obligation; EVENT_SCHEMA "Oversight") -- the wall's POSTURE tab folds the
+latest ruling per subject, so a blocked arc is visible on the wall, not
+only in a record someone has to go find (DEC-0026).
 
 ## 6. Binding rules
 

@@ -700,6 +700,27 @@ footer {
     </div>
   </section>
 
+  <section role="tabpanel" id="panel-retro" aria-labelledby="tab-retro" hidden>
+    <div class="panel">
+      <h2>Retrospectives<span class="sub">measured signals, landed diffs, re-measured verdicts (RETROSPECTIVES.md)</span></h2>
+      <div id="retroBody"></div>
+    </div>
+  </section>
+
+  <section role="tabpanel" id="panel-posture" aria-labelledby="tab-posture" hidden>
+    <div class="panel">
+      <h2>Security posture<span class="sub">the Warden's rulings by gate — architecture, data use, test data, tech evals, delivery (DATA_PROTECTION.md)</span></h2>
+      <div id="postureBody"></div>
+    </div>
+  </section>
+
+  <section role="tabpanel" id="panel-docs" aria-labelledby="tab-docs" hidden>
+    <div class="panel">
+      <h2>Documents of record<span class="sub">every SOP and standard, its review state, and the decision log — the Patron's reading list</span></h2>
+      <div id="docsBody"></div>
+    </div>
+  </section>
+
   <footer>
     <span id="fSchema"></span><span id="fEvents"></span><span id="fShards"></span><span id="fSessions"></span>
   </footer>
@@ -849,8 +870,12 @@ footer {
     {id:'board',   label:'STORIES', count:function(){ return allItems().length; }},
     {id:'crew',    label:'CREW',  count:function(d){ return (d.crew||[]).length; }},
     {id:'ledger',  label:'LEDGER',  count:function(){ return null; }},
-    {id:'waiting', label:'WAITING', count:function(d){ return (d.waiting_on_you||[]).length; }, hot:true}
+    {id:'waiting', label:'WAITING', count:function(d){ return (d.waiting_on_you||[]).length; }, hot:true},
+    {id:'retro',   label:'RETRO',   count:function(d){ return ov(d).retro && ov(d).retro.held || null; }},
+    {id:'posture', label:'POSTURE', count:function(d){ var p=ov(d).posture; return p && p.blocked && p.blocked.length || null; }, hot:true},
+    {id:'docs',    label:'DOCS',    count:function(d){ var x=ov(d).docs; return x && x.needs_review || null; }, hot:true}
   ];
+  function ov(d){ return (d && d.oversight) || {}; }
   var active = location.hash.replace('#','') || 'main';
   if (!TABS.some(function(t){ return t.id === active; })) active = 'main';
 
@@ -1238,6 +1263,99 @@ footer {
     }).join('');
   }
 
+  // ---- RETRO / POSTURE / DOCS (oversight, DEC-0026) ----------------------
+
+  function spark(series){
+    if (!series || series.length < 2) return '';
+    var bars = '\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588';
+    var lo = Math.min.apply(null, series), hi = Math.max.apply(null, series);
+    return series.map(function(v){
+      var i = hi === lo ? 0 : Math.round((v - lo) / (hi - lo) * 7);
+      return bars.charAt(i);
+    }).join('');
+  }
+
+  function paintRetro(){
+    var r = ov(D).retro;
+    if (!r || !r.held){
+      $('retroBody').innerHTML = '<div class="empty">No retrospective recorded yet — the wave close writes a <span class="cmd">retro_held</span> event (RETROSPECTIVES.md, SESSION_LIFECYCLE §3 step 6).</div>';
+      return;
+    }
+    var h = '<p class="q">' + r.held + ' retro' + (r.held === 1 ? '' : 's') + ' held';
+    if (r.latest && r.latest.wave) h += ' · latest: ' + esc(r.latest.wave);
+    h += '</p>';
+    if (r.latest){
+      if (r.latest.diffs && r.latest.diffs.length){
+        h += '<h3>Diffs landed (latest retro)</h3>' + r.latest.diffs.map(function(d){
+          return '<div class="ask"><div class="body"><p class="q"><span class="cmd">' + esc(d.path||'') + '</span></p><span class="from">' + esc(d.why||'') + (d.horizon ? ' · re-measure: ' + esc(d.horizon) : '') + '</span></div></div>';
+        }).join('');
+      }
+      if (r.latest.remeasured && r.latest.remeasured.length){
+        h += '<h3>Last wave\u2019s diffs, re-measured</h3>' + r.latest.remeasured.map(function(m){
+          return '<div class="ask"><div class="body"><p class="q"><span class="cmd">' + esc(m.path||'') + '</span> — ' + esc(m.verdict||'') + '</p></div></div>';
+        }).join('');
+      }
+    }
+    if (r.trends && r.trends.length){
+      h += '<h3>Signal trends (per role, across waves)</h3>' + r.trends.map(function(t){
+        var last = t.series.length ? t.series[t.series.length-1] : '';
+        return '<div class="ask"><div class="body"><p class="q">' + esc(t.role) + ' · ' + esc(t.name) + ' <span class="cmd">' + spark(t.series) + '</span> ' + esc(String(last)) + '</p></div></div>';
+      }).join('');
+    }
+    $('retroBody').innerHTML = h;
+  }
+
+  function paintPosture(){
+    var p = ov(D).posture;
+    if (!p || !p.total_rulings){
+      $('postureBody').innerHTML = '<div class="empty">No Warden rulings recorded yet — gates write <span class="cmd">warden_ruling</span> events (warden.md, DATA_PROTECTION.md §4). An empty posture tab on a repo with in-scope arcs is itself a finding.</div>';
+      return;
+    }
+    var h = '';
+    if (p.blocked && p.blocked.length){
+      h += '<h3>Blocked / refused — work is parked on these</h3>' + p.blocked.map(function(r){
+        return '<div class="ask"><span class="age">' + esc(r.gate) + '</span><div class="body"><p class="q">' + esc(r.subject) + ' — ' + esc(r.verdict) + '</p><span class="from">' + esc(r.obligation || 'obligation not recorded') + '</span></div></div>';
+      }).join('');
+    }
+    h += '<h3>Verdict tally (latest ruling per subject)</h3><p class="q">' +
+      Object.keys(p.tally).sort().map(function(k){ return esc(k) + ': ' + p.tally[k]; }).join(' · ') +
+      (p.malformed ? ' · <span class="cmd">' + p.malformed + ' malformed ruling(s) — fix the emitter</span>' : '') + '</p>';
+    h += '<h3>Rulings</h3>' + (p.rulings||[]).map(function(r){
+      return '<div class="ask"><span class="age' + (r.verdict === 'blocked' || r.verdict === 'refused' ? '' : ' calm') + '">' + esc(r.gate) + '</span><div class="body"><p class="q">' + esc(r.subject) + ' — ' + esc(r.verdict) + (r.tier ? ' <span class="cmd">' + esc(r.tier) + '</span>' : '') + '</p>' + (r.obligation ? '<span class="from">' + esc(r.obligation) + '</span>' : '') + '</div></div>';
+    }).join('');
+    if (p.last_delivery_audit){
+      h += '<h3>Last delivery audit</h3><p class="q">' + esc(p.last_delivery_audit.subject) + ' — ' + esc(p.last_delivery_audit.verdict) + '</p>';
+    }
+    $('postureBody').innerHTML = h;
+  }
+
+  var DOC_STATE_LABEL = {
+    'current': 'current — reviewed at this sha',
+    'changed-since-review': 'CHANGED since last review',
+    'never-reviewed': 'never reviewed',
+    'missing': 'missing from the tree'
+  };
+
+  function paintDocs(){
+    var x = ov(D).docs;
+    if (!x){
+      $('docsBody').innerHTML = '<div class="empty">No registry in this snapshot — re-run the courier.</div>';
+      return;
+    }
+    var h = '<h3>Documents of record' + (x.needs_review ? ' — <span class="cmd">' + x.needs_review + ' need(s) review</span>' : ' — all reviewed at their current sha') + '</h3>';
+    h += (x.registry||[]).map(function(r){
+      var calm = r.state === 'current';
+      var rev = r.review ? ('reviewed by ' + (r.review.by||'?') + (r.review.ts ? ' · ' + ago(r.review.ts) : '')) : 'record a review with a doc_reviewed event carrying the sha';
+      return '<div class="ask"><span class="age' + (calm ? ' calm' : '') + '">' + esc(r.state === 'current' ? 'ok' : r.state === 'missing' ? 'gone' : 'review') + '</span><div class="body"><p class="q"><span class="cmd">' + esc(r.path) + '</span> — ' + esc(DOC_STATE_LABEL[r.state]||r.state) + (r.sha ? ' <span class="cmd">' + esc(r.sha) + '</span>' : '') + '</p><span class="from">' + esc(rev) + '</span></div></div>';
+    }).join('');
+    var dec = x.decisions || {};
+    h += '<h3>Decision log — ' + (dec.count||0) + ' ruling(s)' + (dec.problems ? ' · <span class="cmd">' + dec.problems + ' parse problem(s)</span>' : '') + '</h3>';
+    h += (dec.recent||[]).map(function(d){
+      return '<div class="ask"><span class="age calm">' + esc(d.status||'') + '</span><div class="body"><p class="q"><span class="cmd">' + esc(d.id) + '</span> ' + esc(d.title||'') + '</p><span class="from">' + esc(d.scope||'') + '</span></div></div>';
+    }).join('');
+    $('docsBody').innerHTML = h;
+  }
+
   // ---- MAIN (summary) -------------------------------------------------------
 
   var IN_FLIGHT = {in_progress:1, review:1, active:1, blocked:1, triage:1};
@@ -1328,7 +1446,7 @@ footer {
       $('fShards').textContent = num(c.shards) + ' shards';
       $('fSessions').textContent = (D.sessions || []).length + ' sessions';
       paintTabs(); paintSweep(); paintMain(); paintStories(); paintCrew(); paintIntegrity();
-      paintWaiting(); paintLedger();
+      paintWaiting(); paintLedger(); paintRetro(); paintPosture(); paintDocs();
       clearFail();
     } catch (e) {
       fail('The wall could not render this snapshot.', String(e && e.message || e));

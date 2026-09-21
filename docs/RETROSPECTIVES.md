@@ -87,7 +87,11 @@ artifact diff is not an output.
 
 The wave report's Retrospective section carries, wave over wave: the per-role
 signal values, the diffs landed (with paths), the queued items, and last
-wave's diffs **re-measured** — did the change move the signal it named? The
+wave's diffs **re-measured** — did the change move the signal it named?
+**The same record is emitted as a `retro_held` ledger event** (EVENT_SCHEMA
+"Oversight"), which is what the wall's RETRO tab folds into the trend view —
+a retro that skips the event has no surface, and a discipline without a
+surface decays silently (DEC-0026). The
 next session's ground phase (SESSION_LIFECYCLE §1 step 8) vets this section
 like the rest of the report: against evidence, before acting on it.
 

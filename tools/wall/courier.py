@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import items as items_mod        # noqa: E402  materialized item view + total order
 import questions as questions_mod  # noqa: E402  question lifecycle + invariants
+import oversight as oversight_mod  # noqa: E402  RETRO/POSTURE/DOCS folds (DEC-0026)
 
 SCHEMA_VERSION = 1
 DATA_MARKER = "__WALL_DATA__"
@@ -509,6 +510,9 @@ def build_snapshot(repo: Path, events: list[dict], config: dict, shard_count: in
         "agents_feed": config.get("agents_feed"),
         "rollup_by_role": sorted(rollup.values(), key=lambda r: (r["role"], r["model"])),
         "sessions": sorted(sessions),
+        # RETRO / POSTURE / DOCS tabs (DEC-0026): pure folds over the same
+        # ordered event list, plus the documents-of-record registry hashes.
+        "oversight": oversight_mod.build_oversight(repo, events, config),
     }
 
 

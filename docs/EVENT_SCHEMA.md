@@ -245,6 +245,15 @@ overlap means `blocked`, whatever the builder hoped.
 | `decision_written` | New `DEC-NNNN` |
 | `decision_superseded` | Carries `supersedes` / `superseded_by` |
 
+### Oversight (the RETRO / POSTURE / DOCS tabs — DEC-0026)
+
+| Event | Notes |
+|---|---|
+| `warden_ruling` | One Warden verdict. Carries `gate` (`architecture` \| `data_use` \| `delivery_audit` \| `playbook` \| `tech_eval`), `subject`, `verdict`, and where applicable `tier` + `obligation` (the citable rule the verdict rests on). The POSTURE tab folds the LATEST ruling per (gate, subject); a ruling with no subject or verdict is counted malformed, never dropped silently |
+| `retro_held` | One wave-close retrospective (RETROSPECTIVES.md). Carries `wave`, `signals` `[{role, name, value, prior?}]` (numeric values feed the trend series), `diffs` `[{path, why, horizon?}]`, `remeasured` `[{path, verdict}]`, `requeued`. The RETRO tab shows the latest in full and every signal's series across waves |
+| `doc_reviewed` | A human acknowledged a document of record AT a sha: `path`, `sha`, `by`. The DOCS tab compares the acked sha against the file's current hash — an ack at a stale sha does not make a changed document current, which is the point of carrying the sha |
+
+
 ### Shipping
 
 | Event | Notes |

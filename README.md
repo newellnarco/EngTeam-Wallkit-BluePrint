@@ -133,6 +133,11 @@ asserted. It is the page the Patron reads before answering a
 capacity-ceiling ask, and the page CAPACITY_REBALANCING's budget-trajectory
 signal renders on.
 
+Three further tabs — **RETRO** (retrospective trends), **POSTURE** (the
+Warden's rulings) and **DOCS** (documents-of-record review state + the
+decision log, acked via `wall ack-doc`) — ship with `WALL_DASHBOARDS.md`;
+their screenshots land with the next capture pass.
+
 Also in `docs/screenshots/`: the reference deployment's real 1143-item board
 through `adapters/board_import.py` (`wall-overlay-reference.png`), the
 honest-degrade banner for a malformed snapshot (`wall-degrade.png`), light
@@ -610,6 +615,7 @@ authority on which commands are in that state today.
 | `RETROSPECTIVES.md` | The measured retro at wave close: per-role signals, five-whys on the process, diffs not sentiment |
 | `UX_STANDARDS.md` | Usability as a requirement axis: interaction budgets, named trajectories, the four ditch prohibitions, user docs move with code |
 | `DATA_PROTECTION.md` | The Warden's data charter: exposure map, regime table, rest/motion/in-use, six lifecycle checkpoints, ways forward over full stops |
+| `WALL_DASHBOARDS.md` | The wall's tab charter: the eight tabs, the oversight folds (RETRO / POSTURE / DOCS), the sha-carrying review loop, the DESIGN slice-2 contract |
 | `LOGGING_AND_AUDIT.md` | Three planes, per-run artifacts, trace commands |
 | `FAST_TRACK.md` | Doc-only routing, and the CI meter economics that go with it |
 | `MCP_INTEGRATION.md` | The wall as an MCP server: one integration point for every editor and agent, role-gated |
