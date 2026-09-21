@@ -231,3 +231,19 @@ def test_schema_and_charter_registered():
     flat = " ".join(warden.split())
     assert "The compliance register is yours to keep honest, every phase" in flat
     assert "never a silent re-selection" in flat
+
+
+def test_ack_doc_preserves_dot_directory_paths(tmp_path):
+    """lstrip("./") would eat the leading dot of .github/... so the file
+    could never be acked (CodeRabbit on the reference adoption's #1667)."""
+    (tmp_path / ".github").mkdir()
+    (tmp_path / ".github" / "POLICY.md").write_text("policy", encoding="utf-8")
+    r = _wall(tmp_path, "ack-doc", "./.github/POLICY.md", "--by", "p")
+    assert r.returncode == 0, r.stderr
+    assert ".github/POLICY.md" in r.stdout
+
+
+def test_modal_manages_focus_and_escape_guard():
+    for needle in ("LAST_FOCUS", "closeModal", "$('modalClose').focus()",
+                   "e.key === 'Escape' && !$('modal').hidden"):
+        assert needle in TEMPLATE, f"template missing {needle}"

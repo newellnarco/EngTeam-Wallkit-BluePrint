@@ -821,7 +821,12 @@ def cmd_ack_doc(a):
     import oversight as oversight_mod
     repo = Path(a.repo).resolve()
     config = load_config(repo)
-    rel = a.path.replace("\\", "/").lstrip("./")
+    rel = a.path.replace("\\", "/")
+    # A prefix strip, not lstrip("./") -- lstrip eats any leading dot, so a
+    # dot-directory document (".github/...", ".wall/...") would lose its dot
+    # and read "does not exist" forever (CodeRabbit finding, MAX3 #1667).
+    while rel.startswith("./"):
+        rel = rel[2:]
     target = repo / rel
     if not target.is_file():
         print(f"refusing: {rel} does not exist in this repo -- an ack records "

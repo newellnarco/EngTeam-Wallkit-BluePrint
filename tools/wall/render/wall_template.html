@@ -1332,19 +1332,27 @@ footer {
     $('retroBody').innerHTML = h;
   }
 
+  var LAST_FOCUS = null;
   function openModal(html){
+    LAST_FOCUS = document.activeElement;
     $('modalBody').innerHTML = html;
     $('modal').hidden = false;
+    $('modalClose').focus();
+  }
+  function closeModal(){
+    $('modal').hidden = true;
+    if (LAST_FOCUS && LAST_FOCUS.focus) LAST_FOCUS.focus();
+    LAST_FOCUS = null;
   }
   document.addEventListener('click', function(e){
-    if (e.target.id === 'modal' || e.target.id === 'modalClose'){ $('modal').hidden = true; }
+    if (e.target.id === 'modal' || e.target.id === 'modalClose'){ closeModal(); }
     var reg = e.target.closest('[data-regime]');
     if (reg){ openRegimeAudit(reg.getAttribute('data-regime')); }
     var itr = e.target.closest('[data-iteration]');
     if (itr){ openIteration(parseInt(itr.getAttribute('data-iteration'), 10)); }
   });
   document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape') $('modal').hidden = true;
+    if (e.key === 'Escape' && !$('modal').hidden) closeModal();
   });
 
   var ATTEST_BADGE = {pass:'\u2705 pass', fail:'\u274c fail', waiver:'\u26a0 waiver'};
