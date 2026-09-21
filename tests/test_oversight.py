@@ -90,7 +90,8 @@ def _retro(wave, rework, **kw):
 
 def test_retro_empty_is_honest():
     r = oversight.fold_retro([])
-    assert r == {"held": 0, "latest": None, "trends": []}
+    assert r == {"held": 0, "latest": None, "trends": [],
+                 "pending_inputs": []}
 
 
 def test_retro_trend_series_across_waves():
@@ -180,7 +181,8 @@ def test_template_carries_the_three_tabs_and_painters():
 def test_template_empty_states_name_their_emitters():
     assert "retro_held" in TEMPLATE
     assert "warden_ruling" in TEMPLATE
-    assert "doc_reviewed" in TEMPLATE
+    # DOCS rows name the human-usable emitter path (the CLI verb) per row.
+    assert "ack-doc" in TEMPLATE
     assert "itself a finding" in TEMPLATE  # empty POSTURE on in-scope arcs
 
 
@@ -247,3 +249,152 @@ def test_ack_doc_writes_the_event_with_the_current_sha(tmp_path):
     assert rec["event"] == "doc_reviewed"
     assert rec["path"] == "RULES.md" and rec["by"] == "the-patron"
     assert rec["sha"] == oversight._sha12(tmp_path / "RULES.md")
+
+
+# ---------------------------------------------- DEC-0027: feedback / inputs
+
+def test_feedback_outranks_and_only_newer_ack_clears(tmp_path):
+    (tmp_path / "RULES.md").write_text("v1", encoding="utf-8")
+    sha = oversight._sha12(tmp_path / "RULES.md")
+    cfg = {"documents_of_record": ["RULES.md"]}
+    ack = {"event": "doc_reviewed", "path": "RULES.md", "sha": sha, "by": "p"}
+    fb = {"event": "doc_feedback", "path": "RULES.md", "sha": sha, "by": "p",
+          "text": "remap section 3"}
+
+    # feedback after an ack: feedback-open wins, counted as needs_review
+    d = oversight.fold_docs(tmp_path, [ack, fb], cfg)
+    assert d["registry"][0]["state"] == "feedback-open"
+    assert d["registry"][0]["feedback"]["text"] == "remap section 3"
+    assert d["needs_review"] == 1
+
+    # a NEWER ack clears it
+    d = oversight.fold_docs(tmp_path, [ack, fb, dict(ack)], cfg)
+    assert d["registry"][0]["state"] == "current"
+    assert d["registry"][0]["feedback"] is None
+
+
+def test_pending_retro_inputs_until_consumed():
+    note = {"event": "retro_input", "by": "the-patron", "text": "add a check"}
+    r = oversight.fold_retro([note])
+    assert [i["text"] for i in r["pending_inputs"]] == ["add a check"]
+    # a retro AFTER the note consumes it
+    r = oversight.fold_retro([note, _retro("w1", 1)])
+    assert r["pending_inputs"] == []
+    # a note AFTER the retro pends again
+    r = oversight.fold_retro([_retro("w1", 1), note])
+    assert [i["text"] for i in r["pending_inputs"]] == ["add a check"]
+
+
+def test_empty_retro_input_text_is_not_a_note():
+    r = oversight.fold_retro([{"event": "retro_input", "by": "x", "text": ""}])
+    assert r["pending_inputs"] == []
+
+
+# --------------------------------------------------------- DEC-0027: flow
+
+def _flow_events():
+    return [
+        {"event": "item_created", "item_id": "ST-1", "kind": "story"},
+        {"event": "item_state", "item_id": "ST-1", "estimate": "M"},
+        {"event": "item_state", "item_id": "ST-1", "actual": "L",
+         "status": "done"},
+        {"event": "item_shipped", "item_id": "ST-1", "pr": 1},
+        {"event": "item_created", "item_id": "BG-1", "kind": "bug"},
+        {"event": "retro_held", "wave": "w1", "ts": "2026-09-21T18:00:00Z"},
+        {"event": "item_created", "item_id": "ST-2", "kind": "story"},
+        {"event": "item_shipped", "item_id": "ST-2", "pr": 2},
+    ]
+
+
+def test_flow_empty_is_honest():
+    f = oversight.fold_flow([])
+    assert f["measured"] is False and f["open_now"] == 0
+
+
+def test_flow_iteration_velocity_sizing_bugs_burndown():
+    f = oversight.fold_flow(_flow_events())
+    w1 = [i for i in f["iterations"] if i["iteration"] == "w1"][0]
+    assert w1["shipped"] == 1
+    assert w1["estimate_points"] == 3 and w1["actual_points"] == 5
+    assert w1["bugs_filed"] == 1
+    assert w1["open_at_close"] == 1  # BG-1 still open at the retro
+    cur = [i for i in f["iterations"] if i["current"]][0]
+    assert cur["shipped"] == 1
+    assert cur["estimate_points"] is None  # ST-2 unsized: none recorded
+    assert f["open_now"] == 1
+    assert f["velocity_series"] == [1]
+
+
+def test_flow_unsized_items_say_none_recorded_never_zero():
+    f = oversight.fold_flow([
+        {"event": "item_created", "item_id": "A", "kind": "story"},
+        {"event": "item_shipped", "item_id": "A", "pr": 3},
+    ])
+    cur = f["iterations"][-1]
+    assert cur["shipped"] == 1
+    assert cur["estimate_points"] is None and cur["actual_points"] is None
+
+
+def test_flow_actual_read_from_item_state_per_schema_s8():
+    # actual lands on item_state at close (EVENT_SCHEMA section 8), not on
+    # item_shipped; the fold must pick it up from there.
+    f = oversight.fold_flow([
+        {"event": "item_created", "item_id": "A", "kind": "story"},
+        {"event": "item_state", "item_id": "A", "estimate": "S"},
+        {"event": "item_state", "item_id": "A", "actual": "M"},
+        {"event": "item_shipped", "item_id": "A", "pr": 4},
+    ])
+    cur = f["iterations"][-1]
+    assert cur["estimate_points"] == 2 and cur["actual_points"] == 3
+
+
+def test_flow_field_after_status_spelling_counts_for_burndown():
+    f = oversight.fold_flow([
+        {"event": "item_created", "item_id": "A", "kind": "story"},
+        {"event": "item_state", "item_id": "A", "field": "status",
+         "after": "cancelled"},
+    ])
+    assert f["open_now"] == 0  # the two-spellings rule honoured
+
+
+# ------------------------------------------------- DEC-0027: registration
+
+def test_wall_cli_registers_feedback_and_retro_note():
+    wall_src = (KIT / "tools" / "wall" / "wall.py").read_text(encoding="utf-8")
+    assert '"--feedback"' in wall_src
+    assert 'sub.add_parser("retro-note"' in wall_src
+    assert "def cmd_retro_note" in wall_src
+
+
+def test_template_carries_flow_tab_and_new_states():
+    for needle in ("panel-flow", "paintFlow", "'FLOW'", "feedback-open",
+                   "Patron inputs"):
+        assert needle in TEMPLATE, f"template missing {needle}"
+
+
+def test_schema_documents_feedback_input_and_flow():
+    for s in ("`doc_feedback`", "`retro_input`"):
+        assert s in SCHEMA
+    assert "The FLOW tab (DEC-0027) adds **no** events" in SCHEMA
+
+
+def test_adopt_skill_carries_the_context_hunt():
+    adopt = (KIT / ".claude" / "skills" / "adopt" / "SKILL.md").read_text(
+        encoding="utf-8")
+    assert "The context hunt (DEC-0027)" in adopt
+    for fn in ("Requirements", "Design / architecture", "Technology / stack",
+               "Data", "Integration", "Environments", "Security", "Testing",
+               "SOPs / runbooks", "Diagrams"):
+        assert fn in adopt, f"context function missing: {fn}"
+    flat = " ".join(adopt.split())
+    assert "author it" in flat
+    assert "never invented facts" in flat
+    assert "context markers" in flat
+
+
+def test_retrospectives_bind_patron_inputs():
+    retro = (KIT / "docs" / "RETROSPECTIVES.md").read_text(encoding="utf-8")
+    flat = " ".join(retro.split())
+    assert "retro-note" in flat
+    assert "must address every pending input in its record" in flat
+    assert "Silence is not one of the three" in flat

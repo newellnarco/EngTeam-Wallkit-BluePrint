@@ -28,6 +28,24 @@ the kit is dropped into.
 | Prompt budgets | almost never exists | any doc naming a token/char cap for a tool |
 | Docs map | `DOCS_MAP.md`, a docs-discipline note, CONTRIBUTING sections | change-kind to doc-surface obligations, "update the docs in the same PR" rules |
 
+   **The context hunt (DEC-0027).** Beyond the eight adoption-runbook
+   functions, sweep the same tree for the documents that answer the
+   ENGTEAM'S WORKING QUESTIONS -- many host files may serve one function
+   (map many->one, pick the document of record like any other function):
+
+| Context function | Filename hints | Content signatures |
+|---|---|---|
+| Requirements | PRD, `requirements*`, product briefs, user stories | who it is for, what done means, explicit non-goals |
+| Design / architecture | `ARCHITECTURE*`, `docs/architecture/`, ADR bodies, RFCs | component boundaries, contracts, data flow prose |
+| Technology / stack | tech radar docs, `DEPENDENCIES*`, upgrade notes | why-this-library rationale, pinned-version reasoning |
+| Data | schema docs, data dictionaries, retention/classification notes | field meanings, PII/PHI markers, retention rules |
+| Integration | API docs, OpenAPI/proto files' prose, webhook guides | endpoint contracts, auth handshakes, rate limits |
+| Environments | deploy runbooks, `INSTALL*`, IaC READMEs, env matrices | per-environment differences, secrets sourcing |
+| Security | `SECURITY.md`, threat models, pentest summaries, policies | trust boundaries, credential handling, disclosure |
+| Testing | test strategy docs, coverage policies, CI docs | tier definitions, what a gate blocks on |
+| SOPs / runbooks | oncall docs, `RUNBOOK*`, ops wikis | step lists with commands, escalation paths |
+| Diagrams | `docs/diagrams/`, mermaid/plantuml/drawio sources | rendered or source diagrams of the system |
+
 3. **Report the inventory as a table** -- function, file(s) found, the
    evidence line that classified it, and a verdict per function:
    `covered` / `missing` / `split across N files` / `duplicated` /
@@ -60,6 +78,21 @@ For each function, by inventory verdict:
 - **split / duplicated / conflicting** -> queue for `consolidate`; map picks
   the **document of record** provisionally (the one other files already
   point at, else the most-recently-maintained) and says so in the report.
+- **A context function with NO document at all** (DEC-0027) -> **author it**,
+  derivation-first: read the code, configs, CI and history the way the
+  intake pass does (PRODUCT_INTAKE section 2), write what the tree
+  EVIDENCES with every claim citing its evidence, and mark what the tree
+  cannot answer as explicit open questions IN the document -- never
+  invented facts. The authored document is a DRAFT by construction.
+- **Every mapped document of record AND every authored draft is registered
+  in `documents_of_record`** (wall.json), so it lands on the DOCS tab as
+  `never-reviewed` -- the Patron's queue. From there the review loop runs:
+  `wall ack-doc` signs off THAT sha, `--feedback "..."` objects (correct /
+  remap / discuss -- routed to the Architect as a finding), and any later
+  edit voids the sign-off (changed-since-review) so each new version earns
+  its own review. **These signed documents are the engteam's context
+  markers**: the Architect designs from them, builders cite them, and a
+  gap one exposes becomes a question or an arc instead of an assumption.
 
 Every stub and edit rides a normal PR. Nothing is force-written over a host
 document.

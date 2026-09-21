@@ -835,6 +835,21 @@ def cmd_ack_doc(a):
         oversight_mod.DEFAULT_DOCUMENTS_OF_RECORD)
     note = "" if rel in registry else \
         "  (note: not in documents_of_record -- the DOCS tab will not show it)"
+    if a.feedback:
+        # The Patron's OTHER answer (DEC-0027): not signed off. The doc
+        # stays needs-review (feedback-open outranks every readable state
+        # until a NEWER ack lands), and the text routes to the Architect as
+        # a finding through the normal route.
+        record = items_mod.append_event(repo, a.session, {
+            "event": "doc_feedback", "path": rel, "sha": sha, "by": a.by,
+            "text": a.feedback, "role": "human", "source": "human",
+        })
+        print(f"feedback on {rel} at {sha} by {a.by}  (seq {record['seq']} "
+              f"in {record['session_id']}){note}")
+        print("  the doc reads feedback-open on the DOCS tab until a NEWER "
+              "ack lands; route the text to the Architect as a finding "
+              "(docs/handoffs/finding-route.md)")
+        return 0
     record = items_mod.append_event(repo, a.session, {
         "event": "doc_reviewed", "path": rel, "sha": sha, "by": a.by,
         "role": "human", "source": "human",
@@ -842,6 +857,91 @@ def cmd_ack_doc(a):
     print(f"acked {rel} at {sha} by {a.by}  (seq {record['seq']} in "
           f"{record['session_id']}){note}")
     print("  run `wall run-once` to refresh the DOCS tab")
+    return 0
+
+
+def cmd_retro_note(a):
+    """A Patron input the NEXT retrospective must consume (DEC-0027)."""
+    repo = Path(a.repo).resolve()
+    if not a.text or not a.text.strip():
+        print("refusing an empty retro note: pass --text \"...\"",
+              file=sys.stderr)
+        return 2
+    record = items_mod.append_event(repo, a.session, {
+        "event": "retro_input", "by": a.by, "text": a.text.strip(),
+        "role": "human", "source": "human",
+    })
+    print(f"retro input recorded by {a.by}  (seq {record['seq']} in "
+          f"{record['session_id']})")
+    print("  it shows on the RETRO tab until the next retro_held consumes "
+          "it; RETROSPECTIVES.md binds that retro to address it")
+    return 0
+
+
+def cmd_compliance(a):
+    """Select or deselect a compliance regime (DEC-0028). The selection is a
+    decision with a reason, shown on the POSTURE tab's compliance section
+    and challenged in BOTH directions by the fold's heuristics."""
+    import compliance as compliance_mod
+    repo = Path(a.repo).resolve()
+    r = compliance_mod.regime(a.regime)
+    if r is None:
+        print(f"unknown regime {a.regime!r}; known: "
+              f"{', '.join(compliance_mod.REGIME_IDS)}", file=sys.stderr)
+        return 1
+    if a.applicable == a.not_applicable:
+        print("pass exactly one of --applicable / --not-applicable",
+              file=sys.stderr)
+        return 2
+    applicable = bool(a.applicable)
+    if not a.reason:
+        print("refusing a selection without --reason: the reason IS the "
+              "decision log entry", file=sys.stderr)
+        return 2
+    record = items_mod.append_event(repo, a.session, {
+        "event": "compliance_selected", "regime": a.regime,
+        "applicable": applicable, "reason": a.reason, "by": a.by,
+        "role": "human", "source": "human",
+    })
+    word = "applicable" if applicable else "not applicable"
+    print(f"{r['name']}: {word} -- {a.reason}  (seq {record['seq']})")
+    print(f"  blueprint: {r['doc']}; attest controls with "
+          f"`wall attest {a.regime} <control> --status pass|fail|waiver`")
+    return 0
+
+
+def cmd_attest(a):
+    """Record one control's self-attestation for a regime (DEC-0028):
+    pass, fail, or waiver -- a waiver is a RECORDED exception and needs
+    its reason in --note."""
+    import compliance as compliance_mod
+    repo = Path(a.repo).resolve()
+    r = compliance_mod.regime(a.regime)
+    if r is None:
+        print(f"unknown regime {a.regime!r}; known: "
+              f"{', '.join(compliance_mod.REGIME_IDS)}", file=sys.stderr)
+        return 1
+    ids = compliance_mod.control_ids(a.regime)
+    if a.control not in ids:
+        print(f"unknown control {a.control!r} for {a.regime}; controls: "
+              f"{', '.join(ids)}", file=sys.stderr)
+        return 1
+    if a.status not in compliance_mod.ATTEST_STATUSES:
+        print(f"status must be one of {compliance_mod.ATTEST_STATUSES}",
+              file=sys.stderr)
+        return 2
+    if a.status == "waiver" and not a.note:
+        print("refusing a waiver without --note: a waiver is a recorded "
+              "exception, and the reason is the record", file=sys.stderr)
+        return 2
+    record = items_mod.append_event(repo, a.session, {
+        "event": "compliance_attested", "regime": a.regime,
+        "control": a.control, "status": a.status, "note": a.note or "",
+        "by": a.by, "role": "human", "source": "human",
+    })
+    print(f"{a.regime} {a.control}: {a.status}"
+          f"{' -- ' + a.note if a.note else ''}  (seq {record['seq']})")
+    print("  run `wall run-once` to refresh the POSTURE tab")
     return 0
 
 
@@ -1098,8 +1198,38 @@ def main() -> int:
                        help="acknowledge a document of record at its current sha")
     s.add_argument("path", help="repo-relative path, e.g. RULES.md")
     s.add_argument("--by", default="engineer", help="who reviewed it")
+    s.add_argument("--feedback",
+                   help="do NOT sign off: record this correction/remap/"
+                        "discussion text instead (stays needs-review)")
     s.add_argument("--session", default="s_human", help="shard to append to")
     s.set_defaults(fn=cmd_ack_doc)
+
+    s = sub.add_parser("compliance",
+                       help="select whether a compliance regime applies")
+    s.add_argument("regime", help="soc2 | hipaa | pci | privacy | government | sector")
+    s.add_argument("--applicable", action="store_true")
+    s.add_argument("--not-applicable", action="store_true")
+    s.add_argument("--reason", help="why -- this IS the decision log entry")
+    s.add_argument("--by", default="engineer")
+    s.add_argument("--session", default="s_human")
+    s.set_defaults(fn=cmd_compliance)
+
+    s = sub.add_parser("attest",
+                       help="self-attest one compliance control: pass/fail/waiver")
+    s.add_argument("regime")
+    s.add_argument("control", help="e.g. CC6, R3, SR-TEC (see the regime doc)")
+    s.add_argument("--status", required=True, choices=["pass", "fail", "waiver"])
+    s.add_argument("--note", help="details; REQUIRED for a waiver")
+    s.add_argument("--by", default="engineer")
+    s.add_argument("--session", default="s_human")
+    s.set_defaults(fn=cmd_attest)
+
+    s = sub.add_parser("retro-note",
+                       help="a Patron input the next retrospective must consume")
+    s.add_argument("--text", required=True, help="the note")
+    s.add_argument("--by", default="engineer", help="who raised it")
+    s.add_argument("--session", default="s_human", help="shard to append to")
+    s.set_defaults(fn=cmd_retro_note)
 
     s = sub.add_parser("fast-track", help="classify, run local gates, stage")
     s.add_argument("--staged", action="store_true")

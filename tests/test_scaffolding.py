@@ -159,9 +159,11 @@ def test_decision_seed_set_present():
     # bootstrap charters (Patron, 2026-09-20); 23-24 the retrospective and
     # test-lineage/usability charters (Patron, 2026-09-21); 25 the Warden
     # data charter (Patron, 2026-09-21); 26 the oversight dashboards
-    # (Patron, 2026-09-21). The equality
+    # (Patron, 2026-09-21); 27 the context-hunt / feedback / FLOW charter
+    # (Patron, 2026-09-21); 28 the compliance register (Patron,
+    # 2026-09-21). The equality
     # still guards against holes and strays.
-    expected = [f"DEC-{n:04d}.md" for n in range(1, 27)]
+    expected = [f"DEC-{n:04d}.md" for n in range(1, 29)]
     assert names == expected, f"decision seed set drifted: {names}"
 
 

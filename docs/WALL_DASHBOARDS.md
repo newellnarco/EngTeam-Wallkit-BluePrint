@@ -12,7 +12,7 @@ event simply sees the honest empty state.
 
 ---
 
-## 1. The eight tabs
+## 1. The nine tabs
 
 | Tab | Answers | Fed by |
 |---|---|---|
@@ -22,8 +22,9 @@ event simply sees the honest empty state.
 | **LEDGER** | The event stream itself, traceable | `derived/ledger.jsonl` |
 | **WAITING** | The human queue — asks and unverified ships parked on a person | `human_required` / `verify_requested` |
 | **RETRO** | Are the roles learning? Latest retrospective in full; every signal's trend across waves; diffs landed and last wave's re-measured verdicts | `retro_held` (EVENT_SCHEMA "Oversight") |
-| **POSTURE** | The security picture: the Warden's latest ruling per subject at each gate (architecture / data use / test data via `data_use` / playbooks / tech evals / delivery audit), verdict tally, and anything blocked or refused — parked work, front and center | `warden_ruling` |
-| **DOCS** | Is every SOP and standard reviewed at its current sha? The documents-of-record registry with per-file state (current / changed-since-review / never-reviewed / missing) plus the decision log | `doc_reviewed` + file hashes + `decisions.index` |
+| **POSTURE** | The security picture: the Warden's latest ruling per subject at each gate, verdict tally, anything blocked or refused — plus the **compliance section** (DEC-0028): every regime (SOC 2, HIPAA/PHI, PCI, PII/privacy, government, sector) with its blueprint link, the Patron's applicability selection and its decision log, both-direction challenges, and an **interactive self-attestation popout** per regime — pass / fail / waiver-with-reason per control, the waiver never silent | `warden_ruling` + `compliance_selected` / `compliance_attested` + `tools/wall/compliance.py` |
+| **DOCS** | Is every SOP and standard reviewed at its current sha? The documents-of-record registry with per-file state (current / changed-since-review / never-reviewed / feedback-open / missing) plus the decision log | `doc_reviewed` / `doc_feedback` + file hashes + `decisions.index` |
+| **FLOW** | The Foreman/Maestro instrument (DEC-0027/0028): velocity, estimate-vs-actual sizing points, bugs filed, and burndown (open at close) per iteration — each iteration row opens a **drill-in popout**: cost (summed `cost_usd`), agents by role, duration, what was delivered, and what was worked but NOT delivered | The existing `item_created` / `item_state` (§8 estimate+actual) / `item_shipped` / `run_end` stream, segmented by `retro_held` |
 
 RETRO / POSTURE / DOCS are the **oversight** family (DEC-0026), folded by
 `tools/wall/oversight.py` into `snapshot["oversight"]`.
@@ -43,6 +44,19 @@ RETRO / POSTURE / DOCS are the **oversight** family (DEC-0026), folded by
    file NOW and writes the `doc_reviewed` event with that sha (it refuses a
    missing file — an ack records a read). An ack at a stale sha changes
    nothing — the sha is the point.
+3b. **Sign-off is not the only answer.** `wall ack-doc <path> --feedback
+   "..."` records the objection instead — correct, remap, discuss — and the
+   doc reads **feedback-open** (outranking every readable state) until a
+   NEWER ack lands; the text routes to the Architect as a finding through
+   the normal route. Signed documents are the engteam's **context markers**
+   (adopt skill, DEC-0027): designs cite them, and every new version voids
+   the previous sign-off so each version earns its own review.
+3c. **The registry is fed by adoption**: the `/adopt` context hunt maps the
+   host's many documents onto the working functions (requirements, design,
+   technology, data, integration, environments, security, testing, SOPs,
+   diagrams), authors evidence-cited drafts where nothing exists, and
+   registers every document of record here — so a fresh assimilation
+   arrives with its whole review queue visible.
 4. Leadership and external contributors read the same page: the wall binds
    `127.0.0.1` by standing rule (the derived dir holds the ledger), so
    sharing outward is a deliberate host act — the derived `wall.html` is a
@@ -54,7 +68,12 @@ RETRO / POSTURE / DOCS are the **oversight** family (DEC-0026), folded by
 An empty oversight tab is itself information, and each names its emitter:
 
 - RETRO empty → "the wave close writes a `retro_held` event
-  (RETROSPECTIVES.md, SESSION_LIFECYCLE §3 step 6)".
+  (RETROSPECTIVES.md, SESSION_LIFECYCLE §3 step 6)" — and still shows any
+  pending `wall retro-note` Patron inputs, which the next retro must
+  address.
+- FLOW empty → names the item-stream events it reads and fills as work
+  flows; "none recorded" in the sizing columns means none recorded, never
+  an invented number.
 - POSTURE empty → "gates write `warden_ruling` events (warden.md,
   DATA_PROTECTION.md §4) — an empty posture tab on a repo with in-scope
   arcs is itself a finding".
@@ -73,6 +92,23 @@ therefore starts at ITEM_AUTHORING — an `arc_designed` event (or folded item
 fields) carrying that metadata — and only then earns a renderer. Building
 the tab first would mean scraping prose, which is exactly the
 paraphrase-risk the courier-as-script rule exists to prevent.
+
+## 4b. The compliance loop (DEC-0028)
+
+The regime registry is `tools/wall/compliance.py` (machine) +
+`docs/compliance/*.md` (the blueprints, source-cited, translated from the
+current authorities — PCI DSS v4.0.1, the HIPAA rules in force with the
+2025 NPRM noted, SOC 2 2017 TSC w/2022 PoF, GDPR + CCPA/CPRA 2026,
+FedRAMP Rev5/20x + CJIS v6, SOX/GLBA/FERPA); a pin test keeps every
+registry control id present in its document. The loop: the Patron selects
+applicability with a reason (`wall compliance <regime> ...` — the reason IS
+the decision log), the fold **challenges both directions** (selected with
+no observed surface; unselected while Warden rulings cite the regime's
+keywords) without ever flipping a selection, the popout audit attests
+control-by-control (`wall attest ...`, waiver only with its reason), and
+the **Warden reviews the register at every checkpoint and wave close**
+(warden.md) — selections vs what the wave touched, attestation freshness,
+waiver lifting conditions.
 
 ## 5. Cross-references
 

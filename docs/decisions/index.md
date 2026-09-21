@@ -34,6 +34,8 @@ Format and front-matter contract: `docs/WALL_STANDARDS.md` section 6.
 | [DEC-0024](DEC-0024.md) | active | Two test lineages, five families, and usability as a gated requirement axis | quality | 2026-09-21 |
 | [DEC-0025](DEC-0025.md) | active | The Warden's data charter: exposure, regimes, states — continuous, and forward | security | 2026-09-21 |
 | [DEC-0026](DEC-0026.md) | active | Three oversight dashboards on the wall; the DESIGN tab waits for its data contract | observability | 2026-09-21 |
+| [DEC-0027](DEC-0027.md) | active | Assimilation authors the context, the Patron's review governs it, and FLOW measures the work | adoption | 2026-09-21 |
+| [DEC-0028](DEC-0028.md) | active | The compliance register: blueprints, Patron selection, challenged both ways, attested control by control | compliance | 2026-09-21 |
 
 ---
 

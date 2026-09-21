@@ -27,6 +27,14 @@ bandaids on bandaids is the exact failure this document exists to prevent).
   Adjudicator — the same oscillation rule as CAPACITY_REBALANCING §4.
 - Every role's record participates; no role's self-report is the measurement.
 
+## 1b. The Patron's input
+
+The Patron does not wait for the retro to notice something. **`wall
+retro-note --text "..."`** records an input at any moment; it shows on the
+wall's RETRO tab as pending until the next retro, and **that retro must
+address every pending input in its record** — adopted as a diff, queued as
+a wall item, or declined with a reason. Silence is not one of the three.
+
 ## 2. The inputs — per-role signals, all measured
 
 Every signal comes from the ledger, the wall, the host's checks or CI — never
