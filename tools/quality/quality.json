@@ -89,5 +89,9 @@
   },
   "gitleaks": {
     "policy": "Always blocking: a secrets finding is never report-only, and the credential is rotated, not deleted from the diff (TESTING_STANDARDS.md section 5). A false positive is suppressed by fingerprint in .gitleaksignore under a comment giving the reason and the date."
-  }
+  },
+  "library_sources": [
+    "templates/FAILURE_PATTERNS.md.template",
+    "templates/KNOWN_ISSUES.md.template"
+  ]
 }

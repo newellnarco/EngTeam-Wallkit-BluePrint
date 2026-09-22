@@ -33,6 +33,17 @@ $q rules --check || fail=1
 # 2 + 3. ast-grep: every rule can go red, then the scan itself.
 if command -v ast-grep >/dev/null 2>&1; then
   ast-grep test --skip-snapshot-tests || fail=1
+  # The library's rules ship live into every adopting repository (bootstrap
+  # copies the templates), so they are proven here before they ship.
+  lib="$(mktemp -d)"
+  if $q library-check "$lib" >/dev/null; then
+    if compgen -G "$lib/rules/*.yml" >/dev/null; then
+      (cd "$lib" && ast-grep test --skip-snapshot-tests) || fail=1
+    fi
+  else
+    fail=1
+  fi
+  rm -rf "$lib"
   errs=()
   while IFS= read -r rid; do [ -n "$rid" ] && errs+=("--error=$rid"); done \
     < <($q promoted ast-grep)
@@ -167,7 +178,7 @@ fi
 if [ "$fail" != 0 ]; then
   echo "scan: BLOCKING findings above" >&2
 elif [ "$skipped" != 0 ]; then
-  echo "scan: no blocking findings, but $skipped scanner(s) did not run -- UNKNOWN, not clean"
+  echo "scan: no blocking findings, but $skipped check(s) did not run or saw only part of their input -- UNKNOWN, not clean"
 else
   echo "scan: clean"
 fi

@@ -11,6 +11,8 @@ imports them, it only generates their inputs and judges their outputs.
     quality.py proofs                 list custom rules with the fixture proving each
     quality.py baseline-path TARGET   print a SkillSpector target's baseline file
     quality.py history [--ci]         a shallow history: exit 1 in ci, 3 (unknown) locally
+    quality.py library-check DIR      render the templates' rule blocks into DIR
+                                      (with an sgconfig.yml) for `ast-grep test`
     quality.py pin <tool>             print a tool's pinned version
     quality.py promoted <tool>        print promoted rule ids, one per line
     quality.py install-plan           print what tools/quality/install.sh installs
@@ -434,6 +436,34 @@ def suppression_problems(text: str) -> list[str]:
     return problems
 
 
+# ------------------------------------------------------------ the library
+
+def library_tree(root: Path, cfg: dict, out: Path) -> dict[Path, str]:
+    """The rule blocks in the shipped templates, rendered under `out`.
+
+    Adopting repositories get these as live rules the moment `bootstrap`
+    copies a template into place, so the kit proves them here first. They are
+    rendered apart from the kit's own generated rules on purpose: a class the
+    kit has promoted appears in both its registry and its library, under one
+    id, and the two must not collide."""
+    root, out = Path(root), Path(out)
+    tree: dict[Path, str] = {}
+    for source in cfg.get("library_sources", []):
+        path = root / source
+        if not path.is_file():
+            raise RuleError("%s: library source is missing" % source)
+        for name, content in render_rules(source, path.read_text(encoding="utf-8")).items():
+            kind, fname = name.split("/", 1)
+            target = out / ("rules" if kind == "rules" else "rule-tests") / fname
+            if target in tree:
+                raise RuleError("%s: rule %s is also in another library source"
+                                % (source, fname))
+            tree[target] = content
+    tree[out / "sgconfig.yml"] = ("ruleDirs:\n  - rules\n"
+                                  "testConfigs:\n  - testDir: rule-tests\n")
+    return tree
+
+
 # ------------------------------------------------------------ full view
 
 def history_problem(root: Path) -> str | None:
@@ -548,6 +578,8 @@ def main(argv=None) -> int:
     sub.add_parser("proofs", help="list custom rules and the fixture proving each")
     s = sub.add_parser("baseline-path", help="a SkillSpector target's baseline file")
     s.add_argument("target")
+    s = sub.add_parser("library-check", help="render the templates' rules for ast-grep test")
+    s.add_argument("out", type=Path)
     s = sub.add_parser("history", help="refuse (--ci) or warn on a shallow history")
     s.add_argument("--ci", action="store_true",
                    help="a partial history is UNKNOWN, not clean: exit 1")
@@ -606,6 +638,19 @@ def main(argv=None) -> int:
         for line in problems:
             print("quality: %s" % line, file=sys.stderr)
         return 1 if problems else 0
+    if a.cmd == "library-check":
+        try:
+            tree = library_tree(root, cfg, a.out)
+        except RuleError as exc:
+            print("quality: %s" % exc, file=sys.stderr)
+            return 1
+        for path, content in tree.items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+        (a.out / "rules").mkdir(parents=True, exist_ok=True)
+        (a.out / "rule-tests").mkdir(parents=True, exist_ok=True)
+        print("library: %d rule(s) rendered" % (len(tree) // 2))
+        return 0
     if a.cmd == "history":
         why = history_problem(root)
         if why is None:
