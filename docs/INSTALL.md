@@ -146,10 +146,17 @@ the response parses as a wall snapshot **and** carries `no-store`: a server
 handing out the snapshot cacheable is serving a wall that can go quietly stale.
 
 **If the host repo already serves a wall or status page**, register the kit's
-files with it instead of running a second server: add `wall.json` and
-`heartbeat.json` to its no-cache set and point it at `.wall/derived/`. (The
-reference deployment did exactly this with its existing board server on the
-same port.)
+files with it instead of running a second server: point it at `.wall/derived/`
+and add **the page and every polled file** — `wall.html`, `wall.json`,
+`heartbeat.json`, `ledger.jsonl` — to its no-store set, **on every path that
+can serve them**, fallbacks and aliases included. The page is not exempt: an
+earlier revision of this passage named only the polled JSON, the reference
+deployment's host server followed it to the letter, and its legacy-fallback
+path served `wall.html` cacheable — a browser cached that copy and kept
+showing the pre-swap wall after the kit page landed (found 2026-09-21). The
+whole property is `server.py`'s safety #2, and `wall serve --check` refuses a
+server that answers cacheable; a host serving through its own server holds the
+same bar by hand.
 
 ---
 

@@ -86,8 +86,10 @@ record, and if it has lasting consequences give it a file in
     RECONCILIATION Q13; `docs/decisions/DEC-0009.md`.
 14. **What serves the wall?** The host's server if it already has one - register
     the kit's files with it; otherwise the kit's stdlib server. Either way, bind
-    `127.0.0.1` explicitly and send no-cache headers on the polled JSON.
-    RECONCILIATION Q14; `INSTALL.md`.
+    `127.0.0.1` explicitly and send no-store on the page AND the polled files,
+    on every path that can serve them (`INSTALL.md`'s host-served rule; the
+    page-omitted version of this answer shipped a stale-wall bug on the
+    reference deployment, 2026-09-21). RECONCILIATION Q14; `INSTALL.md`.
 15. **Frontend styling system?** Plain CSS with theme tokens. `theme.css` plus
     `primitives.css` is the right shape; keep. RECONCILIATION Q15.
 16. **What are the real screens?** Sixteen or more panels, with the wall served

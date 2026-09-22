@@ -244,3 +244,20 @@ def _free_port() -> int:
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         return probe.getsockname()[1]
+
+
+# ------------------------------------------------- host-served wall charter
+
+def test_install_host_served_rule_names_the_page_and_every_path():
+    """The drop-on-existing passage must name wall.html itself, not just the
+    polled JSON: the page-omitted version shipped a stale-wall bug on the
+    reference deployment (its host server followed the passage to the letter
+    and a legacy-fallback path served the page cacheable, 2026-09-21)."""
+    text = (Path(__file__).resolve().parents[1] / "docs" / "INSTALL.md"
+            ).read_text(encoding="utf-8")
+    flat = " ".join(text.split())
+    for needle in ("`wall.html`", "`wall.json`", "`heartbeat.json`",
+                   "`ledger.jsonl`"):
+        assert needle in flat, "host-served no-store set omits %s" % needle
+    assert "on every path that can serve them" in flat
+    assert "fallbacks and aliases included" in flat

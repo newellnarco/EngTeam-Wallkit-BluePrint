@@ -438,7 +438,9 @@ sheet changes the behaviour of every future run.
 `wall register` adds the repository to the machine registry and needs no
 privileges; `wall install` runs on explicit say-so and prints what it wrote. If
 the host already serves a wall or dashboard of its own, register the kit's files
-with that server rather than standing up a second one.
+with that server rather than standing up a second one — with the page and every
+polled file no-store on each path that can serve them (INSTALL.md's host-served
+rule; a cacheable page is a wall that goes quietly stale).
 
 **5. Shake it down on one small item.** Claim the roster, then run `/wave`
 scoped to a **single low-blast-radius item**. The point is not throughput; it is
