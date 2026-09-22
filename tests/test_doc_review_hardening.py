@@ -36,6 +36,31 @@ class TestResolveBlockedReason:
         assert p.to_dict()["reason"] == "upstream API undocumented"
 
 
+class TestDocReviewShaBinding:
+    """A verdict must name the revision that was read: without the sha, a
+    document edited between fetch and verdict cannot be detected stale."""
+
+    def test_a_missing_sha_is_refused(self):
+        with pytest.raises(ValueError, match="sha"):
+            c.EnqueuePayload(directive=c.Directive.DOC_REVIEW,
+                             action="approve", path="RULES.md",
+                             title="Approve document RULES.md")
+
+    def test_a_blank_sha_is_refused(self):
+        with pytest.raises(ValueError, match="sha"):
+            c.EnqueuePayload(directive=c.Directive.DOC_REVIEW,
+                             action="deny", path="RULES.md", sha="  ",
+                             reason="stale guidance",
+                             title="Deny document RULES.md")
+
+    def test_a_bound_verdict_passes(self):
+        p = c.EnqueuePayload(directive=c.Directive.DOC_REVIEW,
+                             action="approve", path="RULES.md",
+                             sha="abc123def456",
+                             title="Approve document RULES.md")
+        assert p.to_dict()["sha"] == "abc123def456"
+
+
 # ------------------------------------------------------- docs.json payload
 
 def _payload(repo, registry):

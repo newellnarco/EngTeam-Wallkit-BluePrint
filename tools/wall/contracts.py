@@ -120,6 +120,10 @@ class EnqueuePayload:
                                  "'changes' or 'deny'")
             if not self.path:
                 raise ValueError("doc_review requires path")
+            if not (self.sha or "").strip():
+                raise ValueError("doc_review requires the sha that was read "
+                                 "-- a verdict unbound to a revision cannot "
+                                 "be detected stale")
             if self.action != "approve" and not (self.reason or "").strip():
                 raise ValueError("doc_review changes/deny require a reason "
                                  "-- a verdict nobody can act on is noise")
