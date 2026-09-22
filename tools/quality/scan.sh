@@ -97,9 +97,9 @@ fi
 #    fingerprint in .gitleaksignore, each under a dated reason.
 $q suppressions || fail=1
 if command -v gitleaks >/dev/null 2>&1; then
-  if [ "$(git rev-parse --is-shallow-repository 2>/dev/null)" = true ]; then
-    echo "scan: shallow clone -- gitleaks sees only the fetched history (CI uses fetch-depth: 0)" >&2
-  fi
+  # F-PARTIAL-VIEW-001: a gitleaks pass over a shallow clone is a pass over
+  # part of the history. In ci mode that is UNKNOWN, and it fails.
+  if [ "$mode" = ci ]; then $q history --ci || fail=1; else $q history; fi
   gitleaks git --no-banner --redact --log-level warn . || fail=1
   # Each custom rule must fire on its fake fixture. Scanned from inside the
   # fixture directory so the config's fixture allowlist does not apply.

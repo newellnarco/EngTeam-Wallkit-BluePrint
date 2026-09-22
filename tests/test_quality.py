@@ -501,3 +501,56 @@ def test_the_kits_workflows_need_no_secrets():
     and the ones who do not get a lane that silently does less."""
     for wf in sorted((KIT / ".github" / "workflows").glob("*.yml")):
         assert "secrets." not in wf.read_text(encoding="utf-8"), wf.name
+
+
+# ------------------------------------------------------------ F-PARTIAL-VIEW-001
+
+def _git(*args, cwd):
+    import subprocess
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True,
+                   env={"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+                        "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t",
+                        "PATH": __import__("os").environ["PATH"],
+                        "HOME": str(cwd)})
+
+
+def test_ci_scan_refuses_a_shallow_history(tmp_path, capsys):
+    """The class-guard for F-PARTIAL-VIEW-001. A secrets scan over a shallow
+    clone passes on the commits it holds; the ones it cannot see are the ones
+    the full-history gate fails on. In ci mode that is unknown, not clean."""
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    _git("init", "-q", "-b", "main", cwd=origin)
+    for n in (1, 2):
+        (origin / "f.txt").write_text(str(n), encoding="utf-8")
+        _git("add", "f.txt", cwd=origin)
+        _git("commit", "-q", "-m", "c%d" % n, cwd=origin)
+    shallow, full = tmp_path / "shallow", tmp_path / "full"
+    _git("clone", "-q", "--depth", "1", "file://%s" % origin, str(shallow), cwd=tmp_path)
+    _git("clone", "-q", "file://%s" % origin, str(full), cwd=tmp_path)
+    for clone in (shallow, full):
+        (clone / quality.CONFIG).parent.mkdir(parents=True)
+        (clone / quality.CONFIG).write_text(
+            (KIT / quality.CONFIG).read_text(encoding="utf-8"), encoding="utf-8")
+
+    assert quality.main(["--root", str(shallow), "history", "--ci"]) == 1
+    assert "UNKNOWN, not clean" in capsys.readouterr().err
+    assert quality.main(["--root", str(shallow), "history"]) == 0, \
+        "local mode warns through (GIT_HOOKS.md: a local gate never blocks on its own blind spot)"
+    assert "covers less than CI will" in capsys.readouterr().err
+    assert quality.main(["--root", str(full), "history", "--ci"]) == 0
+    bare = tmp_path / "no-git"
+    (bare / quality.CONFIG).parent.mkdir(parents=True)
+    (bare / quality.CONFIG).write_text(
+        (KIT / quality.CONFIG).read_text(encoding="utf-8"), encoding="utf-8")
+    assert quality.main(["--root", str(bare), "history", "--ci"]) == 1, \
+        "no git history at all is unknown too"
+
+
+def test_the_scan_lane_wires_the_full_view_check_and_the_registry_names_it():
+    scan = (KIT / "tools/quality/scan.sh").read_text(encoding="utf-8")
+    assert "$q history --ci || fail=1" in scan
+    template = (KIT / "templates/FAILURE_PATTERNS.md.template").read_text(encoding="utf-8")
+    block = template.split("### F-PARTIAL-VIEW-001", 1)[1].split("\n### ", 1)[0]
+    assert "`test_ci_scan_refuses_a_shallow_history`" in block
+    assert "VARIANT:" in block

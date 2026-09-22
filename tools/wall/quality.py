@@ -10,6 +10,7 @@ imports them, it only generates their inputs and judges their outputs.
     quality.py suppressions           verify every .gitleaksignore entry is dated
     quality.py proofs                 list custom rules with the fixture proving each
     quality.py baseline-path TARGET   print a SkillSpector target's baseline file
+    quality.py history [--ci]         refuse (ci) or warn on a shallow git history
     quality.py pin <tool>             print a tool's pinned version
     quality.py promoted <tool>        print promoted rule ids, one per line
     quality.py install-plan           print what tools/quality/install.sh installs
@@ -429,6 +430,28 @@ def suppression_problems(text: str) -> list[str]:
     return problems
 
 
+# ------------------------------------------------------------ full view
+
+def history_problem(root: Path) -> str | None:
+    """None when the git history is complete; otherwise why it is not.
+
+    F-PARTIAL-VIEW-001: a history scan over a shallow clone passes on the
+    commits it can see, and the commits it cannot see are exactly the ones a
+    full-history gate will fail on (measured: a fixture's first commit, hidden
+    by a 50-commit clone, turned CI red after the local scan said clean)."""
+    try:
+        # S603/S607: a fixed argv (no shell), git resolved from PATH.
+        out = subprocess.run(  # noqa: S603
+            ["git", "-C", str(root), "rev-parse", "--is-shallow-repository"],  # noqa: S607
+            capture_output=True, text=True, check=True).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "not a git work tree -- the history cannot be scanned at all"
+    if out == "true":
+        return ("shallow clone -- a history scan sees only the fetched commits "
+                "(fix: git fetch --unshallow; CI: checkout fetch-depth: 0)")
+    return None
+
+
 # ------------------------------------------------------------ pins
 
 def install_plan(cfg: dict) -> list[str]:
@@ -521,6 +544,9 @@ def main(argv=None) -> int:
     sub.add_parser("proofs", help="list custom rules and the fixture proving each")
     s = sub.add_parser("baseline-path", help="a SkillSpector target's baseline file")
     s.add_argument("target")
+    s = sub.add_parser("history", help="refuse (--ci) or warn on a shallow history")
+    s.add_argument("--ci", action="store_true",
+                   help="a partial history is UNKNOWN, not clean: exit 1")
     s = sub.add_parser("pin", help="print a tool's pinned version")
     s.add_argument("tool")
     s = sub.add_parser("promoted", help="print promoted rule ids")
@@ -576,6 +602,17 @@ def main(argv=None) -> int:
         for line in problems:
             print("quality: %s" % line, file=sys.stderr)
         return 1 if problems else 0
+    if a.cmd == "history":
+        why = history_problem(root)
+        if why is None:
+            return 0
+        if a.ci:
+            print("scan: %s -- UNKNOWN, not clean (F-PARTIAL-VIEW-001)" % why,
+                  file=sys.stderr)
+            return 1
+        print("scan: %s -- the local result covers less than CI will" % why,
+              file=sys.stderr)
+        return 0
     if a.cmd == "baseline-path":
         print(baseline_path(a.target))
         return 0

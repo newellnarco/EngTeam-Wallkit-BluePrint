@@ -567,6 +567,35 @@ outage.
 > different identity - the class is "compared by a weaker relation than
 > identity", not "used includes()".
 
+### F-PARTIAL-VIEW-001 - a gate verified against less than the real gate sees
+
+- **Discovered:** inherited, not yet observed here
+- **Symptom:** A check passes locally, the change is pushed on that evidence,
+  and the same check fails in CI on the same commit. Nothing changed in
+  between. The local run saw only part of what CI inspects. Measured in the
+  kit: a secret-scanner suppression was written from a shallow clone. It named
+  the one commit that clone held, and CI's full-history scan went red on the
+  commit that first introduced the (fake) fixture key.
+- **Root cause:** The local run checked a **subset** of CI's input and reported
+  "clean" instead of "clean over what I could see". A shallow clone, a
+  path-scoped run, a changed-files-only lint and a filtered test selection all
+  do this. Anything derived from that run inherits the gap, such as a
+  suppression fingerprint, a baseline or a "fixed" claim.
+- **Check:** Before a local result stands in for CI's, name what CI inspects and
+  confirm the local run saw all of it. A tool that can only see part of its
+  input says so, and in CI mode that is **unknown, not clean**: it fails
+  instead of passing on what it saw. Anything recorded from a scan (a
+  suppression, a baseline, a fingerprint) is taken from the full view.
+- **Command:** `bash tools/quality/scan.sh ci` (refuses a shallow history);
+  `git fetch --unshallow` before recording a gitleaks fingerprint
+
+> class-guard: `test_ci_scan_refuses_a_shallow_history` -- the scan lane in
+> CI mode exits non-zero on a shallow clone, and passes on the full one
+> VARIANT: a pre-push gate that lints only the outgoing diff while CI lints the
+> tree; a rule "fixed" in one file while the same shape stands in a file the
+> run never opened. The class is "the verdict covered less than the gate",
+> not "shallow git".
+
 ### F-REAP-001 - not-serving read as dead, and cleanup deleting state it does not own
 
 - **Discovered:** inherited, not yet observed here
