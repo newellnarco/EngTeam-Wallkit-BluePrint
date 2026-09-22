@@ -30,7 +30,9 @@ REGISTRY = Path(os.environ.get("USERPROFILE", "~")).expanduser() / ".wall" / "re
 
 MANUAL = r"""
 # The PowerShell equivalent, if you would rather create the task by hand.
-$py      = (Get-Command python).Source
+# pythonw.exe, not python.exe: the console binary flashes a command window
+# at the desktop on every firing (windowless_python below has the full why).
+$py      = (Get-Command pythonw).Source
 $sweeper = "$env:USERPROFILE\.wall\sweep_all.py"
 
 $action  = New-ScheduledTaskAction -Execute $py -Argument $sweeper
@@ -53,14 +55,39 @@ def interval_minutes(interval_seconds: int) -> int:
     return max(1, round(interval_seconds / 60))
 
 
+def windowless_python(python: str) -> str:
+    """The interpreter the TASK should launch: ``pythonw.exe`` when it exists
+    beside the given ``python.exe``, else the given interpreter unchanged.
+
+    ``python.exe`` is a CONSOLE-subsystem binary: a scheduled task that
+    launches it on an interactive desktop flashes a command window at the
+    user on EVERY firing -- at the default two-minute cadence, that is a
+    console popping "every little bit" (owner report on the reference
+    deployment, 2026-09-22; the same host had already paid for this class
+    once with its own auto-pull task and fixed it with a hidden launcher).
+    ``pythonw.exe`` ships beside ``python.exe`` in every CPython install and
+    venv, is the same interpreter built for the GUI subsystem, and opens no
+    window. The sweeper writes its outcome to the ledger and heartbeat, so
+    losing the (never-seen) console output costs nothing. When ``pythonw``
+    is genuinely absent, the visible interpreter is still a working courier,
+    so we degrade to it rather than refusing to install.
+    """
+    candidate = Path(python).with_name("pythonw.exe")
+    if candidate.is_file():
+        return str(candidate)
+    return python
+
+
 def task_command(python: str, sweeper: str) -> str:
     """The ``/TR`` string: the interpreter and the sweeper, each quoted.
 
     Both paths routinely contain spaces on Windows (``C:\\Program Files``,
     ``C:\\Users\\First Last``), and ``/TR`` is one string the scheduler splits
-    itself, so the quotes are load-bearing rather than decorative.
+    itself, so the quotes are load-bearing rather than decorative. The
+    interpreter goes through ``windowless_python`` so the recurring task
+    never flashes a console at whoever is using the desktop.
     """
-    return '"%s" "%s"' % (python, sweeper)
+    return '"%s" "%s"' % (windowless_python(python), sweeper)
 
 
 def build_install_command(python: str, sweeper: str, interval_seconds: int = 120) -> list[str]:

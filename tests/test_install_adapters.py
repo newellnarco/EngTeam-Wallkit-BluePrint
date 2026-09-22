@@ -109,6 +109,27 @@ def test_windows_install_replaces_rather_than_erroring():
     assert "/F" in windows.build_install_command(PY, SWEEPER)
 
 
+def test_windows_task_prefers_the_windowless_interpreter(tmp_path):
+    """python.exe is a console binary: scheduled on an interactive desktop it
+    flashes a command window at the user EVERY firing -- every two minutes at
+    the default cadence (owner report, reference deployment 2026-09-22).
+    Mutation: launch the given interpreter directly and this fails."""
+    (tmp_path / "python.exe").write_text("", encoding="utf-8")
+    (tmp_path / "pythonw.exe").write_text("", encoding="utf-8")
+    py = str(tmp_path / "python.exe")
+    assert windows.windowless_python(py) == str(tmp_path / "pythonw.exe")
+    assert '"%s"' % (tmp_path / "pythonw.exe") in windows.task_command(py, SWEEPER)
+
+
+def test_windows_task_degrades_to_the_given_interpreter(tmp_path):
+    """No pythonw beside it (unusual, but possible in a stripped install):
+    a visible courier still beats no courier -- degrade, never refuse."""
+    (tmp_path / "python.exe").write_text("", encoding="utf-8")
+    py = str(tmp_path / "python.exe")
+    assert windows.windowless_python(py) == py
+    assert windows.task_command(py, SWEEPER) == '"%s" "%s"' % (py, SWEEPER)
+
+
 def test_windows_install_runs_exactly_that_command():
     run = Recorder()
     created = windows.install(120, python=PY, sweeper=SWEEPER, run=run)
