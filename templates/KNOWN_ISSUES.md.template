@@ -44,8 +44,22 @@ in the wrong tense is invisible to the reader who needed it.
    named. The cheapest, most focused path plus its blast radius is a claim
    about what could be wrong, and this file is the list of what is.
 5. **Leave in one of two ways.** An entry leaves when it lands in
-   `FAILURE_PATTERNS.md` with a guard, or when it is declined with a reason.
-   There is no third state: silence is not a disposition.
+   `FAILURE_PATTERNS.md` with a guard, or when it is declined with a reason
+   and the name of whoever decided. There is no third state. An entry that
+   stops being mentioned has been eliminated, whatever the intent: silence is
+   not a disposition.
+
+Three more rules keep the file honest:
+
+- **Late entries are marked late.** An entry written after work on it began
+  says so; the lateness is itself a recordable lapse. Needing a periodic sweep
+  of old review threads is proof that step 1 was skipped.
+- **Elevation can be declined, but only in writing.** Give the reason (for
+  example, an existing class already enforces the root, so the member is
+  attached there) and the condition under which the NEXT member would
+  elevate.
+- **Every open entry has an owner and a checkable "closes when".** An entry
+  nobody owns and nobody can check is a wish.
 
 An entry with a code shape may carry a fenced `ast-grep` block and an
 `ast-grep-test` block. It becomes a report-only structural rule on the next
@@ -60,6 +74,8 @@ shape while the fix is still being written.
 - Symptom       what it looks like from outside
 - Family        the shared root (a family below, or a new one)
 - Blast radius  what it touches if left
+- Owner         who moves it next
+- Closes when   the checkable condition that ends it
 - Next step     the cheapest action that moves it to guarded or declined
 - Disposition   open | guarded -> F-<SCOPE>-<NNN> | declined (see below)
 ```
@@ -68,7 +84,401 @@ shape while the fix is still being written.
 
 ## Families - the shared root, not the symptom
 
-<!-- FAMILIES: genericized from three production deployments; filled in below. -->
+A family is named in one sentence that predicts where the next member will
+appear, never by the surface it showed up on ("a YAML bug"). These thirteen
+were genericized from three production deployments (a resident app, an
+appliance, a research repo) and are lettered by how often the mechanism
+recurred across them.
+
+<!-- Lettered by how often the mechanism recurred across the three source
+deployments, most-recurring first. Keep the ones that can happen to you. -->
+
+### A - A check passes for a reason other than the one it names
+
+The thing that went green (or red) was not the thing under test. The check
+reads an artifact near to hand instead of the one that can fail: the file on
+disk instead of the program that ran, the copy one consumer reads instead of
+the copy the claim is about, a count of badges instead of the rendered fields,
+a metric whose terms make it a constant. Its error path often returns the same
+value as its clean path, so "could not run" reads as "found nothing". It
+recurs inside the guards written against it.
+
+How it shows up:
+- The assertion still passes when the property it claims is deleted, or a
+  mutation is "caught" by an unrelated, cheaper clause.
+- A guard that has never been observed failing, or whose live corpus is empty
+  so its clause is vacuously true.
+- A gauge or verdict that reads the same on an idle and a saturated system,
+  or an `A or B` where A can never be false.
+- A reviewer or scanner reports "clean" on a diff it excluded or declined.
+- A checker's error branch drops the unreadable input and answers "no
+  problems".
+
+What elevates it: any guard without a revert-probe, or a second instance in
+one subsystem. The class-guard records which clause is expected to go red for
+each mutation and requires that clause among the failures, and asserts both
+the low case reads low and the high case still reads high.
+
+Seen in: resident app (3), appliance (2), research repo (2)
+
+### B - A verdict reached before the read that would falsify it
+
+A conclusion about a cause, a constraint or a cost is formed from memory or
+from polling the nearest machinery, instead of from the record that would
+disprove it: the object's own state field, a diff of two runs, the measured
+durations, the way sibling repositories already met the same vendor. The
+verdict then drives action (a "not ours" note, a workaround, a cut) that
+treats the wrong thing.
+
+How it shows up:
+- The same query repeated with an unchanged result, then a claim that "the
+  system is not doing X".
+- "Flaky" or "the provider's fault" when the same step fails with the same
+  error on fresh infrastructure over unchanged inputs.
+- A cost cut aimed at last month's expensive step while the spend is in run
+  count or in lanes that start only to say they are paused.
+- A set of options presented as complete for an external limit that a sibling
+  project has already removed.
+
+What elevates it: a claim about someone else's infrastructure, or a
+cost-motivated removal, about to leave the session. Name the falsifying query
+first (object fields, run diff, measured durations, sibling grep) and run it
+before the claim or the change goes out.
+
+Seen in: appliance (2), resident app (1), research repo (1)
+
+### C - A fix or guard covers the instances in hand, not the category
+
+A fix's population is the set of cases that produced it; the category's
+population is every place that does that kind of thing. A canonical helper
+migrates the two call sites that prompted it; a parser is fixtured from the
+local corpus and never meets the format's other freedoms; a detector is
+seeded with the known instances and finds only what the register already
+knows; three hand-written lists agree with each other and are jointly wrong.
+
+How it shows up:
+- "Fixed in X", then weeks later "same defect in Y" one directory away.
+- Valid input of an unseen style parses as empty, or the corrected parser
+  rejects a neighbouring valid style.
+- A new category, file or page is covered by nothing and the guard stays
+  green.
+- A membership check run in one direction over two collections that must
+  agree.
+
+What elevates it: any recurrence. The fix must ship with a mechanical sweep
+(grep or AST walk) of every site, a guard stated over the category ("nobody
+does this by hand", with a written-reason escape), and fixtures that vary the
+format's freedoms rather than copy its content.
+
+Seen in: research repo (3), resident app (1)
+
+### D - The rule is written down, but nothing makes it fire
+
+The correct rule already exists: in a style guide, a docstring, a sibling
+job, a comment warning about the trap, or the failure registry as prose. It
+recurs anyway because it relies on someone re-noticing it at authoring time,
+or its trigger fires only at session start. The registry itself degrades the
+same way when entries are added without searching it first.
+
+How it shows up:
+- "The tree already knew, in another file"; a comment documents a trap and
+  leaves it in place.
+- The same category appears in two consecutive findings roll-ups; a finding
+  cites a rule the team already has.
+- A registry entry marked "enforced by discipline" or "no mechanical gate
+  yet" recurs within days.
+- Two ids, or two contradicting remedies, for one mechanism.
+
+What elevates it: recurrence after the rule was written, or the rule being
+written a third time. It becomes a lint, a structural rule, a shared helper,
+or (for shapes with no code form) a checklist question answered in the pull
+request body. Registry additions get a duplicate-id test and a
+search-before-filing step.
+
+Seen in: resident app (4)
+
+### E - The box that runs it is not the box CI tested
+
+CI runs on a fresh install of one operating system; the code runs on a
+long-lived machine that differs in OS behaviour (encoding, file locks, shell
+parsing, event-loop types, service identities), in accumulated state (stale
+dependency directories, mixed-version packages, transitive dependencies that
+floated) and in third parties CI never meets (endpoint security reading a
+command line as malware).
+
+How it shows up:
+- "Passed CI, broke on the user's box" with an OS-specific error.
+- A fix verified in the author's shell that fails under a scheduler or
+  service account.
+- A failure that survives re-running setup, because setup is idempotent over
+  the broken state.
+- A launcher blocked by endpoint security because locally sound flags
+  compose into an attack signature.
+
+What elevates it: the second box-only failure in the same mechanism. Add a
+structural test or a lane for that platform, and post-install probes that
+exercise the failing symbol on the real box.
+
+Seen in: resident app (2), appliance (1)
+
+### F - The fix reproduces the defect one level down
+
+A fix written against class X ships containing class X, or an instance of
+another known class, because it is read only against the class it fixes. A
+preflight built to surface a discarded diagnostic discards it; a timeout
+added to stop hangs is sized from an unmeasured number; a presence check
+lands inside a value fix.
+
+How it shows up:
+- The defect is found in review of the fix, not in the original change.
+- The fix's own tests pass because they share the fix's assumption.
+- Review round N finds a defect in the guard added in round N-1.
+
+What elevates it: run the class's own check against the fix diff before
+merge, and read every new guard against the whole class list ("which other
+class is this guard an instance of?"). It becomes mechanical when every new
+guard is run through the registry's class-guards.
+
+Seen in: resident app (1), research repo (1)
+
+### G - Fails once, passes on retry
+
+A check that fails on first run and passes on retry is read as flaky or over-
+strict, and the first instinct is to widen a timeout, raise a limit or loosen
+the gate. The retry passed because the first attempt warmed something, or
+because the race did not land that time: a cache whose first caller pays a
+cost nobody else pays, shared state leaking across tests, ordering assumed
+from random values.
+
+How it shows up:
+- Green on one CI event type, red on another, same commit.
+- A timeout or memory failure with zero assertion failures.
+- A test that passes alone and fails in the suite under random ordering.
+- A timeout bump that reduces the flake but does not eliminate it.
+
+What elevates it: any proposal to loosen a gate or add a retry, or a flake
+that survives one increase. Find the stateful thing underneath, run the suite
+in random order locally, and add a deterministic synchronisation test.
+
+Seen in: resident app (1), appliance (1)
+
+### H - A capability goes dark on changes to itself
+
+Anything with a self-referential precondition goes quiet exactly where it is
+most needed: a hosted reviewer refuses to run on a change to the workflow
+that invokes it and still reports success; a guard that other probes select
+fails whenever they mutate its inputs, so neither can be trusted.
+
+How it shows up:
+- A green check with near-zero duration on exactly the changes touching the
+  check's own configuration.
+- A guard whose failures coincide with unrelated tooling runs.
+
+What elevates it: a second occurrence. Decide the precondition before
+invoking the capability and report BLOCKED in words; a precheck that cannot
+decide must not silently remove the capability.
+
+Seen in: appliance (1), resident app (1, recorded as a deliberate non-fix)
+
+### I - The machinery is built and the last inch is not wired
+
+A change builds the right parts and stops one step short of making them
+count: an event constant registered and never published, a counter defined
+and never incremented, a call recorded by a fake and never asserted, a failure
+caught and turned into a silent default. Each reads as done in the diff.
+
+How it shows up:
+- New constants, counters or captures with no use site in the same diff.
+- A test double records calls and no assertion reads the recording.
+- An exception handler returning a safe default with no counter, log or
+  surfaced status.
+
+What elevates it: a second recurrence after an explicit rule. It becomes a
+diff check: every added identifier of kind event, counter or capture has a
+use site in the same diff.
+
+Seen in: resident app (1)
+
+### J - A property across instances is invisible to a per-instance check
+
+A suite is organised by the artifact it reads, so a requirement that ranges
+over two artifacts has nowhere to live. Every instance is well formed and
+every clause passes; the defect is in the relation: duplicate subjects across
+records, one label rendered from two fields, a producer scheduled after its
+consumer, two report sections that contradict each other.
+
+How it shows up:
+- A symptom the owner can describe that no single-run check can move.
+- Requirements containing "same", "unique among", "agrees with", "before".
+- A report printing two statements that cannot both be true.
+
+What elevates it: a third artifact PAIR. The guard loads both artifacts and
+asserts the relation.
+
+Seen in: research repo (1)
+
+### K - A writer assumes a shared namespace is empty
+
+A mechanism that writes into indexed slots or registrations it does not own
+assumes it is the only writer: it starts at slot 0 of a numbered key family
+the host already uses, or fails forever on a stale registration that outlived
+its directory.
+
+How it shows up:
+- Setting the first slot of a numbered configuration family.
+- "Add" commands that fail permanently on leftover state.
+
+What elevates it: a third instance. Read the namespace first, append at the
+next free index, and treat an unreadable count as "do not write", never as
+"start at zero".
+
+Seen in: appliance (1)
+
+### L - The error path does not render where the success path does
+
+A component that relocates itself to render (an overlay, a portal) keeps an
+error boundary that renders in place, so its failure draws inside a clipped
+container: present, invisible. Without any boundary, one malformed field
+blanks the whole page and hides the cause in a console nobody reads.
+
+How it shows up:
+- A control that "does nothing" on a path that threw during render.
+- A whole-app crash from one unvalidated nested field.
+
+What elevates it: a second relocated component. Put the escape mechanism
+outside the thing that can fail, and make every boundary name the failing
+panel.
+
+Seen in: appliance (1)
+
+### M - Review capacity treated as unlimited
+
+Metered or rate-limited hosted reviewers turn process habits into money and
+waiting time: every incremental push spends a review, a push mid-review
+wastes the one in flight, wide changes need several rounds, and "unlimited"
+plans still throttle at a usage cap. The limit is hit mid-change, exactly
+when the review is needed.
+
+How it shows up:
+- Review rounds per merged change well above one; rate-limit notices during
+  ordinary iteration.
+- Titles or paths meant to skip review still consuming reviews.
+- A per-change review cost that nothing reports.
+
+What elevates it: measuring spend per change against a target (for example
+at most one hosted round per change); after that, a rate-limit hit is a
+tracked incident. Prevention is demand-side: a local review pass first,
+batched pushes, narrow changes.
+
+Seen in: resident app (1)
+
+---
+
+## Deliberate non-fixes worth copying
+
+Decisions NOT to fix, each with its reason and what would reopen it. When one
+of these applies here, record it in the Declined table below with who decided,
+so a later session does not re-find it and argue it again.
+
+
+- **A check that refuses to run on a change to its own configuration is left
+  refusing**, because working around it would let a change rewrite its own
+  reviewer's permissions; the skip is made visible and the change is
+  validated by the next one after merge. Reopen only if the platform offers a
+  trusted way to validate such changes.
+- **A safety gate halts when its dependency is down, and authoritative alarms
+  are never debounced**, because degrading quietly or swallowing a real alarm
+  is worse than a stop or a page; only flap-prone readings are held, and a
+  held reading renders as indeterminate, never green. Reopen if the halts
+  themselves become the dominant outage.
+- **Never auto-reclaim something that may still be live** (a lock, a
+  process, shared lifecycle state); cleanup degrades toward KEEP when
+  evidence is unclear, because wrongly keeping self-heals through staleness
+  while wrongly releasing kills live work. Reopen when liveness can be proven,
+  not inferred.
+- **When unsure, err in the direction whose mistake is visible and cheap**:
+  over-accept references in a dead-code rule, under-claim "done", keep items
+  too short to grade, fail open to running CI when mergeability is unknown,
+  because a rule that cries wolf gets ignored and a fabricated result is worse
+  than a missing one. Reopen if the lenient direction is shown to hide a real
+  defect.
+- **No tree-wide gate for a shape that is too common**; baseline it with a
+  ratchet and enforce the rest in review, because a gate that drowns in false
+  positives gets switched off. Reopen when a precise structural rule exists
+  for the shape.
+- **Mutation testing is required only for a test just written to pin one
+  behaviour**, not tree-wide, because that is where false confidence is
+  highest and the run is cheap. Reopen if surviving mutants keep appearing in
+  older tests.
+- **Do not ship a guard or test that cannot fail**; record the rule with an
+  owner and a closing condition and make the mistake loud another way (a
+  lock, a log), because an inert probe reads as coverage. Reopen when a fault
+  injection can make the guard go red.
+- **Decline with evidence, not silence**: a reviewer finding judged wrong is
+  answered with the reasoning and a falsifying condition, and a disproved
+  leading claim is recorded separately from any real residual hazard, because
+  a silent decline is re-found and re-argued. Reopen when the falsifying
+  condition is observed.
+- **Do not discount a review lane wholesale because it fabricates in one
+  shape**; refute that shape mechanically and keep the lane, because the same
+  lane finds defects nobody else does. Reopen if its refuted shapes outnumber
+  its real findings.
+- **Control review cost demand-side, not by buying throughput or dropping
+  confirmations**: keep per-commit re-review where the confirmation is
+  load-bearing, and do not enable usage-based overage, because paid headroom
+  hides the process defect. Reopen if narrow, batched changes still hit the
+  limit.
+- **A fix outside the change's scope goes in its own change, with the
+  residual disclosed**, because bolting a store-level primitive, a design
+  collision or a deployment decision onto an in-flight change late widens its
+  blast radius; the interim state is loud, never reported as success. Reopen
+  as its own planned change.
+- **Do not guess a contract you cannot verify**: record the mismatch visibly
+  on every run, keep one working source rather than building on an
+  unverifiable vendor mechanism, and do not narrow a permission list on a
+  guess, because a guess replaces a visible failure with an invisible wrong
+  answer. Reopen when the real contract or the refused command is in hand.
+- **Decline broad transforms and coercion layers at a boundary** (a
+  heuristic with no shape rule, a catch-all normaliser), pinning current
+  behaviour with a test and repairing at the source data, because they turn
+  loud bugs into quiet wrong output. Reopen when a transform beats every
+  pinned known case.
+- **Withdraw a change whose review rounds cannot be verified locally and
+  whose every fix enlarges the surface**, because each round is new
+  unexercised code; reintroduce it later in a shape the found defects cannot
+  take. Reopen when the path can be exercised locally.
+- **Derived files are strict where the tree is clean and lenient where it is
+  legitimately rewritten**: strict on the clean main CI run, tolerated on
+  local checkouts and branches, never widened to mirror untracked files, and
+  display-only outputs kept out of the integrity manifest, because otherwise
+  the derived file fights merges and local tooling. Reopen if runtime-affecting
+  content ever leaves the strict set.
+- **A gate does not fetch from someone else's system**; the recorded surface
+  is regenerated by hand and the check runs offline, because a gate that
+  fetches goes red when another site is down. Reopen if the recorded surface
+  drifts unnoticed.
+- **State a platform limit rather than "fix" it, and carry the caveat with
+  the data** (client-side hooks where server-side enforcement is unavailable,
+  unverifiable TLS on a device with a self-signed certificate, what static
+  hosting cannot prevent), because a control that breaks a working
+  configuration gets switched off and then protects nothing. Reopen when the
+  platform offers the real control.
+- **A known-unfixable flake is documented so it is recognised, not chased**:
+  reduce parallelism or skip with a registry tag plus a sentinel test pinning
+  the wiring, because no assertion-level guard exists for it. Reopen when the
+  runtime or test library moves.
+- **Decline a fix whose context defeats it** (a lock around a call that may
+  never return, an in-process counter in a process that exits every tick),
+  because it reinstates the failure or measures nothing; report the true state
+  and name the falsifying condition. Reopen if that condition is observed.
+- **Decline elevating a family whose root an existing class already
+  enforces**; attach the member's guard, mutation and VARIANT to that class,
+  because a second copy of a rule drifts from the first. Reopen when a member
+  arrives that the existing class cannot cover.
+- **When the property is syntactic, assert it on the source**: accept an
+  equivalent mutant as survived, and accept a pinned number only when no
+  second source exists (and say so), because a behavioural test cannot see a
+  syntactic rule. Reopen if a behavioural seam appears.
 
 ---
 
@@ -80,6 +490,8 @@ shape while the fix is still being written.
 - **Symptom:** <WHAT_IT_LOOKS_LIKE>
 - **Family:** <FAMILY>
 - **Blast radius:** <WHAT_IT_TOUCHES>
+- **Owner:** <WHO_MOVES_IT_NEXT>
+- **Closes when:** <CHECKABLE_CONDITION>
 - **Next step:** <CHEAPEST_ACTION>
 - **Disposition:** open
 
@@ -93,6 +505,6 @@ shape while the fix is still being written.
 
 ## Declined
 
-| Entry | Reason |
-|---|---|
-| <KI-ID> | <WHY_NOT, and what would reopen it> |
+| Entry | Reason | Decided by |
+|---|---|---|
+| <KI-ID> | <WHY_NOT, and what would reopen it> | <WHO_DECIDED> |

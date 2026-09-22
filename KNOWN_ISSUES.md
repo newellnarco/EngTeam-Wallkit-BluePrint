@@ -27,6 +27,8 @@ Silence is not a disposition. An entry with a code shape may carry a fenced
 - Symptom       what it looks like from outside
 - Family        the shared root (a letter from the template's families, or new)
 - Blast radius  what it touches if left
+- Owner         who moves it next
+- Closes when   the checkable condition that ends it
 - Next step     the cheapest action that moves it to guarded or declined
 - Disposition   open | guarded -> F-<SCOPE>-<NNN> | declined (see below)
 ```
@@ -42,9 +44,11 @@ Silence is not a disposition. An entry with a code shape may carry a fenced
   `.claude/hooks`: subprocess calls with partial executable paths (S603,
   S607), `urlopen` audits (S310), `try`/`except`/`pass` (S110), one `assert`
   (S101), one SHA-1 (S324). All report-only.
-- **Family:** C (a guard adopted into a codebase that predates it)
+- **Family:** D (the rule is written down, but nothing makes it fire: the lane reports and cannot yet block)
 - **Blast radius:** none today. But no ruff security rule can be promoted to
   blocking until its standing count is zero, so the lane cannot tighten.
+- **Owner:** the engineer, with the Builder doing the triage
+- **Closes when:** every ruff S rule is fixed, suppressed with a reason, or promoted
 - **Next step:** triage per rule. Most of the S603/S607 hits are fixed-argv
   git calls: suppress them inline with the reason, as `quality.py` does. The
   SHA-1 is an id digest, not security: `usedforsecurity=False`. Then promote
@@ -58,9 +62,11 @@ Silence is not a disposition. An entry with a code shape may carry a fenced
   and `integrator.md` (`tools: "*"`), and EA2 "autonomous decision making" on
   `.claude/agents/foreman.md` (a table row about questions nobody asked). All
   MEDIUM and report-only.
-- **Family:** C
+- **Family:** D (a rule only reports, so nothing makes it fire)
 - **Blast radius:** any SkillSpector finding in an agent the kit ships is
   inherited by every adopting repository.
+- **Owner:** the engineer (a per-agent tools decision)
+- **Closes when:** each finding is narrowed away or baselined with its reason
 - **Next step:** an owner decision per agent. Either narrow `tools:` to what
   the role uses (the Reviewer and Researcher already do), or accept it and
   record it in `.skillspector/baselines/claude__agents.yaml` with the reason.
@@ -73,10 +79,12 @@ Silence is not a disposition. An entry with a code shape may carry a fenced
 - **Found by:** CI log warning (PR #8)
 - **Symptom:** "Node.js 20 is deprecated ... forced to run on Node.js 24" for
   `actions/checkout@v4.4.0` and `actions/setup-python@v5.6.0`.
-- **Family:** F (a constraint treated as fixed without checking what upstream
-  already ships)
+- **Family:** E (the box that runs it is not the box CI tested: the runner moves
+  under an unchanged pin)
 - **Blast radius:** the runner forces Node 24 today. When forcing stops,
   every workflow fails at its first step.
+- **Owner:** the Builder
+- **Closes when:** no Node deprecation warning in a CI log, and action pins ride the weekly bump
 - **Next step:** re-pin both to their Node 24 majors by commit SHA, and add
   them to the weekly scanner-bump run so action pins move the way scanner
   pins do.
@@ -88,9 +96,12 @@ Silence is not a disposition. An entry with a code shape may carry a fenced
 - **Symptom:** none yet. `workflow_dispatch` only runs a workflow that exists
   on the default branch, so the dispatched-CI path and the issue fallback
   cannot run before this lands on `main`.
-- **Family:** A (a check that has never been seen to do its job)
+- **Family:** I (the machinery is built and the last inch is not wired: unproven
+  until it first runs)
 - **Blast radius:** a bump PR arrives with no CI, or no bump arrives at all.
   Both are silent.
+- **Owner:** the engineer (one manual dispatch after merge)
+- **Closes when:** one run shows a canary summary, a PR or issue, and CI checks on the bump commit
 - **Next step:** after merge, run the workflow once by hand (Actions >
   Scanner bump > Run workflow) and confirm: a canary summary, a draft PR or
   an issue, and CI checks on the bump commit.
@@ -102,9 +113,11 @@ Silence is not a disposition. An entry with a code shape may carry a fenced
 - **Symptom:** CodeRabbit hit its review limit (2 per hour after the
   account's spending cap), and Copilot review reported its quota exhausted.
   Later pushes waited, or were not reviewed at all.
-- **Family:** new (review capacity treated as unlimited)
+- **Family:** M (review capacity treated as unlimited)
 - **Blast radius:** a push lands with no hosted review and looks reviewed,
   because the earlier approval-by-silence still shows.
+- **Owner:** the engineer (lane budgets)
+- **Closes when:** each lane's meter shape is recorded in REVIEWER_LANES.md
 - **Next step:** record each lane's meter shape in `REVIEWER_LANES.md` (the
   throttle reopens, the quota does not until the period rolls), and batch
   review requests at open/ready rather than every push (`docs/FAST_TRACK.md`,
@@ -121,6 +134,6 @@ Silence is not a disposition. An entry with a code shape may carry a fenced
 
 ## Declined
 
-| Entry | Reason |
-|---|---|
-| (none yet) | |
+| Entry | Reason | Decided by |
+|---|---|---|
+| (none yet) | | |
