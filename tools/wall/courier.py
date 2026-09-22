@@ -532,19 +532,38 @@ def build_docs_payload(repo: Path, config: dict) -> dict:
     if not isinstance(registry, list) or not registry:
         registry = list(oversight_mod.DEFAULT_DOCUMENTS_OF_RECORD)
     docs = []
+    repo_root = Path(repo).resolve()
     for rel in registry:
         if not isinstance(rel, str) or not rel:
             continue
-        p = Path(repo) / rel
+        # Containment: the registry names repo files, and docs.json is SERVED.
+        # An absolute path, a `..` escape, or a symlink pointing outside the
+        # repo would publish an arbitrary host file through the allowlist —
+        # refuse each with a named note instead of reading it.
+        if Path(rel).is_absolute():
+            docs.append({"path": rel, "sha": None, "content": None,
+                         "truncated": False,
+                         "note": "document path must be repository-relative"})
+            continue
+        p = (repo_root / rel).resolve()
+        if not p.is_relative_to(repo_root):
+            docs.append({"path": rel, "sha": None, "content": None,
+                         "truncated": False,
+                         "note": "document resolves outside this repo"})
+            continue
         sha = oversight_mod._sha12(p) if p.is_file() else None
         content, truncated, note = None, False, None
         if sha is None:
             note = "missing or unreadable in this repo"
         else:
             try:
-                text = p.read_text(encoding="utf-8", errors="replace")
-                truncated = len(text) > DOC_CONTENT_CAP
-                content = text[:DOC_CONTENT_CAP]
+                # The cap bounds the SERVED payload, so it is a byte budget:
+                # truncate the encoded bytes, then decode with replacement so
+                # a boundary-split character degrades visibly, not the size.
+                raw = p.read_bytes()
+                truncated = len(raw) > DOC_CONTENT_CAP
+                content = raw[:DOC_CONTENT_CAP].decode("utf-8",
+                                                       errors="replace")
             except OSError as exc:
                 note = "could not read: %s" % exc
         docs.append({"path": rel, "sha": sha, "content": content,

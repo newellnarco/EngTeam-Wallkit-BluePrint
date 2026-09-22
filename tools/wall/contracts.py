@@ -103,6 +103,9 @@ class EnqueuePayload:
                                  "'build' or 'research'")
             if not self.item_id:
                 raise ValueError("resolve_blocked requires item_id")
+            if not (self.reason or "").strip():
+                raise ValueError("resolve_blocked requires a reason -- the "
+                                 "dispatched agent starts from it")
         if directive is Directive.WARDEN_REGIME:
             if self.action not in ("enable", "disable"):
                 raise ValueError("warden_regime requires action "

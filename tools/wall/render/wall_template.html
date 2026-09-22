@@ -1666,7 +1666,11 @@ footer {
     var r = docRowByPath(path);
     if (!r) return;
     var head = '<h2><span class="cmd">' + esc(r.path) + '</span><span class="sub" style="display:block">' + esc(DOC_STATE_LABEL[r.state]||r.state) + (r.sha ? ' \u00b7 sha ' + esc(r.sha) : '') + '</span></h2>';
-    openModal(head + '<div class="empty">loading document\u2026</div>' + docReviewBar(r));
+    // Verdict controls render ONLY once the document body was actually
+    // fetched and is readable, and they carry the FETCHED sha \u2014 a reviewer
+    // must never approve a document the popup could not show them, and the
+    // ack must name the sha they read, not the snapshot's.
+    openModal(head + '<div class="empty">loading document\u2026</div>');
     fetch('docs.json', { cache: 'no-store' })
       .then(function(resp){ if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.json(); })
       .then(function(payload){
@@ -1678,12 +1682,12 @@ footer {
           (d.truncated ? '<p class="q"><span class="cmd">truncated at the cap \u2014 the file on disk is the full record</span></p>' : '');
         if (d && r.sha && d.sha && d.sha !== r.sha)
           body = '<p class="q"><span class="cmd">note: the file changed since this snapshot (sha ' + esc(d.sha) + ' now) \u2014 re-run the courier before approving</span></p>' + body;
-        $('modalBody').innerHTML = head + body + docReviewBar(r);
+        $('modalBody').innerHTML = head + body +
+          (d && d.content !== null ? docReviewBar(d) : '');
       })
       .catch(function(){
         $('modalBody').innerHTML = head +
-          '<div class="empty">the document body could not be fetched \u2014 serve the wall (<span class="cmd">wall serve</span>) to read in place, or open <span class="cmd">' + esc(r.path) + '</span> from the repo. CLI review: <span class="cmd">wall ack-doc ' + esc(r.path) + ' [--feedback "..."]</span></div>' +
-          docReviewBar(r);
+          '<div class="empty">the document body could not be fetched \u2014 serve the wall (<span class="cmd">wall serve</span>) to read in place, or open <span class="cmd">' + esc(r.path) + '</span> from the repo. CLI review: <span class="cmd">wall ack-doc ' + esc(r.path) + ' [--feedback "..."]</span></div>';
       });
   }
 
@@ -1691,9 +1695,11 @@ footer {
     var d = e.target && e.target.closest ? e.target.closest('[data-doc]') : null;
     if (d){ openDoc(d.getAttribute('data-doc')); return; }
     var b = e.target && e.target.closest ? e.target.closest('[data-doc-act]') : null;
-    if (!b || b.dataset.busy === '1') return;
+    if (!b) return;
+    // Busy is a BAR property: one pending verdict locks all three buttons,
+    // so a second, conflicting verdict cannot race the first.
     var bar = b.closest('[data-doc-path]');
-    if (!bar) return;
+    if (!bar || bar.dataset.busy === '1') return;
     var act = b.getAttribute('data-doc-act');
     var msgEl = bar.querySelector('[data-role="doc-msg"]');
     var reason = (bar.querySelector('[data-role="doc-reason"]') || {value:''}).value.trim();
@@ -1703,11 +1709,16 @@ footer {
     }
     var path = bar.getAttribute('data-doc-path');
     var verb = act === 'approve' ? 'Approve' : act === 'deny' ? 'Deny' : 'Request changes on';
-    b.dataset.busy = '1'; b.disabled = true;
+    bar.dataset.busy = '1';
+    var actBtns = bar.querySelectorAll('[data-doc-act]');
+    actBtns.forEach(function(x){ x.disabled = true; });
     enqueue({ directive: 'doc_review', action: act, path: path,
               sha: bar.getAttribute('data-doc-sha') || null, reason: reason || null,
               title: verb + ' document ' + path }, msgEl)
-      .then(function(){ setTimeout(function(){ b.dataset.busy = ''; b.disabled = false; }, 1500); });
+      .then(function(){ setTimeout(function(){
+        bar.dataset.busy = '';
+        actBtns.forEach(function(x){ x.disabled = false; });
+      }, 1500); });
   });
 
   function paintPosture(){
