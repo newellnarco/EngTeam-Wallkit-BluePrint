@@ -9,6 +9,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The scanner-bump workflow dispatches this on its branch: a push made with
+  # the built-in GITHUB_TOKEN starts no workflows, a dispatch does. No secret.
+  workflow_dispatch:
 
 # A superseded push to the same PR cancels its stale run instead of billing
 # minutes for a result nobody will read. main is never cancelled.

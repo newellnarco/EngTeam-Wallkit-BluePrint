@@ -11,10 +11,15 @@
 # is not a plain version string) and opens the PR. No scanner code ever runs
 # where a write token is reachable.
 #
-# PRs opened with the default GITHUB_TOKEN do not trigger other workflows, so
-# CI would not run on the bump PR. Set a SCANNER_BUMP_TOKEN secret (a
-# fine-grained token or GitHub App token with contents + pull-requests write)
-# to get CI on it; the repo must also allow Actions to create pull requests.
+# Zero configuration: no secrets, no tokens to mint -- this is a kit, and a
+# kit that needs a per-repo credential is one that half its adopters never
+# finish installing. Everything runs on the built-in GITHUB_TOKEN:
+#   - A push or PR made with GITHUB_TOKEN does not trigger other workflows,
+#     but workflow_dispatch does, so `propose` dispatches CI on the bump
+#     branch itself and the checks land on the PR's head commit.
+#   - If the repository does not allow Actions to create pull requests
+#     (Settings > Actions > General), `propose` opens an issue with the
+#     compare link instead, so the bump is never silently dropped.
 name: Scanner bump
 
 on:
@@ -87,8 +92,11 @@ jobs:
     permissions:
       contents: write        # push the bump branch
       pull-requests: write   # open the draft PR
+      actions: write         # dispatch CI on the bump branch
+      issues: write          # fallback when Actions may not open PRs
     env:
-      GH_TOKEN: ${{ secrets.SCANNER_BUMP_TOKEN || github.token }}
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
       SETS: ${{ needs.canary.outputs.sets }}
       CANARY_OUTCOME: ${{ needs.canary.outputs.outcome }}
       BASE_BRANCH: ${{ github.event.repository.default_branch }}
@@ -130,6 +138,26 @@ jobs:
             echo
             echo "A new scanner release can add rules. New findings are report-only until promoted; triage them here before merging (docs/SCAN_LANE.md section 5)."
           } > body.md
-          gh pr create --draft --base "$BASE_BRANCH" --head "$branch" \
-            --title "Bump structural scanners: $(grep -c ' -> ' bump.txt) moved" \
-            --body-file body.md
+          title="Bump structural scanners: $(grep -c ' -> ' bump.txt) moved"
+          if ! gh pr create --draft --base "$BASE_BRANCH" --head "$branch" \
+                --title "$title" --body-file body.md; then
+            # The repo does not let Actions open PRs. Say so where a person
+            # will see it, with the one-click link to open it by hand.
+            {
+              echo "The weekly scanner bump is ready on \`$branch\`, but this repository does not allow GitHub Actions to open pull requests."
+              echo
+              echo "Open it: https://github.com/$REPO/compare/$BASE_BRANCH...$branch?expand=1"
+              echo
+              echo "(Or allow it once: Settings > Actions > General > \"Allow GitHub Actions to create and approve pull requests\".)"
+              echo
+              cat body.md
+            } > issue.md
+            # One issue per bump: the branch name is a hash of the change,
+            # so an open issue naming it is this same bump from last week.
+            if [ -z "$(gh issue list --state open --search "\"$branch\" in:body" --json number --jq '.[].number')" ]; then
+              gh issue create --title "$title" --body-file issue.md
+            fi
+          fi
+          # CI does not start on a GITHUB_TOKEN push; a dispatch does, and
+          # its checks land on this commit, so the PR shows them.
+          gh workflow run ci.yml --ref "$branch"

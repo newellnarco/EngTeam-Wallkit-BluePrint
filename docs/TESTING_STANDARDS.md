@@ -382,7 +382,8 @@ report-only), and a `DO_NOT_INSTALL` recommendation.
 **Latest without floating.** The blocking job runs **pinned** versions. The
 weekly `scanner-bump` workflow installs the latest releases, runs the full lane
 on them as a canary, and opens a draft PR that moves the pins and names the
-rollback (`UPGRADE_DISCIPLINE.md`). New upstream rules arrive report-only and
+rollback (`UPGRADE_DISCIPLINE.md`). It needs no secret: it runs on the built-in
+token and dispatches CI on its own branch. New upstream rules arrive report-only and
 are triaged on that PR.
 
 ---

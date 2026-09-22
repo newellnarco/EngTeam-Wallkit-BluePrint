@@ -267,6 +267,9 @@ def test_the_lane_is_wired_into_ci_the_hooks_and_the_standard():
     assert "bash tools/quality/install.sh\n" in ci, "CI must install the PINNED scanners"
     bump = (KIT / ".github/workflows/scanner-bump.yml").read_text(encoding="utf-8")
     assert "schedule:" in bump and "quality.py bump" in bump and "--draft" in bump
+    assert "gh workflow run ci.yml" in bump and "workflow_dispatch:" in ci, \
+        "the bump PR must get CI without a secret: dispatch it"
+    assert "gh issue create" in bump, "a repo that forbids Actions PRs still hears of the bump"
     scan = (KIT / "tools/quality/scan.sh").read_text(encoding="utf-8")
     assert "rules --check" in scan and "--no-llm" in scan and "--error=" in scan
     pre_commit = (KIT / "tools/git-hooks/pre-commit").read_text(encoding="utf-8")
@@ -490,3 +493,11 @@ def test_a_bump_to_a_non_version_string_is_refused():
             with pytest.raises(ValueError, match="not a release version"):
                 quality.bump(cfg, {"ruff": bad})
     assert quality.bump(cfg, {"skillspector": "v9.9.9"})
+
+
+def test_the_kits_workflows_need_no_secrets():
+    """A kit adopted into any repository must run on the built-in token alone:
+    a workflow that reads a secret is one step every adopter has to finish,
+    and the ones who do not get a lane that silently does less."""
+    for wf in sorted((KIT / ".github" / "workflows").glob("*.yml")):
+        assert "secrets." not in wf.read_text(encoding="utf-8"), wf.name
