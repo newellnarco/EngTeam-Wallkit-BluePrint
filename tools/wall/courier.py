@@ -518,6 +518,40 @@ def build_snapshot(repo: Path, events: list[dict], config: dict, shard_count: in
 
 # ------------------------------------------------------------------ render
 
+#: Per-document cap for docs.json. The registry holds process documents, not
+#: datasets; a doc past this cap is served truncated WITH the flag set, so the
+#: popup says so instead of quietly ending mid-sentence.
+DOC_CONTENT_CAP = 150_000
+
+
+def build_docs_payload(repo: Path, config: dict) -> dict:
+    """The DOCS tab's read-in-place payload: every document of record with its
+    current sha and text (DEC-0032). Served only through the wall server's
+    allowlist; an unreadable file is an honest null, never an empty string."""
+    registry = config.get("documents_of_record")
+    if not isinstance(registry, list) or not registry:
+        registry = list(oversight_mod.DEFAULT_DOCUMENTS_OF_RECORD)
+    docs = []
+    for rel in registry:
+        if not isinstance(rel, str) or not rel:
+            continue
+        p = Path(repo) / rel
+        sha = oversight_mod._sha12(p) if p.is_file() else None
+        content, truncated, note = None, False, None
+        if sha is None:
+            note = "missing or unreadable in this repo"
+        else:
+            try:
+                text = p.read_text(encoding="utf-8", errors="replace")
+                truncated = len(text) > DOC_CONTENT_CAP
+                content = text[:DOC_CONTENT_CAP]
+            except OSError as exc:
+                note = "could not read: %s" % exc
+        docs.append({"path": rel, "sha": sha, "content": content,
+                     "truncated": truncated, "note": note})
+    return {"docs": docs}
+
+
 def render(snapshot: dict, template_path: Path) -> str:
     """Inline the snapshot into the template. Only two markers are substituted,
     so the template can be swapped freely without touching this file."""
@@ -564,6 +598,8 @@ def run_once(repo: Path, template: Path | None = None, rebuild: bool = False) ->
     atomic_write(ledger, "".join(
         json.dumps(e, ensure_ascii=False, sort_keys=True) + "\n" for e in all_events))
     atomic_write(derived / "wall.json", json.dumps(snapshot, ensure_ascii=False, indent=2))
+    atomic_write(derived / "docs.json", json.dumps(
+        build_docs_payload(repo, config), ensure_ascii=False, indent=2))
     atomic_write(derived / "wall.html", render(snapshot, template))
     atomic_write(state_path, json.dumps({"checkpoints": checkpoints}, indent=2))
     # ok is a verdict about THIS run's read health, not a constant: a run that

@@ -50,8 +50,10 @@ DEFAULT_PORT = 8123
 
 #: Exactly what may be served. wall.html is the page; wall.json is what it
 #: polls; heartbeat.json is how it knows the courier is alive; ledger.jsonl is
-#: the full history the Ledger tab reads.
-ALLOWLIST = frozenset({"wall.html", "wall.json", "heartbeat.json", "ledger.jsonl"})
+#: the full history the Ledger tab reads; docs.json is the documents-of-record
+#: text the DOCS tab's review popup fetches on demand (DEC-0032).
+ALLOWLIST = frozenset({"wall.html", "wall.json", "heartbeat.json",
+                       "ledger.jsonl", "docs.json"})
 
 #: The page itself and every machine-readable file it polls. Serving any of
 #: these from cache turns a stale wall into one that looks current.
@@ -92,7 +94,7 @@ def requested_name(path: str) -> str:
 
 
 def is_allowed(name: str) -> bool:
-    """True when ``name`` is one of the four files this server may serve."""
+    """True when ``name`` is one of the five files this server may serve."""
     return name in ALLOWLIST
 
 

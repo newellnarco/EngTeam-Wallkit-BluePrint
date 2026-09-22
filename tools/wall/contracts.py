@@ -26,15 +26,37 @@ ENQUEUE_PRIORITY = "P2"
 
 
 class Directive(StrEnum):
-    """What an EXECUTE control asks the host queue to do."""
+    """What a wall control or MCP client asks the host queue to do.
+
+    One vocabulary for every surface (DEC-0032): the wall page's buttons
+    and `wall_enqueue` over MCP build the same typed payloads, so a review
+    verdict or an unblock can come from the wall, Claude Code, Cursor,
+    VS Code or any other MCP client and land on the one host queue every
+    consumer already reads.
+    """
 
     EXECUTE_ITEM = "execute_item"
     EXECUTE_ARC = "execute_arc"
+    RESOLVE_BLOCKED = "resolve_blocked"
+    WARDEN_REGIME = "warden_regime"
+    WARDEN_AUDIT = "warden_audit"
+    DOC_REVIEW = "doc_review"
 
 
 DIRECTIVE_DOCS: dict[Directive, str] = {
     Directive.EXECUTE_ITEM: "enqueue ONE board item, named by target_key",
     Directive.EXECUTE_ARC: "enqueue a whole arc, named by target_arch",
+    Directive.RESOLVE_BLOCKED: ("dispatch the unblock work for item_id -- "
+                                "mode 'build' or 'research', reason required"),
+    Directive.WARDEN_REGIME: ("Warden only: evaluate then record a regime "
+                              "selection -- action 'enable' or 'disable', "
+                              "regime required"),
+    Directive.WARDEN_AUDIT: ("Warden only: audit every control of the named "
+                             "regime and record the results"),
+    Directive.DOC_REVIEW: ("a document-of-record verdict -- action 'approve', "
+                           "'changes' or 'deny' on path (sha as read); "
+                           "approve records the ack, changes/deny record "
+                           "feedback AND file the fix as work"),
 }
 
 
@@ -51,6 +73,13 @@ class EnqueuePayload:
     title: str
     target_key: str | None = None
     target_arch: str | None = None
+    action: str | None = None
+    path: str | None = None
+    sha: str | None = None
+    reason: str | None = None
+    regime: str | None = None
+    mode: str | None = None
+    item_id: str | None = None
     source: str = ENQUEUE_SOURCE
     priority: str = ENQUEUE_PRIORITY
 
@@ -68,6 +97,29 @@ class EnqueuePayload:
             raise ValueError("execute_item requires target_key")
         if directive is Directive.EXECUTE_ARC and not self.target_arch:
             raise ValueError("execute_arc requires target_arch")
+        if directive is Directive.RESOLVE_BLOCKED:
+            if self.mode not in ("build", "research"):
+                raise ValueError("resolve_blocked requires mode "
+                                 "'build' or 'research'")
+            if not self.item_id:
+                raise ValueError("resolve_blocked requires item_id")
+        if directive is Directive.WARDEN_REGIME:
+            if self.action not in ("enable", "disable"):
+                raise ValueError("warden_regime requires action "
+                                 "'enable' or 'disable'")
+            if not self.regime:
+                raise ValueError("warden_regime requires regime")
+        if directive is Directive.WARDEN_AUDIT and not self.regime:
+            raise ValueError("warden_audit requires regime")
+        if directive is Directive.DOC_REVIEW:
+            if self.action not in ("approve", "changes", "deny"):
+                raise ValueError("doc_review requires action 'approve', "
+                                 "'changes' or 'deny'")
+            if not self.path:
+                raise ValueError("doc_review requires path")
+            if self.action != "approve" and not (self.reason or "").strip():
+                raise ValueError("doc_review changes/deny require a reason "
+                                 "-- a verdict nobody can act on is noise")
         if not self.title:
             raise ValueError("an enqueue payload carries a human title")
 
@@ -78,10 +130,11 @@ class EnqueuePayload:
             "directive": str(self.directive),
             "title": self.title,
         }
-        if self.target_key is not None:
-            out["target_key"] = self.target_key
-        if self.target_arch is not None:
-            out["target_arch"] = self.target_arch
+        for field in ("target_key", "target_arch", "action", "path", "sha",
+                      "reason", "regime", "mode", "item_id"):
+            value = getattr(self, field)
+            if value is not None:
+                out[field] = value
         return out
 
 

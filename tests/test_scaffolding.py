@@ -162,9 +162,10 @@ def test_decision_seed_set_present():
     # (Patron, 2026-09-21); 27 the context-hunt / feedback / FLOW charter
     # (Patron, 2026-09-21); 28 the compliance register (Patron, 2026-09-21);
     # 29 the sibling fold-in (Patron, 2026-09-22); 30 the regime lifecycle
-    # (Patron, 2026-09-22); 31 the NIST + FDA regimes (Patron, 2026-09-22).
+    # (Patron, 2026-09-22); 31 the NIST + FDA regimes (Patron, 2026-09-22);
+    # 32 the DOCS read-and-verdict popup (Patron, 2026-09-22).
     # The equality still guards against holes and strays.
-    expected = [f"DEC-{n:04d}.md" for n in range(1, 32)]
+    expected = [f"DEC-{n:04d}.md" for n in range(1, 33)]
     assert names == expected, f"decision seed set drifted: {names}"
 
 

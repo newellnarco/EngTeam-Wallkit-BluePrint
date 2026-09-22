@@ -122,8 +122,24 @@ polling the HTTP queue API) routes on it:
 | `resolve_blocked` | the blocked chip's dialog | `mode: build\|research`, `item_id`, `reason` | Build the fix, or research the blocker and answer the open ask |
 | `warden_regime` | POSTURE ENABLE / DISABLE | `action: enable\|disable`, `regime` | **Warden only**: evaluate, then record the selection with its reason — a request judged wrong is answered with a ruling, never silently dropped |
 | `warden_audit` | POSTURE REQUEST AUDIT | `regime` | **Warden only**: evaluate every control and record `wall audit` — pass/fail/waiver each with proof or reason |
+| `doc_review` | DOCS read-popup APPROVE / REQUEST CHANGES / DENY (DEC-0032) | `action: approve\|changes\|deny`, `path`, `sha` (as read), `reason` (required unless approve) | Approve → `wall ack-doc <path>` at the sha the reviewer read (sha moved since = refuse and re-read, the ack must record what was actually reviewed). Changes/deny → `wall ack-doc <path> --feedback "<reason>"` (deny is carried in the text) AND file the fix as work through the normal finding route, so the doc reads feedback-open until a newer ack lands |
 
 An unknown directive is parked, not guessed at: file it as a question. The
 wall itself never mutates state — every button above only ENQUEUES, behind
 the same-origin health probe, so a wall served without its host stays
 read-only (DEC-0030).
+
+### The review loop across MCP surfaces
+
+`doc_review` is how a verdict rendered anywhere — the wall's read popup, a
+Claude Code session, Cursor, VS Code, anything speaking MCP — carries back
+into the work stream. Every surface converges on the same host queue:
+the wall's popup enqueues the typed payload above, and any MCP client sends
+the identical thing via `wall_enqueue` (`directive: "doc_review"` plus
+`action`/`path`/`sha`/`reason`). The consumer's job closes the loop: an
+approval becomes a `doc_reviewed` event, an objection becomes `doc_feedback`
+**plus a filed fix item**, and from that moment every surface can watch the
+carry-back — the DOCS fold shows feedback-open, `wall_status`/`wall_item`
+show the fix story moving, and `wall_answer` handles any question the fix
+raises. No side channel, no bespoke webhook per editor: one queue, one
+typed vocabulary, N clients.
