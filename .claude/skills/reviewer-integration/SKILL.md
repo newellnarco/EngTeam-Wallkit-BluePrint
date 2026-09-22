@@ -143,7 +143,11 @@ at once:
 2. **A recurring class graduates** -- in the same change: a rule in the
    shared criteria body, an entry in `FAILURE_PATTERNS.md`, a regression
    test where one is possible, and a checklist line if the class is
-   pre-ship-checkable. That is how the *agents* learn.
+   pre-ship-checkable. That is how the *agents* learn. Where the class has a
+   shape a scanner can see (a code construct, a secret format, an
+   instruction pattern), the same change adds the scanner's entry and its
+   fixture (`docs/SCAN_LANE.md`), so the next instance is caught at the push,
+   before a CI minute or a hosted review is spent on it.
 3. **The mirrors regenerate** so every external lane's native config carries
    the new rule (step 3 of `add`, re-run). That is how the *external
    reviewers* learn.

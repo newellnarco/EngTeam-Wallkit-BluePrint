@@ -326,14 +326,14 @@ Two rules specific to this lane:
 A finding closed without a prevention -- the rule, the regression test, and the
 doc line -- is a finding you will receive again.
 
-### 5.1 The structural-scan lane: ast-grep and SkillSpector
+### 5.1 The structural-scan lane: ast-grep, SkillSpector, gitleaks, ruff S, actionlint, zizmor
 
-The kit's own instance of this lane, and the shape a host copies. Two scanners,
+The kit's own instance of this lane, and the shape a host copies. Six scanners,
 one script -- `tools/quality/scan.sh` -- run identically in three places:
 
 | Where | Mode | Blocks on |
 |---|---|---|
-| CI, every PR and push to main (`ci.yml`, job *Structural scans*) | `ci`: a missing scanner fails | promoted rules, always-block ids, drift |
+| CI, every PR and push to main (`ci.yml`, job *Structural and security scans*) | `ci`: a missing scanner fails | promoted rules, always-block ids, drift |
 | pre-push hook (`tools/git-hooks/pre-push`) | `local`: a missing scanner warns through | the same, when the scanner is installed |
 | A builder's gates-last step (G6) | `local` | the same; the output is quoted in the report |
 
@@ -354,6 +354,21 @@ a missing, stale or orphaned rule. `ast-grep test` runs every rule against its
 leaves the runner, and the same answer on every run. Its semantic mode is an
 LLM call, and that makes it a data-use decision for the Warden, not a per-PR
 default.
+
+**gitleaks** scans the full git history (CI checks out with `fetch-depth: 0`)
+and always blocks. **ruff's `S` rules** (the bandit set) cover `tools/` and
+`.claude/hooks`. **actionlint** and **zizmor** (`--offline`) cover
+`.github/workflows`; actionlint is promoted whole from day one, because what
+it reports fails on the first run anyway. The kit's own workflows pin every
+action to a commit SHA, keep checkout credentials unpersisted, and grant
+permissions per job, so zizmor starts at zero.
+
+**The lane grows with every finding.** Each scanner reads support files that
+gain one entry per verified finding: registry blocks for ast-grep, custom
+rules in `.gitleaks.toml`, YARA rules in `.skillspector/yara/`, and the
+promotion record. Each custom rule ships with a fixture that must trip it,
+and the lane fails when one stops tripping. How to build and maintain those
+files is `SCAN_LANE.md`.
 
 **Promotion is recorded, not edited in.** Every rule is authored
 `severity: warning`. Promoting one adds an entry under `promotions` in

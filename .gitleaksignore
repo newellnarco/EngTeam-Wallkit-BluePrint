@@ -1,0 +1,7 @@
+# gitleaks suppressions. Every fingerprint sits under a comment giving the
+# reason and the date; `quality.py suppressions` refuses one that does not.
+# A real secret is never suppressed here: it is rotated (TESTING_STANDARDS.md 5).
+
+# 2026-09-22: deliberately fake RSA block -- the fixture for the hook scrubber
+# test (test_private_key_block_is_scrubbed); "SECRETKEYMATERIAL" is its payload.
+980798b964db6703ebe9ca8c27673bf2e5f55c13:tests/test_hooks.py:private-key:378

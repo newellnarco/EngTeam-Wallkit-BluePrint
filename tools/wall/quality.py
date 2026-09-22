@@ -1,15 +1,22 @@
 """The structural-scan lane: ast-grep rules derived from the failure registry,
-SkillSpector's gate policy, and the scanner pins (TESTING_STANDARDS section 5.1).
+the gates for SkillSpector and zizmor, the gitleaks suppression record, and
+the scanner pins (TESTING_STANDARDS section 5.1).
 
 Stdlib only, like everything else under tools/wall. The scanners themselves
 are dev tooling installed by CI and tools/quality/install.sh; this module never
 imports them, it only generates their inputs and judges their outputs.
 
     quality.py rules [--check]        regenerate (or verify) the derived rules
+    quality.py suppressions           verify every .gitleaksignore entry is dated
+    quality.py proofs                 list custom rules with the fixture proving each
+    quality.py baseline-path TARGET   print a SkillSpector target's baseline file
     quality.py pin <tool>             print a tool's pinned version
     quality.py promoted <tool>        print promoted rule ids, one per line
+    quality.py install-plan           print what tools/quality/install.sh installs
     quality.py gate-skillspector R..  judge SkillSpector JSON reports
-    quality.py bump [--ast-grep V] [--skillspector V]
+    quality.py gate-zizmor R          judge a zizmor JSON report
+    quality.py latest                 resolve every tool's latest release (network)
+    quality.py bump --set TOOL=V ...  move pins, naming the rollback
 
 The derived rules are generated from fenced ```ast-grep blocks in the failure
 registry (and the known-issues intake). A registry entry and its rule can never
@@ -23,17 +30,34 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
+import urllib.request
 from pathlib import Path
 
 CONFIG = Path("tools") / "quality" / "quality.json"
-TOOLS = ("ast-grep", "skillspector")
+GITLEAKSIGNORE = ".gitleaksignore"
+# The growing support files (docs/SCAN_LANE.md). Each custom rule ships with a
+# fixture that must trip it, or nobody can watch it go red.
+GITLEAKS_CONFIG = ".gitleaks.toml"
+GITLEAKS_FIXTURES = Path(".gitleaks") / "fixtures"
+YARA_DIR = Path(".skillspector") / "yara"
+YARA_FIXTURES = Path(".skillspector") / "fixtures"
+BASELINES = Path(".skillspector") / "baselines"
+_GITLEAKS_RULE = re.compile(r"^\[\[rules\]\]\s*$(.*?)(?=^\[|\Z)", re.M | re.S)
+_GITLEAKS_ID = re.compile(r"^\s*id\s*=\s*['\"]([^'\"]+)['\"]", re.M)
+_YARA_RULE = re.compile(r"^\s*(?:(?:private|global)\s+)*rule\s+([A-Za-z_]\w*)", re.M)
+_YARA_HIT = re.compile(r"YARA rule '([A-Za-z_]\w*)'")
+_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 
 # An entry heading: `## F-SUBSTR-001 - title` or `### KI-042 - title`. A
 # template placeholder (`<F-SCOPE-NNN>`) is not an id and is skipped.
 _HEADING = re.compile(r"^(#{1,6})\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\b\s*[-:]*\s*(.*)$")
 _ANY_HEADING = re.compile(r"^#{1,6}\s")
-_FENCE = re.compile(r"^(`{3,}|~{3,})\s*([A-Za-z0-9_-]*)\s*$")
+# CommonMark fences: at most three spaces of indent (four is an indented code
+# block, which is how the template shows an example without generating it).
+_FENCE = re.compile(r"^ {0,3}(`{3,}|~{3,})\s*([^`\s]*)[^`]*$")
+_VERSION = re.compile(r"v?\d+(\.\d+)*")
 # Keys the generator owns. An author who sets them would silently lose the
 # edit on the next regeneration, so a block carrying one is refused.
 _OWNED_KEYS = ("id", "severity", "metadata")
@@ -65,12 +89,15 @@ def parse_entries(text: str) -> list[dict]:
     fence = None          # (marker, info, lines, start line) inside a block
     for n, line in enumerate(text.splitlines(), 1):
         if fence is not None:
-            if line.strip() == fence[0]:
+            # A closer repeats the opener's character at least as many times,
+            # with at most three spaces of indent and nothing after it.
+            m = re.match(r"^ {0,3}(%s{%d,})\s*$" % (re.escape(fence[0][0]),
+                                                  len(fence[0])), line)
+            if m:
                 _, info, body, _ = fence
                 if current is not None and info in ("ast-grep", "ast-grep-test"):
                     key = "rules" if info == "ast-grep" else "tests"
                     current[key].append({"line": fence[3], "body": "\n".join(body)})
-                # Any other fence closes silently; its content is prose.
                 fence = None
             else:
                 fence[2].append(line)
@@ -86,6 +113,12 @@ def parse_entries(text: str) -> list[dict]:
             entries.append(current)
         elif _ANY_HEADING.match(line):
             current = None
+    if fence is not None and current is not None and \
+            fence[1] in ("ast-grep", "ast-grep-test"):
+        # An unclosed rule block would otherwise vanish, and `rules --check`
+        # would pass without the guard the author wrote.
+        raise RuleError("%d %s: the ```%s block is never closed"
+                        % (fence[3], current["id"], fence[1]))
     return entries
 
 
@@ -107,7 +140,11 @@ def render_rules(source: str, text: str) -> dict[str, str]:
     """{filename: content} for rules AND their tests, keyed `rules/<id>.yml`
     and `tests/<id>-test.yml`. Raises RuleError on a malformed entry."""
     out: dict[str, str] = {}
-    for e in parse_entries(text):
+    try:
+        entries = parse_entries(text)
+    except RuleError as exc:
+        raise RuleError("%s:%s" % (source, exc)) from None
+    for e in entries:
         if not e["rules"] and not e["tests"]:
             continue
         where = "%s:%d %s" % (source, e["line"], e["id"])
@@ -231,6 +268,7 @@ def write_rules(root: Path, cfg: dict) -> list[str]:
 # ------------------------------------------------------------ promotions
 
 def promoted(cfg: dict, tool: str) -> list[str]:
+    """Promoted rule ids; `*` promotes the whole tool."""
     return [p["rule"] for p in cfg.get("promotions", {}).get(tool, [])]
 
 
@@ -238,8 +276,10 @@ def promotion_problems(cfg: dict) -> list[str]:
     """A promotion without its date and measured standing count is a claim
     nobody can re-check (TESTING_STANDARDS section 5)."""
     problems = []
-    for tool in TOOLS:
-        for p in cfg.get("promotions", {}).get(tool, []):
+    for tool, entries in sorted(cfg.get("promotions", {}).items()):
+        if tool not in cfg.get("tools", {}):
+            problems.append("promotions name %r, which has no pin" % tool)
+        for p in entries:
             for field in ("rule", "date", "standing_count", "reason"):
                 if field not in p:
                     problems.append("%s promotion %r lacks %s"
@@ -256,6 +296,8 @@ def judge_skillspector(reports: list[dict], cfg: dict) -> tuple[list[str], list[
     """(blocking, advisory) finding lines across all reports."""
     policy = cfg["skillspector"]
     block_ids = set(policy.get("always_block", [])) | set(promoted(cfg, "skillspector"))
+    # A custom YARA rule reports as a generic YR id; promote it by name with
+    # `yara:<rule_name>` so one rule can block without promoting them all.
     blocking, advisory = [], []
     for r in reports:
         src = r.get("skill", {}).get("source", "?")
@@ -272,11 +314,176 @@ def judge_skillspector(reports: list[dict], cfg: dict) -> tuple[list[str], list[
                 src, loc.get("file", "?"), loc.get("start_line", "?"),
                 i.get("id"), i.get("pattern", i.get("category", "")),
                 i.get("severity"), (i.get("finding") or "").strip()[:80])
-            (blocking if i.get("id") in block_ids else advisory).append(line)
+            yara = _YARA_HIT.search(i.get("pattern") or "")
+            hit = i.get("id") in block_ids or \
+                (yara is not None and "yara:%s" % yara.group(1) in block_ids)
+            (blocking if hit else advisory).append(line)
     return blocking, advisory
 
 
+def baseline_path(target: str) -> Path:
+    """`.claude/agents` -> `.skillspector/baselines/claude__agents.yaml`. One
+    file per target: SkillSpector refuses a shared baseline across skills."""
+    slug = target.strip("/").lstrip("./").replace("/", "__")
+    return BASELINES / ("%s.yaml" % slug)
+
+
+# ------------------------------------------------------------ custom-rule proofs
+
+def gitleaks_rule_ids(toml_text: str) -> list[str]:
+    ids = []
+    for block in _GITLEAKS_RULE.findall(toml_text):
+        m = _GITLEAKS_ID.search(block)
+        if m:
+            ids.append(m.group(1))
+    return ids
+
+
+def yara_rule_names(text: str) -> list[str]:
+    return _YARA_RULE.findall(text)
+
+
+def proofs(root: Path) -> tuple[list[tuple[str, str, Path]], list[str]]:
+    """([(kind, rule, fixture)], problems). Every custom gitleaks rule needs
+    `.gitleaks/fixtures/<id>.txt`; every custom YARA rule needs a non-empty
+    `.skillspector/fixtures/<rule>/`. A fixture whose rule is gone is named
+    too -- it proves nothing and reads as coverage."""
+    root = Path(root)
+    found, problems = [], []
+    cfg = root / GITLEAKS_CONFIG
+    ids = gitleaks_rule_ids(cfg.read_text(encoding="utf-8")) if cfg.is_file() else []
+    for rid in ids:
+        fx = GITLEAKS_FIXTURES / ("%s.txt" % rid)
+        if (root / fx).is_file():
+            found.append(("gitleaks", rid, fx))
+        else:
+            problems.append("gitleaks rule %r has no fixture %s" % (rid, fx))
+    fxdir = root / GITLEAKS_FIXTURES
+    if fxdir.is_dir():
+        for f in sorted(fxdir.glob("*.txt")):
+            if f.stem not in ids:
+                problems.append("fixture %s has no rule in %s"
+                                % (f.relative_to(root), GITLEAKS_CONFIG))
+    names = []
+    ydir = root / YARA_DIR
+    if ydir.is_dir():
+        for f in sorted(ydir.glob("*.yar")) + sorted(ydir.glob("*.yara")):
+            names += yara_rule_names(f.read_text(encoding="utf-8"))
+    for name in names:
+        fx = YARA_FIXTURES / name
+        if (root / fx).is_dir() and any((root / fx).iterdir()):
+            found.append(("yara", name, fx))
+        else:
+            problems.append("YARA rule %r has no fixture directory %s/" % (name, fx))
+    yfx = root / YARA_FIXTURES
+    if yfx.is_dir():
+        for d in sorted(p for p in yfx.iterdir() if p.is_dir()):
+            if d.name not in names:
+                problems.append("fixture %s/ has no YARA rule" % d.relative_to(root))
+    return found, problems
+
+
+# ------------------------------------------------------------ zizmor gate
+
+def judge_zizmor(findings: list[dict], cfg: dict) -> tuple[list[str], list[str]]:
+    """(blocking, advisory) lines. A finding zizmor itself marks ignored (an
+    inline `# zizmor: ignore[...]`, which carries its reason) is neither."""
+    ids = set(promoted(cfg, "zizmor"))
+    blocking, advisory = [], []
+    for f in findings:
+        if f.get("ignored"):
+            continue
+        where = "?"
+        for loc in f.get("locations", []):
+            sym = loc.get("symbolic", {})
+            if sym.get("kind") == "Primary":
+                path = sym.get("key", {}).get("Local", {}).get("verbatim_path", "?")
+                row = loc.get("concrete", {}).get("location", {}) \
+                         .get("start_point", {}).get("row")
+                where = "%s:%s" % (path, "?" if row is None else row + 1)
+                break
+        sev = f.get("determinations", {}).get("severity", "?")
+        line = "%s %s [%s] %s" % (where, f.get("ident"), sev, f.get("desc", ""))
+        (blocking if "*" in ids or f.get("ident") in ids else advisory).append(line)
+    return blocking, advisory
+
+
+# ------------------------------------------------------------ gitleaks record
+
+def suppression_problems(text: str) -> list[str]:
+    """Every .gitleaksignore fingerprint sits under a comment naming the reason
+    and the date. A secrets finding is never report-only; a suppression is a
+    claim that the match is not a secret, and a reviewer must be able to
+    re-check it (TESTING_STANDARDS section 5)."""
+    problems, comment = [], None
+    for n, line in enumerate(text.splitlines(), 1):
+        s = line.strip()
+        if not s:
+            comment = None
+        elif s.startswith("#"):
+            comment = s if comment is None else comment + " " + s
+        elif comment is None or not _DATE.search(comment) or \
+                len(_DATE.sub("", comment).strip("# -:")) < 12:
+            problems.append("%s:%d suppresses %s without a dated reason in the "
+                            "comment above it" % (GITLEAKSIGNORE, n, s))
+    return problems
+
+
 # ------------------------------------------------------------ pins
+
+def install_plan(cfg: dict) -> list[str]:
+    """`pip <spec>` or `release <owner/repo> <version>` per tool, in config
+    order. The shell installer is a loop over these lines and nothing else."""
+    plan = []
+    for name, pin in cfg["tools"].items():
+        scheme, _, where = pin["install"].partition(":")
+        v = pin["version"]
+        if scheme == "pypi":
+            plan.append("pip %s==%s" % (where, v))
+        elif scheme == "git":
+            plan.append("pip %s @ git+%s.git@%s" % (name, where, v))
+        elif scheme == "github-release":
+            plan.append("release %s %s" % (where, v))
+        else:
+            raise ValueError("%s: unknown install scheme %r" % (name, scheme))
+    return plan
+
+
+def version_key(v: str) -> tuple:
+    """Numeric ordering for release tags: v2.10.0 sorts after v2.9.6."""
+    return tuple(int(x) for x in re.findall(r"\d+", v))
+
+
+def _tags(url: str) -> list[str]:
+    # S603/S607: a fixed argv (no shell), git resolved from PATH like every
+    # other git call in the kit; `url` comes from the pinned quality.json.
+    out = subprocess.run(["git", "ls-remote", "--tags", "--refs", url],  # noqa: S603, S607
+                         capture_output=True, text=True, check=True).stdout
+    return [line.split("refs/tags/", 1)[1] for line in out.splitlines()
+            if "refs/tags/" in line]
+
+
+def _stable(tags: list[str]) -> list[str]:
+    return [t for t in tags if re.fullmatch(r"v?\d+(\.\d+)*", t)]
+
+
+def latest(cfg: dict) -> dict[str, str]:
+    """Each tool's newest stable release, in the pin's own spelling."""
+    found = {}
+    for name, pin in cfg["tools"].items():
+        scheme, _, where = pin["install"].partition(":")
+        if scheme == "pypi":
+            # S310: a literal https:// URL, so no file: or custom scheme.
+            with urllib.request.urlopen("https://pypi.org/pypi/%s/json" % where,  # noqa: S310
+                                        timeout=30) as r:
+                found[name] = json.load(r)["info"]["version"]
+        elif scheme == "git":
+            found[name] = max(_stable(_tags(where)), key=version_key)
+        elif scheme == "github-release":
+            tag = max(_stable(_tags("https://github.com/%s" % where)), key=version_key)
+            found[name] = tag.lstrip("v")
+    return found
+
 
 def bump(cfg: dict, versions: dict[str, str]) -> list[str]:
     """Move pins to `versions`; the old pin becomes the named rollback.
@@ -285,6 +492,10 @@ def bump(cfg: dict, versions: dict[str, str]) -> list[str]:
     for tool, new in versions.items():
         if not new:
             continue
+        if not _VERSION.fullmatch(new):
+            # Release names come from PyPI and git tags; anything that is not
+            # a plain version never reaches the config (or a shell).
+            raise ValueError("%s: %r is not a release version" % (tool, new))
         pin = cfg["tools"][tool]
         if pin["version"] != new:
             moved.append("%s %s -> %s (rollback %s)" % (tool, pin["version"], new,
@@ -306,18 +517,30 @@ def main(argv=None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("rules", help="regenerate ast-grep rules from the registry")
     s.add_argument("--check", action="store_true", help="fail on drift, write nothing")
+    sub.add_parser("suppressions", help="verify .gitleaksignore entries are dated")
+    sub.add_parser("proofs", help="list custom rules and the fixture proving each")
+    s = sub.add_parser("baseline-path", help="a SkillSpector target's baseline file")
+    s.add_argument("target")
     s = sub.add_parser("pin", help="print a tool's pinned version")
-    s.add_argument("tool", choices=TOOLS)
+    s.add_argument("tool")
     s = sub.add_parser("promoted", help="print promoted rule ids")
-    s.add_argument("tool", choices=TOOLS)
+    s.add_argument("tool")
+    sub.add_parser("install-plan", help="print what install.sh installs")
     s = sub.add_parser("gate-skillspector", help="judge SkillSpector JSON reports")
     s.add_argument("reports", nargs="+", type=Path)
+    s = sub.add_parser("gate-zizmor", help="judge a zizmor JSON report")
+    s.add_argument("report", type=Path)
+    sub.add_parser("latest", help="print TOOL=VERSION for every latest release")
     s = sub.add_parser("bump", help="move pins, naming the rollback")
-    s.add_argument("--ast-grep", dest="ast_grep", default="")
-    s.add_argument("--skillspector", default="")
+    s.add_argument("--set", dest="sets", action="append", default=[],
+                   metavar="TOOL=VERSION")
     a = p.parse_args(argv)
     root = a.root or _root()
     cfg = load_config(root)
+    for tool in (getattr(a, "tool", None),) + tuple(
+            s.partition("=")[0] for s in getattr(a, "sets", [])):
+        if tool is not None and tool not in cfg["tools"]:
+            p.error("unknown tool %r (pinned: %s)" % (tool, ", ".join(cfg["tools"])))
 
     if a.cmd == "rules":
         problems = promotion_problems(cfg)
@@ -339,6 +562,45 @@ def main(argv=None) -> int:
         for line in problems:
             print("quality: %s" % line, file=sys.stderr)
         return 1 if problems else 0
+    if a.cmd == "suppressions":
+        path = Path(root) / GITLEAKSIGNORE
+        problems = suppression_problems(path.read_text(encoding="utf-8")) \
+            if path.is_file() else []
+        for line in problems:
+            print("quality: %s" % line, file=sys.stderr)
+        return 1 if problems else 0
+    if a.cmd == "proofs":
+        found, problems = proofs(root)
+        for kind, rule, fx in found:
+            print("%s %s %s" % (kind, rule, fx))
+        for line in problems:
+            print("quality: %s" % line, file=sys.stderr)
+        return 1 if problems else 0
+    if a.cmd == "baseline-path":
+        print(baseline_path(a.target))
+        return 0
+    if a.cmd == "install-plan":
+        for line in install_plan(cfg):
+            print(line)
+        return 0
+    if a.cmd == "latest":
+        for name, v in latest(cfg).items():
+            print("%s=%s" % (name, v))
+        return 0
+    if a.cmd == "gate-zizmor":
+        try:
+            findings = json.loads(a.report.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print("zizmor: unreadable report (%s) -- not clean, unknown" % exc,
+                  file=sys.stderr)
+            return 1
+        blocking, advisory = judge_zizmor(findings, cfg)
+        for line in advisory:
+            print("zizmor (report-only): %s" % line)
+        for line in blocking:
+            print("zizmor BLOCKING: %s" % line)
+        print("zizmor: %d blocking, %d report-only" % (len(blocking), len(advisory)))
+        return 1 if blocking else 0
     if a.cmd == "pin":
         print(cfg["tools"][a.tool]["version"])
         return 0
@@ -357,7 +619,11 @@ def main(argv=None) -> int:
               % (len(blocking), len(advisory), len(reports)))
         return 1 if blocking else 0
     if a.cmd == "bump":
-        moved = bump(cfg, {"ast-grep": a.ast_grep, "skillspector": a.skillspector})
+        try:
+            moved = bump(cfg, dict(s.partition("=")[::2] for s in a.sets))
+        except ValueError as exc:
+            print("quality: %s" % exc, file=sys.stderr)
+            return 1
         if moved:
             save_config(root, cfg)
         for line in moved:

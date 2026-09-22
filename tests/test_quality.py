@@ -273,6 +273,13 @@ def test_the_lane_is_wired_into_ci_the_hooks_and_the_standard():
     assert "quality.py rules" in pre_commit
     assert pre_commit.rstrip().endswith("exit 0"), "pre-commit must never block"
     assert "SKIP_PUSH_GATE" in (KIT / "tools/git-hooks/pre-push").read_text(encoding="utf-8")
+    for tool in ("gitleaks git", "zizmor --offline", "actionlint", "--select \"$rsel\"",
+                 "--yara-rules-dir", "quality.py baseline-path", "$q proofs",
+                 "$q suppressions"):
+        assert tool.replace("quality.py ", "$q ") in scan or tool in scan, tool
+    assert "fetch-depth: 0" in ci, "gitleaks needs the full history in CI"
+    assert "docs/SCAN_LANE.md" in (KIT / ".claude/skills/reviewer-integration/SKILL.md") \
+        .read_text(encoding="utf-8"), "the learn loop must route findings to the scan lane"
     standards = (KIT / "docs/TESTING_STANDARDS.md").read_text(encoding="utf-8")
     assert "### 5.1 The structural-scan lane" in standards
     template = (KIT / "templates/FAILURE_PATTERNS.md.template").read_text(encoding="utf-8")
@@ -283,3 +290,203 @@ def test_quality_stays_stdlib_only():
     source = (KIT / "tools" / "wall" / "quality.py").read_text(encoding="utf-8")
     for banned in ("import yaml", "import requests", "import pytest"):
         assert banned not in source
+
+
+# ------------------------------------------------------------ zizmor gate
+
+def zfinding(ident, ignored=False, path=".github/workflows/ci.yml", row=24):
+    return {"ident": ident, "desc": "d", "ignored": ignored,
+            "determinations": {"severity": "High"},
+            "locations": [{"symbolic": {"kind": "Primary",
+                                        "key": {"Local": {"verbatim_path": path}}},
+                           "concrete": {"location": {"start_point": {"row": row}}}}]}
+
+
+def test_zizmor_is_report_only_until_an_audit_is_promoted():
+    cfg = copy.deepcopy(quality.load_config(KIT))
+    blocking, advisory = quality.judge_zizmor([zfinding("unpinned-uses")], cfg)
+    assert blocking == [] and advisory == [
+        ".github/workflows/ci.yml:25 unpinned-uses [High] d"]
+    cfg["promotions"]["zizmor"] = [{"rule": "unpinned-uses", "date": "2026-09-22",
+                                    "standing_count": 0, "reason": "r"}]
+    blocking, _ = quality.judge_zizmor([zfinding("unpinned-uses"),
+                                        zfinding("artipacked")], cfg)
+    assert [b.split()[1] for b in blocking] == ["unpinned-uses"]
+
+
+def test_an_inline_zizmor_ignore_is_neither_blocking_nor_reported():
+    cfg = copy.deepcopy(quality.load_config(KIT))
+    cfg["promotions"]["zizmor"] = [{"rule": "*", "date": "d", "standing_count": 0,
+                                    "reason": "r"}]
+    assert quality.judge_zizmor([zfinding("artipacked", ignored=True)], cfg) == ([], [])
+
+
+def test_an_unreadable_zizmor_report_is_unknown_not_clean(tmp_path, capsys):
+    bad = tmp_path / "z.json"
+    bad.write_text("", encoding="utf-8")
+    assert quality.main(["gate-zizmor", str(bad)]) == 1
+    assert "not clean" in capsys.readouterr().err
+
+
+# ------------------------------------------------------------ gitleaks record
+
+def test_a_suppression_needs_a_dated_reason_directly_above_it():
+    ok = "# 2026-09-22: fake RSA block, the scrubber test's fixture\nabc:f.py:private-key:3\n"
+    assert quality.suppression_problems(ok) == []
+    for bad in ("abc:f.py:private-key:3\n",
+                "# fake RSA block, the scrubber test's fixture\nabc:f.py:rule:3\n",
+                "# 2026-09-22\nabc:f.py:rule:3\n",
+                "# 2026-09-22: fake RSA block, the fixture\n\nabc:f.py:rule:3\n"):
+        assert len(quality.suppression_problems(bad)) == 1, bad
+
+
+def test_the_kits_suppressions_and_fixtures_are_in_order():
+    ignore = (KIT / quality.GITLEAKSIGNORE).read_text(encoding="utf-8")
+    assert quality.suppression_problems(ignore) == []
+    found, problems = quality.proofs(KIT)
+    assert problems == []
+    assert ("yara", "kit_skill_bypasses_git_hooks",
+            quality.YARA_FIXTURES / "kit_skill_bypasses_git_hooks") in found
+
+
+# ------------------------------------------------------------ custom-rule proofs
+
+GL_RULE = '\n[[rules]]\nid = "kit-demo-token"\nregex = \'\'\'kitdemo_[a-z]{8}\'\'\'\n'
+
+
+def test_rule_ids_are_read_from_rules_blocks_only():
+    text = '[extend]\nuseDefault = true\n# [[rules]]\n# id = "commented"\n' + GL_RULE + \
+           '\n[[allowlists]]\ndescription = "x"\n'
+    assert quality.gitleaks_rule_ids(text) == ["kit-demo-token"]
+    yar = "rule kit_a {\n condition: true\n}\nprivate rule kit_b { condition: true }\n"
+    assert quality.yara_rule_names(yar) == ["kit_a", "kit_b"]
+
+
+def test_a_custom_rule_without_its_fixture_and_a_fixture_without_its_rule_are_named(tmp_path):
+    (tmp_path / quality.GITLEAKS_CONFIG).write_text(GL_RULE, encoding="utf-8")
+    (tmp_path / quality.GITLEAKS_FIXTURES).mkdir(parents=True)
+    (tmp_path / quality.GITLEAKS_FIXTURES / "kit-gone.txt").write_text("x", encoding="utf-8")
+    (tmp_path / quality.YARA_DIR).mkdir(parents=True)
+    (tmp_path / quality.YARA_DIR / "a.yar").write_text("rule kit_a { condition: true }",
+                                                       encoding="utf-8")
+    (tmp_path / quality.YARA_FIXTURES / "kit_old").mkdir(parents=True)
+    found, problems = quality.proofs(tmp_path)
+    assert found == []
+    assert len(problems) == 4
+    assert any("'kit-demo-token' has no fixture" in p for p in problems)
+    assert any("kit-gone.txt has no rule" in p for p in problems)
+    assert any("'kit_a' has no fixture directory" in p for p in problems)
+    assert any("kit_old/ has no YARA rule" in p for p in problems)
+    # An EMPTY fixture directory proves nothing either.
+    (tmp_path / quality.YARA_FIXTURES / "kit_a").mkdir()
+    assert any("'kit_a' has no fixture" in p for p in quality.proofs(tmp_path)[1])
+
+
+def test_each_target_gets_its_own_baseline_file():
+    assert quality.baseline_path(".claude/agents") == \
+        quality.BASELINES / "claude__agents.yaml"
+    assert quality.baseline_path(".claude/skills/wave/") == \
+        quality.BASELINES / "claude__skills__wave.yaml"
+
+
+def test_one_custom_yara_rule_is_promoted_by_name_not_the_whole_yr_id():
+    cfg = copy.deepcopy(quality.load_config(KIT))
+    cfg["promotions"]["skillspector"] = [{"rule": "yara:kit_a", "date": "d",
+                                          "standing_count": 0, "reason": "r"}]
+    r = report(["YR4", "YR4"])
+    r["issues"][0]["pattern"] = "YARA rule 'kit_a': x"
+    r["issues"][1]["pattern"] = "YARA rule 'kit_b': x"
+    blocking, advisory = quality.judge_skillspector([r], cfg)
+    assert len(blocking) == 1 and "kit_a" in blocking[0]
+    assert len(advisory) == 1 and "kit_b" in advisory[0]
+
+
+# ------------------------------------------------------------ install + latest
+
+def test_the_install_plan_covers_every_pin_by_its_scheme():
+    cfg = quality.load_config(KIT)
+    plan = quality.install_plan(cfg)
+    assert len(plan) == len(cfg["tools"])
+    assert "pip ast-grep-cli==%s" % cfg["tools"]["ast-grep"]["version"] in plan
+    assert "release gitleaks/gitleaks %s" % cfg["tools"]["gitleaks"]["version"] in plan
+    assert any(p.startswith("pip skillspector @ git+https://") for p in plan)
+    bad = {"tools": {"x": {"install": "brew:x", "version": "1"}}}
+    with pytest.raises(ValueError, match="unknown install scheme"):
+        quality.install_plan(bad)
+
+
+def test_release_tags_sort_numerically_and_prereleases_are_dropped():
+    tags = ["v2.9.6", "v2.10.0", "v2.11.0-rc1", "v2.9.10", "nightly"]
+    assert max(quality._stable(tags), key=quality.version_key) == "v2.10.0"
+
+
+def test_bump_refuses_a_tool_with_no_pin(capsys):
+    with pytest.raises(SystemExit):
+        quality.main(["bump", "--set", "nope=1.0"])
+    assert "unknown tool 'nope'" in capsys.readouterr().err
+
+
+# ------------------------------------------------------------ the kit's workflows
+
+def test_every_action_is_pinned_to_a_sha_and_checkout_persists_no_credentials():
+    for wf in sorted((KIT / ".github" / "workflows").glob("*.yml")):
+        text = wf.read_text(encoding="utf-8")
+        for ref in re.findall(r"uses:\s*(\S+)", text):
+            assert re.fullmatch(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}", ref), \
+                "%s: %s is not pinned to a commit SHA" % (wf.name, ref)
+        checkouts = text.count("actions/checkout@")
+        assert text.count("persist-credentials: false") == checkouts, wf.name
+        assert re.search(r"^permissions: \{\}$", text, re.M), \
+            "%s grants workflow-wide permissions; grant them per job" % wf.name
+
+
+# ------------------------------------------------------------ fence parsing
+
+RULE_BODY = "language: python\nrule:\n  pattern: eval($X)\n"
+TEST_BODY = "invalid:\n  - eval(s)\n"
+
+
+def fenced(rule_open="```ast-grep", rule_close="```", test_open="```ast-grep-test",
+           test_close="```"):
+    return ("## F-X-001 - x\n\n%s\n%s%s\n\n%s\n%s%s\n"
+            % (rule_open, RULE_BODY, rule_close, test_open, TEST_BODY, test_close))
+
+
+@pytest.mark.parametrize("kw", [
+    {"rule_close": "`````"},                                   # longer closer
+    {"rule_open": "````ast-grep", "rule_close": "````"},       # longer opener
+    {"rule_open": "  ```ast-grep", "rule_close": "   ```"},    # up to 3 spaces
+    {"rule_open": "~~~ast-grep", "rule_close": "~~~~"},         # tilde fences
+    {"rule_close": "```   "},                                  # trailing spaces
+])
+def test_commonmark_fences_all_generate_the_rule(kw):
+    out = quality.render_rules("F.md", fenced(**kw))
+    assert "pattern: eval($X)" in out["rules/f-x-001.yml"]
+
+
+def test_a_shorter_or_mixed_closer_does_not_close_the_block():
+    # A ``` inside a ```` block is content; a ~~~ does not close a ``` block.
+    for kw in ({"rule_open": "````ast-grep", "rule_close": "```\n````"},
+               {"rule_close": "~~~\n```"}):
+        out = quality.render_rules("F.md", fenced(**kw))
+        assert "pattern: eval($X)" in out["rules/f-x-001.yml"], kw
+
+
+def test_a_four_space_indented_example_is_prose_not_a_rule():
+    text = "## F-X-001 - x\n\n    ```ast-grep\n    language: python\n    rule: x\n    ```\n"
+    assert quality.render_rules("F.md", text) == {}
+
+
+def test_an_unclosed_rule_block_is_refused_not_dropped():
+    text = "## F-X-001 - x\n\n```ast-grep\n" + RULE_BODY
+    with pytest.raises(quality.RuleError, match=r"^F\.md:3 F-X-001: .* never closed"):
+        quality.render_rules("F.md", text)
+
+
+def test_a_bump_to_a_non_version_string_is_refused():
+    cfg = copy.deepcopy(quality.load_config(KIT))
+    for bad in ("1.0; rm -rf ~", "$(id)", "v1.0-rc1", ""):
+        if bad:
+            with pytest.raises(ValueError, match="not a release version"):
+                quality.bump(cfg, {"ruff": bad})
+    assert quality.bump(cfg, {"skillspector": "v9.9.9"})
