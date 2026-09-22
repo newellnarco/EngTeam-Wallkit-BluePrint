@@ -322,3 +322,11 @@ def test_linux_uninstall_removes_both_units(tmp_path: Path):
 
 def test_linux_uninstall_of_an_absent_timer_is_success(tmp_path: Path):
     linux.uninstall(run=Recorder({"*": (1, "", "not loaded")}), home=tmp_path)
+
+
+def test_windows_manual_block_carries_the_pythonw_fallback():
+    """The hand-install path holds the same two properties as the coded one:
+    prefer pythonw, degrade to python (CodeRabbit on the reference
+    adoption's #1672 -- a bare Get-Command pythonw throws when absent)."""
+    assert "Get-Command pythonw -ErrorAction SilentlyContinue" in windows.MANUAL
+    assert "Get-Command python }" in windows.MANUAL
