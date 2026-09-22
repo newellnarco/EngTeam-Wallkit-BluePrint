@@ -269,3 +269,34 @@ def test_sample_repo_name_exercises_case_preservation():
     import json
     cfg = json.loads((KIT / "sample" / ".wall" / "config" / "wall.json").read_text())
     assert cfg["repo_name"] == "Atlas-Core", "the fixture must prove mixed case survives"
+
+
+# ---- refresh ownership (owner report 2026-09-22) ---------------------------
+# The page once shipped <meta http-equiv="refresh" content="30"> for file://
+# and removed it at runtime when served. The parser's navigation timer is not
+# reliably cancelled by removing the element, and the reload it fires goes to
+# the document's ORIGINAL URL — dropping the #tab fragment — so the served
+# wall flashed every 30 s and dumped the viewer back on MAIN. Refresh belongs
+# to script in both modes, and the active tab must survive any reload.
+
+
+def test_no_meta_refresh_ever(template_text: str) -> None:
+    """A parser-scheduled refresh cannot be owned by the page's own script."""
+    assert re.search(r'http-equiv\s*=\s*"?refresh', template_text, re.I) is None
+
+
+def test_file_mode_reloads_from_script(template_text: str) -> None:
+    """file:// cannot fetch, so its refresh is location.reload() — which keeps
+    the full URL, fragment included."""
+    assert "location.reload()" in template_text
+    assert "FILE_RELOAD_MS" in template_text
+
+
+def test_active_tab_survives_a_fragmentless_reload(template_text: str) -> None:
+    """Fragment first, sessionStorage as the fallback for reloads that arrive
+    bare (an embedding iframe reloading at its src). Both storage calls are
+    guarded: a wall that cannot remember a tab must still render one."""
+    assert "sessionStorage.getItem('wall.tab')" in template_text
+    assert "sessionStorage.setItem('wall.tab'" in template_text
+    assert "storedTab() || 'main'" in template_text
+    assert "storeTab(active)" in template_text

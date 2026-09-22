@@ -106,14 +106,19 @@ is separately invoked and separately gated.
 
 Two delivery modes, one file -- `courier.py` handles both automatically.
 
-**Served** (`wall serve`, `http://127.0.0.1:8123/wall.html`): the page removes
-its meta refresh, polls `wall.json` every 10 seconds, and repaints in place.
-Scroll position, active tab and focus survive. Polling pauses when the tab is
-hidden and fires once on refocus.
+**Served** (`wall serve`, `http://127.0.0.1:8123/wall.html`): the page polls
+`wall.json` every 10 seconds and repaints in place. Scroll position, active
+tab and focus survive. Polling pauses when the tab is hidden and fires once
+on refocus.
 
 **File** (`file://`, no server): the page uses the snapshot inlined at render
-time and a 30-second meta refresh. No server, no port, no CORS, no process to
-supervise.
+time and reloads itself from script every 30 seconds -- `location.reload()`
+keeps the URL fragment, and the active tab also survives via sessionStorage.
+No server, no port, no CORS, no process to supervise. (There is deliberately
+no meta refresh in either mode: the parser's navigation timer outlives the
+element and its reload drops the `#tab` fragment, which bounced viewers back
+to MAIN every 30 seconds -- owner report 2026-09-22, pinned by
+`test_no_meta_refresh_ever`.)
 
 ```
 wall serve                     foreground, 127.0.0.1:8123

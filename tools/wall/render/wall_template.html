@@ -4,7 +4,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="refresh" content="30">
+<!-- No meta refresh tag here, ever: the parser schedules that navigation and
+     removing the element later does not reliably cancel it, and the reload it
+     fires goes to the document's ORIGINAL URL — dropping the #tab fragment,
+     so every 30 s the page flashed and dumped the viewer back on MAIN (owner
+     report 2026-09-22). Both delivery modes refresh from script instead,
+     where the timer is ours to own; test_no_meta_refresh_ever pins this. -->
 <title>Wall — __REPO_NAME__</title>
 <style>
 /* ============================================================================
@@ -801,12 +806,15 @@ footer {
     fail('The wall could not read its data.', 'wall.json did not parse: ' + e.message + '.');
   }
 
-  // Two delivery modes, one file. Opened from file:// the page uses the JSON
-  // inlined at render time and the <meta refresh> keeps it current. Served over
-  // http it polls wall.json instead and repaints in place, so scroll position,
-  // the active tab and focus all survive — and the meta refresh is removed so
-  // the two mechanisms never fight.
+  // Two delivery modes, one file, both refreshed from HERE — never a meta
+  // refresh (see the head comment: the parser's timer outlives the element and
+  // its reload drops the #tab fragment). Served over http the page polls
+  // wall.json and repaints in place, so scroll position, the active tab and
+  // focus all survive. Opened from file:// it cannot fetch, so it reloads the
+  // whole document — location.reload() keeps the full URL, fragment included,
+  // and the tab also survives via sessionStorage below.
   var POLL_MS = 10000;
+  var FILE_RELOAD_MS = 30000;
 
   function live() {
     return fetch('wall.json', {cache: 'no-store'})
@@ -820,8 +828,6 @@ footer {
   }
 
   if (location.protocol === 'http:' || location.protocol === 'https:') {
-    var meta = document.querySelector('meta[http-equiv="refresh"]');
-    if (meta) meta.parentNode.removeChild(meta);
     live();
     setInterval(function () {
       // Don't poll a tab nobody is looking at.
@@ -830,6 +836,11 @@ footer {
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) live();
     });
+  } else {
+    setInterval(function () {
+      // Same courtesy as the poll: a hidden tab reloads when next looked at.
+      if (!document.hidden) location.reload();
+    }, FILE_RELOAD_MS);
   }
 
   // ---- status vocabulary --------------------------------------------------
@@ -891,7 +902,14 @@ footer {
     {id:'flow',    label:'FLOW',    count:function(d){ var f=ov(d).flow; return f && f.open_now || null; }}
   ];
   function ov(d){ return (d && d.oversight) || {}; }
-  var active = location.hash.replace('#','') || 'main';
+  // The active tab survives ANY reload: the URL fragment is authoritative,
+  // sessionStorage is the fallback for reloads that arrive without one (an
+  // embedding iframe reloading at its bare src, a file:// reload in a browser
+  // that drops the fragment). Storage can throw (private windows, blocked
+  // site data), and a wall that cannot remember a tab must still render one.
+  function storedTab(){ try { return sessionStorage.getItem('wall.tab'); } catch (e) { return null; } }
+  function storeTab(id){ try { sessionStorage.setItem('wall.tab', id); } catch (e) { /* render anyway */ } }
+  var active = location.hash.replace('#','') || storedTab() || 'main';
   if (!TABS.some(function(t){ return t.id === active; })) active = 'main';
 
   function paintTabs(){
@@ -1050,6 +1068,7 @@ footer {
     var b = e.target.closest('button[data-tab]');
     if (!b) return;
     active = b.dataset.tab;
+    storeTab(active);
     history.replaceState(null,'','#'+active);
     paintTabs();
     paintWave();

@@ -2,7 +2,7 @@
 """Server -- serves .wall/derived/ on 127.0.0.1 so the wall can poll its snapshot.
 
 Opening ``wall.html`` from ``file://`` works (the courier inlines the snapshot
-and the page meta-refreshes), but the served mode is better: the page polls
+and the page reloads itself from script), but the served mode is better: the page polls
 ``wall.json`` every ten seconds and repaints in place, so scroll position, the
 active tab and focus all survive. That needs an origin, which needs a server.
 
