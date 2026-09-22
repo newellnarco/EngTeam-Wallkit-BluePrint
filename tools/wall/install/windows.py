@@ -32,7 +32,11 @@ MANUAL = r"""
 # The PowerShell equivalent, if you would rather create the task by hand.
 # pythonw.exe, not python.exe: the console binary flashes a command window
 # at the desktop on every firing (windowless_python below has the full why).
-$py      = (Get-Command pythonw).Source
+# Non-terminating lookup with a python fallback, mirroring windowless_python:
+# a stripped install without pythonw still gets a working (visible) courier.
+$py_cmd  = Get-Command pythonw -ErrorAction SilentlyContinue
+if (-not $py_cmd) { $py_cmd = Get-Command python }
+$py      = $py_cmd.Source
 $sweeper = "$env:USERPROFILE\.wall\sweep_all.py"
 
 $action  = New-ScheduledTaskAction -Execute $py -Argument $sweeper
