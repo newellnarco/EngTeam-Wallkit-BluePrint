@@ -114,7 +114,10 @@ goes through the record (section 4).
    fixture.
 
 A **false positive** is not a new rule. Suppress it by fingerprint in
-`.gitleaksignore` (the fingerprint is in gitleaks' report). Put it under a
+`.gitleaksignore` (the fingerprint is in gitleaks' report). A fingerprint
+names one **commit**. Take them from a full-history scan (`git fetch
+--unshallow`, then `gitleaks git`), because a shallow clone shows only the
+newest commit that carries the line, and CI scans them all. Put it under a
 comment that gives the date and the reason it is not a secret. Prefer an inline
 `gitleaks:allow` comment on the line when the line is yours to edit.
 `quality.py suppressions` refuses a fingerprint with no dated reason.
