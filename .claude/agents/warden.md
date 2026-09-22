@@ -192,3 +192,17 @@ only in a record someone has to go find (DEC-0026).
 - **Evidence over self-report** -- cite the obligation, the intake answer, or
   the decision; never "this feels risky".
 - **Out-of-scope findings are reported, never fixed.**
+
+
+## Regime lifecycle duties (DEC-0030)
+
+- Run `wall compliance-scan` at SessionStart and at wave close -- the
+  periodic evidence pass. Never flip a selection from a scan.
+- Consume `warden_regime` queue directives: record the enable/disable as a
+  `wall compliance <id> --applicable|--not-applicable --reason ... --by
+  <requester-via-warden>` selection after evaluating it; a request you judge
+  wrong is answered with a ruling, not silently dropped.
+- Consume `warden_audit` directives: evaluate the repo against every control
+  of the regime and record `wall audit <id> --file results.json` -- every
+  control `pass | fail | waiver` with its proof or reason. A control you
+  cannot evaluate is a `fail` with the reason, never a skip.

@@ -959,9 +959,12 @@ def cmd_attest(a):
         print(f"status must be one of {compliance_mod.ATTEST_STATUSES}",
               file=sys.stderr)
         return 2
-    if a.status == "waiver" and not a.note:
-        print("refusing a waiver without --note: a waiver is a recorded "
-              "exception, and the reason is the record", file=sys.stderr)
+    if not a.note:
+        # DEC-0030 tightened this from waiver-only to every verdict: an audit
+        # row is pass/fail/waiver PLUS its proof or reason, never a bare word.
+        print("refusing an attestation without --note: pass needs its proof, "
+              "fail and waiver need their reason -- the note is the record",
+              file=sys.stderr)
         return 2
     record = items_mod.append_event(repo, a.session, {
         "event": "compliance_attested", "regime": a.regime,
@@ -970,6 +973,97 @@ def cmd_attest(a):
     })
     print(f"{a.regime} {a.control}: {a.status}"
           f"{' -- ' + a.note if a.note else ''}  (seq {record['seq']})")
+    print("  run `wall run-once` to refresh the POSTURE tab")
+    return 0
+
+
+def cmd_compliance_scan(a):
+    """The Warden's periodic evidence pass (DEC-0030): scan the tree for each
+    regime's signals and record recommended/not per regime WITH the evidence.
+    Deterministic and append-only -- the scan never flips a selection; the
+    fold turns scan + selection into a disposition the POSTURE tab shows."""
+    import compliance as compliance_mod
+    repo = Path(a.repo).resolve()
+    evidence = compliance_mod.scan_repo(repo)
+    rows = [{"regime": rid, "recommended": bool(ev), "evidence": ev}
+            for rid, ev in evidence.items()]
+    record = items_mod.append_event(repo, a.session, {
+        "event": "compliance_scanned", "regimes": rows,
+        "by": a.by, "role": "warden", "source": a.source or "warden",
+    })
+    for row in rows:
+        mark = "RECOMMENDED" if row["recommended"] else "no surface found"
+        print(f"  {row['regime']:<12} {mark}")
+        for ev in row["evidence"]:
+            print(f"      {ev}")
+    print(f"recorded (seq {record['seq']}); run `wall run-once` to refresh POSTURE")
+    return 0
+
+
+def cmd_audit_regime(a):
+    """Record a full Warden audit of ONE regime (DEC-0030). The results file
+    maps every control id to {status, note}: pass | fail | waiver, and the
+    note is mandatory on every row -- pass carries its proof, fail and waiver
+    their reason. A partial audit is refused by name: an audit that skips a
+    control is an attestation gap wearing an audit's clothes."""
+    import compliance as compliance_mod
+    repo = Path(a.repo).resolve()
+    r = compliance_mod.regime(a.regime)
+    if r is None:
+        print(f"unknown regime {a.regime!r}; known: "
+              f"{', '.join(compliance_mod.REGIME_IDS)}", file=sys.stderr)
+        return 1
+    try:
+        results = json.loads(Path(a.file).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        print(f"cannot read results file: {e}", file=sys.stderr)
+        return 2
+    if not isinstance(results, dict):
+        print("results file must be an object: {control_id: {status, note}}",
+              file=sys.stderr)
+        return 2
+    ids = compliance_mod.control_ids(a.regime)
+    missing = [c for c in ids if c not in results]
+    unknown = [c for c in results if c not in ids]
+    if missing or unknown:
+        if missing:
+            print(f"audit incomplete -- controls not covered: "
+                  f"{', '.join(missing)}", file=sys.stderr)
+        if unknown:
+            print(f"unknown controls for {a.regime}: {', '.join(unknown)}",
+                  file=sys.stderr)
+        return 2
+    bad = []
+    for cid in ids:
+        row = results[cid]
+        if (not isinstance(row, dict)
+                or row.get("status") not in compliance_mod.ATTEST_STATUSES
+                or not str(row.get("note") or "").strip()):
+            bad.append(cid)
+    if bad:
+        print(f"every row needs status in {compliance_mod.ATTEST_STATUSES} "
+              f"AND a non-empty note (proof or reason) -- bad: "
+              f"{', '.join(bad)}", file=sys.stderr)
+        return 2
+    for cid in ids:
+        row = results[cid]
+        items_mod.append_event(repo, a.session, {
+            "event": "compliance_attested", "regime": a.regime,
+            "control": cid, "status": row["status"],
+            "note": str(row["note"]).strip(),
+            "by": a.by, "role": "warden", "source": a.source or "warden",
+        })
+    record = items_mod.append_event(repo, a.session, {
+        "event": "compliance_audited", "regime": a.regime, "by": a.by,
+        "role": "warden", "source": a.source or "warden",
+    })
+    tally = {}
+    for cid in ids:
+        s = results[cid]["status"]
+        tally[s] = tally.get(s, 0) + 1
+    print(f"{a.regime} audited: " +
+          " ".join(f"{k}={v}" for k, v in sorted(tally.items())) +
+          f"  ({len(ids)} controls, seq {record['seq']})")
     print("  run `wall run-once` to refresh the POSTURE tab")
     return 0
 
@@ -1250,10 +1344,30 @@ def main() -> int:
     s.add_argument("regime")
     s.add_argument("control", help="e.g. CC6, R3, SR-TEC (see the regime doc)")
     s.add_argument("--status", required=True, choices=["pass", "fail", "waiver"])
-    s.add_argument("--note", help="details; REQUIRED for a waiver")
+    s.add_argument("--note", help="REQUIRED: pass carries its proof, "
+                                  "fail and waiver their reason")
     s.add_argument("--by", default="engineer")
     s.add_argument("--session", default="s_human")
     s.set_defaults(fn=cmd_attest)
+
+    s = sub.add_parser("compliance-scan",
+                       help="Warden evidence pass: which regimes does the "
+                            "code suggest? (DEC-0030)")
+    s.add_argument("--by", default="warden")
+    s.add_argument("--source", default="warden")
+    s.add_argument("--session", default="s_warden")
+    s.set_defaults(fn=cmd_compliance_scan)
+
+    s = sub.add_parser("audit",
+                       help="record a full Warden audit of one regime: every "
+                            "control pass/fail/waiver + proof or reason")
+    s.add_argument("regime")
+    s.add_argument("--file", required=True,
+                   help="JSON: {control_id: {status, note}} covering EVERY control")
+    s.add_argument("--by", default="warden")
+    s.add_argument("--source", default="warden")
+    s.add_argument("--session", default="s_warden")
+    s.set_defaults(fn=cmd_audit_regime)
 
     s = sub.add_parser("retro-note",
                        help="a Patron input the next retrospective must consume")

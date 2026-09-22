@@ -163,7 +163,7 @@ def test_decision_seed_set_present():
     # (Patron, 2026-09-21); 28 the compliance register (Patron, 2026-09-21);
     # 29 the sibling fold-in (Patron, 2026-09-22). The equality
     # still guards against holes and strays.
-    expected = [f"DEC-{n:04d}.md" for n in range(1, 30)]
+    expected = [f"DEC-{n:04d}.md" for n in range(1, 31)]
     assert names == expected, f"decision seed set drifted: {names}"
 
 

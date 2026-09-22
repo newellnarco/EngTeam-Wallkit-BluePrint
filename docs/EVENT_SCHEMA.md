@@ -437,3 +437,15 @@ within the SLA is a dropped ball, flagged like an unassigned question; a
 `verify_requested` older than the configured horizon surfaces on the WAITING
 tab beside unanswered asks — the loop holding a slot open for a human is
 visible, never silent.
+
+
+## Regime lifecycle events (DEC-0030)
+
+| Event | Written by | Carries |
+|---|---|---|
+| `compliance_scanned` | `wall compliance-scan` (Warden, periodic) | `regimes: [{regime, recommended, evidence[]}]` — the evidence verbatim, one event per scan |
+| `compliance_audited` | `wall audit <regime>` (Warden) | `regime`, `by` — the audit marker; the per-control results are the `compliance_attested` events written in the same run |
+
+`compliance_attested` (DEC-0028) is unchanged in shape and tightened in
+contract: `note` is mandatory on every row — pass carries its proof, fail
+and waiver their reason. `wall audit` refuses a partial audit by name.

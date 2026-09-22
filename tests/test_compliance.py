@@ -144,9 +144,12 @@ def test_cli_selection_requires_a_reason(tmp_path):
     assert r.returncode == 2 and "reason IS the decision" in r.stderr
 
 
-def test_cli_waiver_requires_its_note(tmp_path):
-    r = _wall(tmp_path, "attest", "pci", "R3", "--status", "waiver")
-    assert r.returncode == 2 and "recorded" in r.stderr
+def test_cli_every_status_requires_its_note(tmp_path):
+    """DEC-0030: pass carries its proof, fail and waiver their reason --
+    a bare verdict is refused whatever the status."""
+    for status in ("pass", "fail", "waiver"):
+        r = _wall(tmp_path, "attest", "pci", "R3", "--status", status)
+        assert r.returncode == 2 and "note is the record" in r.stderr
 
 
 def test_cli_unknown_regime_and_control_refused(tmp_path):
@@ -161,6 +164,7 @@ def test_cli_happy_path_writes_both_events(tmp_path):
               "--reason", "no cardholder data", "--by", "the-patron")
     assert r.returncode == 0, r.stderr
     r = _wall(tmp_path, "attest", "soc2", "CC8", "--status", "pass",
+              "--note", "change control enforced by the merge gate",
               "--by", "the-patron")
     assert r.returncode == 0, r.stderr
     shards = list((tmp_path / ".wall" / "events").rglob("s_human*.jsonl"))

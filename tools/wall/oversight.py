@@ -282,11 +282,30 @@ def fold_compliance(events: list) -> dict:
     selections: dict[str, dict] = {}
     selection_log: list[dict] = []
     attest: dict[tuple[str, str], dict] = {}
+    scans: dict[str, dict] = {}
+    audits: dict[str, dict] = {}
     ruling_text: list[str] = []
     for e in events:
         if not isinstance(e, dict):
             continue
         ev = e.get("event")
+        if ev == "compliance_scanned":
+            # The Warden's periodic evidence pass (DEC-0030); last scan wins.
+            for row in e.get("regimes") or []:
+                if isinstance(row, dict) and _s(row.get("regime")):
+                    scans[_s(row.get("regime"))] = {
+                        "recommended": bool(row.get("recommended")),
+                        "evidence": [str(x) for x in (row.get("evidence") or [])
+                                     if isinstance(x, str)],
+                        "ts": _s(e.get("ts")) or None,
+                        "by": _s(e.get("by")) or None}
+            continue
+        if ev == "compliance_audited":
+            regime_id = _s(e.get("regime"))
+            if regime_id:
+                audits[regime_id] = {"ts": _s(e.get("ts")) or None,
+                                     "by": _s(e.get("by")) or None}
+            continue
         if ev == "compliance_selected":
             regime_id = _s(e.get("regime"))
             if not regime_id:
@@ -331,6 +350,8 @@ def fold_compliance(events: list) -> dict:
                              "by": a["by"] if a else None,
                              "ts": a["ts"] if a else None})
         attested_any = any(c["status"] for c in controls)
+        scan = scans.get(r["id"])
+        recommended = bool(scan and scan["recommended"])
         if sel is None:
             challenge = ("unanswered -- select applicable or not "
                          "(`wall compliance " + r["id"] + " ...`)")
@@ -345,6 +366,18 @@ def fold_compliance(events: list) -> dict:
                          "it -- revisit the selection")
         else:
             challenge = None
+        # The disposition folds the Patron's selection against the Warden's
+        # scan (DEC-0030). It never flips the selection -- it names the
+        # tension, and the WHY popout carries the scan's evidence verbatim.
+        if sel is None:
+            disposition = ("recommended -- decide" if recommended
+                           else "undecided")
+        elif sel["applicable"]:
+            disposition = ("active" if recommended or scan is None
+                           else "active (scan found no surface)")
+        else:
+            disposition = ("NOT RECOMMENDED FOR DISABLED" if recommended
+                           else "inactive")
         regimes.append({
             "id": r["id"], "name": r["name"], "doc": r["doc"],
             "applies_when": r["applies_when"],
@@ -352,6 +385,11 @@ def fold_compliance(events: list) -> dict:
             "selected_by": sel["by"] if sel else None,
             "reason": sel["reason"] if sel else None,
             "challenge": challenge,
+            "recommended": recommended,
+            "evidence": scan["evidence"] if scan else [],
+            "scanned_at": scan["ts"] if scan else None,
+            "disposition": disposition,
+            "last_audit": audits.get(r["id"]),
             "counts": counts,
             "controls": controls,
         })

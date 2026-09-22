@@ -790,7 +790,7 @@ footer {
       <button class="why-x" id="whyClose" type="button" aria-label="Close">&#215;</button>
     </header>
     <div id="whyBody"></div>
-    <div class="why-actions">
+    <div class="why-actions" id="whyActions">
       <button class="exec-btn" type="button" data-why-act="build">BUILD A FIX &#8594;</button>
       <button class="exec-btn" type="button" data-why-act="research">RESEARCH IT &#8594;</button>
       <span class="exec-msg" data-role="why-msg"></span>
@@ -1103,6 +1103,7 @@ footer {
         '(config queue_api) and the BUILD / RESEARCH actions light up.';
     var msg = document.querySelector('[data-role="why-msg"]');
     if (msg) msg.textContent = '';
+    $('whyActions').removeAttribute('hidden');
     $('whyVeil').removeAttribute('hidden');
     $('whyClose').focus();
   }
@@ -1136,6 +1137,55 @@ footer {
                                   : 'Build the fix for ') + whyItem.item_id,
       reason: String(whyItem.blocked_reason || whyItem.reason || ''),
     }, msgEl).then(function(){
+      setTimeout(function(){ b.dataset.busy = ''; b.disabled = false; }, 1500);
+    });
+  });
+
+  // ---- regime drill-in + dispatch (DEC-0030) ------------------------------
+  // WHY on a recommended regime reuses the why-dialog with the scan's
+  // evidence (item actions hidden -- this popup explains, the row's own
+  // buttons dispatch). ENABLE / DISABLE / REQUEST AUDIT enqueue directives
+  // through the EXECUTE port for the Warden to act on: the wall never flips
+  // a selection itself.
+  function regimeById(id){
+    var c = ov(D).compliance;
+    return ((c && c.regimes) || []).filter(function(r){ return r.id === id; })[0] || null;
+  }
+
+  document.addEventListener('click', function(e){
+    var w = e.target && e.target.closest ? e.target.closest('[data-regime-why]') : null;
+    if (!w) return;
+    var r = regimeById(w.getAttribute('data-regime-why'));
+    if (!r) return;
+    whyItem = null;
+    $('whyTitle').textContent = r.id + ' \u2014 why the scan recommends it';
+    $('whyBody').innerHTML = '<p>' + esc(r.name) + '</p>' +
+      ((r.evidence || []).length
+        ? r.evidence.map(function(ev){ return '<p class="why-reason">' + esc(ev) + '</p>'; }).join('')
+        : '<p class="why-reason">The scan\u2019s evidence list is empty \u2014 re-run <span class="cmd">wall compliance-scan</span>.</p>') +
+      (r.disposition === 'NOT RECOMMENDED FOR DISABLED'
+        ? '<p>This regime is disabled while the code shows the surfaces above \u2014 that is the Patron\u2019s call to keep, but it stays named here until the evidence or the selection changes.</p>'
+        : '');
+    $('whyNote').textContent = r.scanned_at ? 'Scan recorded ' + ago(r.scanned_at) + '.' : '';
+    $('whyActions').setAttribute('hidden', '');
+    $('whyVeil').removeAttribute('hidden');
+    $('whyClose').focus();
+  });
+
+  document.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('[data-regime-act]') : null;
+    if (!b || b.dataset.busy === '1') return;
+    var rid = b.getAttribute('data-regime-id');
+    var act = b.getAttribute('data-regime-act');
+    var bar = b.closest('.exec-bar');
+    var msgEl = bar ? bar.querySelector('[data-role="regime-msg"]') : null;
+    var payload = act === 'audit'
+      ? { directive: 'warden_audit', regime: rid,
+          title: 'Audit the ' + rid + ' compliance regime' }
+      : { directive: 'warden_regime', action: act, regime: rid,
+          title: (act === 'enable' ? 'Enable' : 'Disable') + ' the ' + rid + ' compliance regime' };
+    b.dataset.busy = '1'; b.disabled = true;
+    enqueue(payload, msgEl).then(function(){
       setTimeout(function(){ b.dataset.busy = ''; b.disabled = false; }, 1500);
     });
   });
@@ -1580,12 +1630,30 @@ footer {
   function complianceHtml(){
     var c = ov(D).compliance;
     if (!c) return '';
-    var h = '<h3>Compliance regimes — the Patron selects, the fold challenges, the audit attests (DEC-0028)</h3>';
+    var h = '<h3>Compliance regimes — the scan recommends, the Patron selects, the audit attests (DEC-0028/0030)</h3>';
     h += (c.regimes||[]).map(function(r){
       var sel = r.applicable === null ? '<span class="cmd">unanswered</span>' : (r.applicable ? 'APPLICABLE' : 'not applicable');
       var counts = r.counts.pass + '\u2705 ' + r.counts.fail + '\u274c ' + r.counts.waiver + '\u26a0 ' + r.counts.unattested + '\u25cb';
-      return '<div class="ask"><span class="age' + (r.challenge ? '' : ' calm') + '">' + esc(r.id) + '</span><div class="body">' +
-        '<p class="q">' + esc(r.name) + ' — ' + sel + ' \u00b7 ' + counts + ' \u00b7 <button data-regime="' + esc(r.id) + '">open audit</button></p>' +
+      // The disposition names the scan-vs-selection tension (DEC-0030);
+      // disabling a RECOMMENDED regime shows loud, with WHY carrying the
+      // scan's evidence verbatim.
+      var alarmed = r.disposition === 'NOT RECOMMENDED FOR DISABLED';
+      var disp = r.disposition
+        ? ' \u00b7 <span class="chip' + (alarmed ? ' chip--st-blocked' : '') + '">' + esc(r.disposition) + '</span>' +
+          (r.recommended ? ' <button class="why-x" type="button" data-regime-why="' + esc(r.id) + '">why?</button>' : '')
+        : '';
+      var audit = r.last_audit
+        ? ' \u00b7 audited ' + ago(r.last_audit.ts) + (r.last_audit.by ? ' by ' + esc(r.last_audit.by) : '')
+        : '';
+      var acts = '<span class="exec-bar" style="display:inline-flex;margin:0">' +
+        (r.applicable
+          ? '<button class="exec-btn" type="button" data-regime-act="disable" data-regime-id="' + esc(r.id) + '">DISABLE</button>' +
+            '<button class="exec-btn" type="button" data-regime-act="audit" data-regime-id="' + esc(r.id) + '">REQUEST AUDIT \u2192</button>'
+          : '<button class="exec-btn" type="button" data-regime-act="enable" data-regime-id="' + esc(r.id) + '">ENABLE \u2192</button>') +
+        '<span class="exec-msg" data-role="regime-msg"></span></span>';
+      return '<div class="ask"><span class="age' + (r.challenge || alarmed ? '' : ' calm') + '">' + esc(r.id) + '</span><div class="body">' +
+        '<p class="q">' + esc(r.name) + ' — ' + sel + disp + ' \u00b7 ' + counts + audit +
+        ' \u00b7 <button data-regime="' + esc(r.id) + '">open audit</button> ' + acts + '</p>' +
         '<span class="from">' + esc(r.doc) + (r.challenge ? ' \u00b7 <b>' + esc(r.challenge) + '</b>' : '') + '</span></div></div>';
     }).join('');
     var log = c.decision_log || [];

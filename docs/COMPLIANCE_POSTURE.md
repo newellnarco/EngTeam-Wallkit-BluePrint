@@ -69,3 +69,17 @@ trail after the fact; here it is the working state.
 - docs/EVENT_SCHEMA.md — the audit trail's contract
 - docs/PRODUCT_INTAKE.md — where regulation enters as requirements
 - docs/SESSION_LIFECYCLE.md §4 — the classes only the engineer may decide
+
+
+## The regime lifecycle (DEC-0030)
+
+The Warden's periodic `wall compliance-scan` records which regimes the code
+suggests, with evidence. The POSTURE tab folds scan against selection into a
+disposition — `active` / `active (scan found no surface)` /
+`recommended -- decide` / `inactive` / **`NOT RECOMMENDED FOR DISABLED`**
+(with a WHY popout carrying the evidence) — and its ENABLE / DISABLE /
+REQUEST AUDIT buttons dispatch `warden_regime` / `warden_audit` directives
+through the EXECUTE port for the Warden to act on. An audit is recorded with
+`wall audit <regime> --file results.json`: every control, `pass | fail |
+waiver`, each with its proof or reason; partial audits are refused by name.
+Full record: `docs/decisions/DEC-0030.md`.

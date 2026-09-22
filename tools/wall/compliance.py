@@ -154,3 +154,108 @@ def regime(regime_id: str):
 def control_ids(regime_id: str) -> tuple:
     r = regime(regime_id)
     return tuple(c[0] for c in r["controls"]) if r else ()
+
+
+# ------------------------------------------------------------ the repo scan
+# The Warden's periodic evidence pass (DEC-0030): does the CODE suggest a
+# regime applies?  Deterministic and dumb on purpose -- it greps tracked text
+# for the regime's keywords plus a few code-shaped signals, and reports WHERE
+# it matched, so a recommendation always arrives with its evidence and a
+# human (or the Warden) argues with the evidence, not with a score.  It never
+# flips a selection: the fold turns scan + selection into a disposition and
+# the decision stays the Patron's.
+
+#: Code-shaped signals per regime, beyond the ruling keywords: dependency and
+#: identifier fragments that show up when the DATA shows up.
+SCAN_SIGNALS = {
+    "soc2": ("audit log", "access control", "customer data"),
+    "hipaa": ("patient", "medical record", "diagnosis", "fhir", "hl7",
+              "icd-10", "icd10"),
+    "pci": ("stripe", "braintree", "cardholder", "card number", "payment"),
+    "privacy": ("personal data", "biometric", "face recognition",
+                "speaker id", "voiceprint", "user profile", "email address",
+                "consent"),
+    "government": ("fedramp", "cjis", "itar", "export control"),
+    "sector": ("financial reporting", "student record", "education record",
+               "safeguards rule"),
+}
+
+#: Paths whose mention of a regime is ABOUT compliance rather than evidence
+#: of the data: the vendored kit, the ledger, and the compliance documents
+#: themselves.  Without this, every adopting repo would "need" every regime
+#: because the blueprints name them all.
+SCAN_SKIP_PREFIXES = ("tools/wall/", ".wall/", ".claude/", "docs/compliance/",
+                      "docs/decisions/")
+SCAN_SKIP_NAME_PARTS = ("compliance", "data_protection")
+
+_SCAN_MAX_BYTES = 512 * 1024
+_EVIDENCE_CAP = 5
+
+
+def _tracked_files(root):
+    """git ls-files when the repo has git, a bounded walk when it does not."""
+    import subprocess
+    from pathlib import Path
+    root = Path(root)
+    try:
+        out = subprocess.run(["git", "ls-files"], cwd=str(root),
+                             capture_output=True, text=True, timeout=30)
+        if out.returncode == 0:
+            return [p for p in out.stdout.splitlines() if p.strip()]
+    except (OSError, subprocess.SubprocessError):
+        pass
+    skip_dirs = {".git", "node_modules", ".venv", "__pycache__", "dist"}
+    found = []
+    for p in root.rglob("*"):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(root).as_posix()
+        if any(part in skip_dirs for part in p.parts):
+            continue
+        found.append(rel)
+    return found
+
+
+def scan_repo(root) -> dict:
+    """Evidence per regime id: a list of 'path -- matched <signal>' strings,
+    empty when nothing in the tree suggests the regime.  A regime with any
+    evidence is RECOMMENDED; the caller records both, verbatim.
+
+    Signals match on WORD BOUNDARIES: 'pan' must not fire inside 'expand'
+    nor 'ear' inside 'research' — a recommendation built on substring noise
+    teaches people to ignore the Warden."""
+    import re
+    from pathlib import Path
+    root = Path(root)
+    patterns = {}
+    for r in REGIMES:
+        rid = r["id"]
+        words = tuple(dict.fromkeys(tuple(r["keywords"]) +
+                                    SCAN_SIGNALS.get(rid, ())))
+        patterns[rid] = [
+            (w, re.compile(r"(?<![a-z0-9])" +
+                           re.escape(w).replace(r"\ ", r"[\s_-]+") +
+                           r"(?![a-z0-9])"))
+            for w in words]
+    evidence = {rid: [] for rid in patterns}
+    for rel in _tracked_files(root):
+        low = rel.lower()
+        if any(low.startswith(p) for p in SCAN_SKIP_PREFIXES):
+            continue
+        if any(part in low for part in SCAN_SKIP_NAME_PARTS):
+            continue
+        path = root / rel
+        try:
+            if path.stat().st_size > _SCAN_MAX_BYTES:
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace").lower()
+        except OSError:
+            continue
+        for rid, pats in patterns.items():
+            if len(evidence[rid]) >= _EVIDENCE_CAP:
+                continue
+            for w, pat in pats:
+                if pat.search(text):
+                    evidence[rid].append(f"{rel} -- matched {w!r}")
+                    break
+    return evidence
