@@ -623,6 +623,8 @@ footer {
   .app-shell { padding-bottom: var(--space-6); }
   .repo { font-size: var(--text-lg); }
 }
+  .docsrc{white-space:pre-wrap;overflow:auto;max-height:52vh;background:var(--surface-sunken);border:1px solid var(--line);border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);font-size:var(--text-base);line-height:var(--leading-body);margin:var(--space-3) 0}
+  .doc-reason{width:100%;box-sizing:border-box;background:var(--surface-sunken);color:var(--text-primary);border:1px solid var(--line);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3);font:inherit;font-size:var(--text-base);margin:var(--space-3) 0 var(--space-2)}
 </style>
 </head>
 <body>
@@ -1635,6 +1637,79 @@ footer {
     openModal(h);
   }
 
+  // ---- DOCS reader + review (DEC-0032) -----------------------------------
+  // Click a registry row: the modal shows the document text (fetched from
+  // docs.json, courier-written and allowlist-served) with APPROVE /
+  // REQUEST CHANGES / DENY. Every action only ENQUEUES a doc_review
+  // directive; the consumer records `wall ack-doc` (approve) or
+  // `--feedback` (changes/deny). Honest degrade: no fetch (file://) or no
+  // queue port reads as a note naming the CLI, never dead buttons.
+  function docRowByPath(path){
+    var x = ov(D).docs;
+    return ((x && x.registry) || []).filter(function(r){ return r.path === path; })[0] || null;
+  }
+
+  function docReviewBar(r){
+    if (!D.queue_api){
+      return '<p class="q"><span class="cmd">review actions need the host queue (config queue_api) — CLI: wall ack-doc ' + esc(r.path) + ' [--feedback "..."]</span></p>';
+    }
+    return '<div class="exec-bar" data-doc-path="' + esc(r.path) + '" data-doc-sha="' + esc(r.sha||'') + '">' +
+      '<textarea class="doc-reason" data-role="doc-reason" rows="2" placeholder="reason — required for REQUEST CHANGES and DENY, recorded verbatim"></textarea>' +
+      '<div><button class="exec-btn" data-doc-act="approve">APPROVE</button> ' +
+      '<button class="exec-btn" data-doc-act="changes">REQUEST CHANGES</button> ' +
+      '<button class="exec-btn" data-doc-act="deny">DENY</button> ' +
+      '<span class="cmd" data-role="doc-msg"></span></div>' +
+      '<p class="q"><span class="cmd">approve records an ack at sha ' + esc(r.sha||'?') + '; changes/deny record feedback routed to the Architect — all through the queue</span></p></div>';
+  }
+
+  function openDoc(path){
+    var r = docRowByPath(path);
+    if (!r) return;
+    var head = '<h2><span class="cmd">' + esc(r.path) + '</span><span class="sub" style="display:block">' + esc(DOC_STATE_LABEL[r.state]||r.state) + (r.sha ? ' \u00b7 sha ' + esc(r.sha) : '') + '</span></h2>';
+    openModal(head + '<div class="empty">loading document\u2026</div>' + docReviewBar(r));
+    fetch('docs.json', { cache: 'no-store' })
+      .then(function(resp){ if (!resp.ok) throw new Error('HTTP ' + resp.status); return resp.json(); })
+      .then(function(payload){
+        var d = ((payload && payload.docs) || []).filter(function(x){ return x.path === path; })[0];
+        var body;
+        if (!d) body = '<div class="empty">not in docs.json \u2014 re-run the courier</div>';
+        else if (d.content === null) body = '<div class="empty">' + esc(d.note || 'unreadable') + '</div>';
+        else body = '<pre class="docsrc">' + esc(d.content) + '</pre>' +
+          (d.truncated ? '<p class="q"><span class="cmd">truncated at the cap \u2014 the file on disk is the full record</span></p>' : '');
+        if (d && r.sha && d.sha && d.sha !== r.sha)
+          body = '<p class="q"><span class="cmd">note: the file changed since this snapshot (sha ' + esc(d.sha) + ' now) \u2014 re-run the courier before approving</span></p>' + body;
+        $('modalBody').innerHTML = head + body + docReviewBar(r);
+      })
+      .catch(function(){
+        $('modalBody').innerHTML = head +
+          '<div class="empty">the document body could not be fetched \u2014 serve the wall (<span class="cmd">wall serve</span>) to read in place, or open <span class="cmd">' + esc(r.path) + '</span> from the repo. CLI review: <span class="cmd">wall ack-doc ' + esc(r.path) + ' [--feedback "..."]</span></div>' +
+          docReviewBar(r);
+      });
+  }
+
+  document.addEventListener('click', function(e){
+    var d = e.target && e.target.closest ? e.target.closest('[data-doc]') : null;
+    if (d){ openDoc(d.getAttribute('data-doc')); return; }
+    var b = e.target && e.target.closest ? e.target.closest('[data-doc-act]') : null;
+    if (!b || b.dataset.busy === '1') return;
+    var bar = b.closest('[data-doc-path]');
+    if (!bar) return;
+    var act = b.getAttribute('data-doc-act');
+    var msgEl = bar.querySelector('[data-role="doc-msg"]');
+    var reason = (bar.querySelector('[data-role="doc-reason"]') || {value:''}).value.trim();
+    if (act !== 'approve' && !reason){
+      if (msgEl) msgEl.textContent = 'a reason is required for ' + (act === 'deny' ? 'DENY' : 'REQUEST CHANGES');
+      return;
+    }
+    var path = bar.getAttribute('data-doc-path');
+    var verb = act === 'approve' ? 'Approve' : act === 'deny' ? 'Deny' : 'Request changes on';
+    b.dataset.busy = '1'; b.disabled = true;
+    enqueue({ directive: 'doc_review', action: act, path: path,
+              sha: bar.getAttribute('data-doc-sha') || null, reason: reason || null,
+              title: verb + ' document ' + path }, msgEl)
+      .then(function(){ setTimeout(function(){ b.dataset.busy = ''; b.disabled = false; }, 1500); });
+  });
+
   function paintPosture(){
     var p = ov(D).posture;
     if (!p || !p.total_rulings){
@@ -1712,11 +1787,12 @@ footer {
       return;
     }
     var h = '<h3>Documents of record' + (x.needs_review ? ' — <span class="cmd">' + x.needs_review + ' need(s) review</span>' : ' — all reviewed at their current sha') + '</h3>';
+    h += '<p class="q"><span class="cmd">click a document to read it here and approve, request changes, or deny — actions enqueue for the crew; the wall never mutates state (DEC-0030/0032)</span></p>';
     h += (x.registry||[]).map(function(r){
       var calm = r.state === 'current';
       var rev = r.feedback ? ('feedback from ' + (r.feedback.by||'?') + ': “' + (r.feedback.text||'') + '” — address it, then re-ack') :
         r.review ? ('reviewed by ' + (r.review.by||'?') + (r.review.ts ? ' · ' + ago(r.review.ts) : '')) : 'sign off with `wall ack-doc <path>`, or object with `--feedback "..."`';
-      return '<div class="ask"><span class="age' + (calm ? ' calm' : '') + '">' + esc(r.state === 'current' ? 'ok' : r.state === 'missing' ? 'gone' : r.state === 'feedback-open' ? 'talk' : 'review') + '</span><div class="body"><p class="q"><span class="cmd">' + esc(r.path) + '</span> — ' + esc(DOC_STATE_LABEL[r.state]||r.state) + (r.sha ? ' <span class="cmd">' + esc(r.sha) + '</span>' : '') + '</p><span class="from">' + esc(rev) + '</span></div></div>';
+      return '<div class="ask"><span class="age' + (calm ? ' calm' : '') + '">' + esc(r.state === 'current' ? 'ok' : r.state === 'missing' ? 'gone' : r.state === 'feedback-open' ? 'talk' : 'review') + '</span><div class="body"><p class="q"><button data-doc="' + esc(r.path) + '" title="read and review">' + esc(r.path) + '</button> — ' + esc(DOC_STATE_LABEL[r.state]||r.state) + (r.sha ? ' <span class="cmd">' + esc(r.sha) + '</span>' : '') + '</p><span class="from">' + esc(rev) + '</span></div></div>';
     }).join('');
     var dec = x.decisions || {};
     h += '<h3>Decision log — ' + (dec.count||0) + ' ruling(s)' + (dec.problems ? ' · <span class="cmd">' + dec.problems + ' parse problem(s)</span>' : '') + '</h3>';

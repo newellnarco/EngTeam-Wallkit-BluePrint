@@ -23,7 +23,7 @@ event simply sees the honest empty state.
 | **WAITING** | The human queue — asks and unverified ships parked on a person | `human_required` / `verify_requested` |
 | **RETRO** | Are the roles learning? Latest retrospective in full; every signal's trend across waves; diffs landed and last wave's re-measured verdicts | `retro_held` (EVENT_SCHEMA "Oversight") |
 | **POSTURE** | The security picture: the Warden's latest ruling per subject at each gate, verdict tally, anything blocked or refused — plus the **compliance section** (DEC-0028): every regime (SOC 2, HIPAA/PHI, PCI, PII/privacy, government, sector, NIST, FDA) with its blueprint link, the Patron's applicability selection and its decision log, both-direction challenges, and an **interactive self-attestation popout** per regime — pass / fail / waiver-with-reason per control, the waiver never silent | `warden_ruling` + `compliance_selected` / `compliance_attested` + `tools/wall/compliance.py` |
-| **DOCS** | Is every SOP and standard reviewed at its current sha? The documents-of-record registry with per-file state (current / changed-since-review / never-reviewed / feedback-open / missing) plus the decision log | `doc_reviewed` / `doc_feedback` + file hashes + `decisions.index` |
+| **DOCS** | Is every SOP and standard reviewed at its current sha? The documents-of-record registry with per-file state (current / changed-since-review / never-reviewed / feedback-open / missing) plus the decision log — each row opens a **read-in-place popup** (served `docs.json`, DEC-0032) with APPROVE / REQUEST CHANGES / DENY that enqueue a `doc_review` directive for the crew | `doc_reviewed` / `doc_feedback` + file hashes + `decisions.index` + `derived/docs.json` |
 | **FLOW** | The Foreman/Maestro instrument (DEC-0027/0028): velocity, estimate-vs-actual sizing points, bugs filed, and burndown (open at close) per iteration — each iteration row opens a **drill-in popout**: cost (summed `cost_usd`), agents by role, duration, what was delivered, and what was worked but NOT delivered | The existing `item_created` / `item_state` (§8 estimate+actual) / `item_shipped` / `run_end` stream, segmented by `retro_held` |
 
 RETRO / POSTURE / DOCS are the **oversight** family (DEC-0026), folded by
@@ -51,6 +51,17 @@ RETRO / POSTURE / DOCS are the **oversight** family (DEC-0026), folded by
    the normal route. Signed documents are the engteam's **context markers**
    (adopt skill, DEC-0027): designs cite them, and every new version voids
    the previous sign-off so each version earns its own review.
+3b2. **The wall can render the verdict too (DEC-0032).** Every DOCS row is
+   clickable: the popup shows the document's text (from the courier-written
+   `derived/docs.json`, served under the same exact-name allowlist), notes
+   truncation and any sha drift since the snapshot, and offers APPROVE /
+   REQUEST CHANGES / DENY with a reason box. The buttons only ENQUEUE — a
+   typed `doc_review` directive carrying `action`, `path`, the `sha` as
+   read and the reason (required unless approving) lands on the host queue
+   (MCP_INTEGRATION.md), and the consumer runs the same `wall ack-doc`
+   mechanics as steps 3/3b, filing changes/deny as a fix item. The wall
+   itself still never mutates state (DEC-0030); with no queue configured
+   the popup says so and names the CLI.
 3c. **The registry is fed by adoption**: the `/adopt` context hunt maps the
    host's many documents onto the working functions (requirements, design,
    technology, data, integration, environments, security, testing, SOPs,

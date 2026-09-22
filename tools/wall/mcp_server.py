@@ -171,6 +171,13 @@ def tool_wall_enqueue(repo: Path, args: dict) -> str:
         title=str(args.get("title") or ""),
         target_key=args.get("target_key"),
         target_arch=args.get("target_arch"),
+        action=args.get("action"),
+        path=args.get("path"),
+        sha=args.get("sha"),
+        reason=args.get("reason"),
+        regime=args.get("regime"),
+        mode=args.get("mode"),
+        item_id=args.get("item_id"),
     )
     body = json.dumps(payload.to_dict()).encode()
     request = urllib.request.Request(
@@ -243,6 +250,21 @@ TOOLS: dict[str, dict] = {
             "title": {"type": "string"},
             "target_key": {"type": "string"},
             "target_arch": {"type": "string"},
+            "action": {"type": "string",
+                       "description": ("warden_regime: enable|disable; "
+                                       "doc_review: approve|changes|deny")},
+            "path": {"type": "string",
+                     "description": "doc_review: the document of record"},
+            "sha": {"type": "string",
+                    "description": "doc_review: the sha the reviewer read"},
+            "reason": {"type": "string",
+                       "description": ("recorded verbatim; required for "
+                                       "resolve_blocked and for doc_review "
+                                       "changes/deny")},
+            "regime": {"type": "string"},
+            "mode": {"type": "string",
+                     "description": "resolve_blocked: build|research"},
+            "item_id": {"type": "string"},
         }, "required": ["directive", "title"]},
     },
 }

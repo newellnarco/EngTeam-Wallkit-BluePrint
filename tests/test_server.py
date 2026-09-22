@@ -41,6 +41,7 @@ def repo(tmp_path: Path) -> Path:
     (derived / "heartbeat.json").write_text('{"last_run": "2026-09-19T12:00:00Z"}',
                                             encoding="utf-8")
     (derived / "ledger.jsonl").write_text('{"event_id":"e1"}\n', encoding="utf-8")
+    (derived / "docs.json").write_text('{"docs": []}', encoding="utf-8")
     (derived / "secrets.json").write_text('{"token": "hunter2"}', encoding="utf-8")
     return tmp_path
 
@@ -98,7 +99,7 @@ def test_root_serves_the_wall_page(live):
     assert status == 200 and b"the wall" in body
 
 
-def test_all_four_allowlisted_files_are_reachable(live):
+def test_every_allowlisted_file_is_reachable(live):
     for name in sorted(server.ALLOWLIST):
         status, _, _ = get(live[1], "/" + name)
         assert status == 200, "%s should be served" % name
@@ -107,7 +108,7 @@ def test_all_four_allowlisted_files_are_reachable(live):
 # ----------------------------------------------------------------- no-store
 
 @pytest.mark.parametrize("path", ["/wall.json", "/wall.html", "/heartbeat.json",
-                                  "/ledger.jsonl"])
+                                  "/ledger.jsonl", "/docs.json"])
 def test_polled_files_are_never_cacheable(live, path):
     _, headers, _ = get(live[1], path)
     assert "no-store" in headers["Cache-Control"], \
