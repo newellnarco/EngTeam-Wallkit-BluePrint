@@ -651,3 +651,46 @@ def test_the_bump_workflow_runs_with_pipefail():
     bump = (KIT / ".github/workflows/scanner-bump.yml").read_text(encoding="utf-8")
     assert re.search(r"^defaults:\n  run:\n    shell: bash$", bump, re.M), \
         "without shell: bash, a failed lookup piped through tee passes"
+
+
+# ------------------------------------------------------------ the library
+
+TEMPLATE_FP = KIT / "templates" / "FAILURE_PATTERNS.md.template"
+
+
+def test_the_library_renders_and_its_rules_are_proven_by_the_scan_lane(tmp_path):
+    """Adopting repositories get the templates' rule blocks as live rules the
+    moment bootstrap copies them; `library-check` renders them for the scan
+    lane's `ast-grep test`. Here: they render, and each has its test file."""
+    assert quality.main(["library-check", str(tmp_path)]) == 0
+    rules = sorted(p.stem for p in (tmp_path / "rules").glob("*.yml"))
+    tests = sorted(p.stem[:-len("-test")] for p in (tmp_path / "rule-tests").glob("*.yml"))
+    assert rules and rules == tests
+    assert (tmp_path / "sgconfig.yml").is_file()
+    scan = (KIT / "tools/quality/scan.sh").read_text(encoding="utf-8")
+    assert "$q library-check" in scan
+
+
+def test_every_class_the_kit_paid_for_is_in_the_library_it_ships():
+    """A class that happened HERE is the strongest evidence an adopter has; the
+    library that bootstrap copies must carry every one of them, under the same
+    id, as an inherited class (DEC-0033)."""
+    own = re.findall(r"^## (F-[A-Z0-9-]+) - ", (KIT / "FAILURE_PATTERNS.md")
+                     .read_text(encoding="utf-8"), re.M)
+    library = set(re.findall(r"^### (F-[A-Z0-9-]+) - ", TEMPLATE_FP.read_text(encoding="utf-8"), re.M))
+    assert own, "the kit's registry lost its entries"
+    missing = [c for c in own if c not in library]
+    assert not missing, "classes paid for here but absent from the shipped library: %s" % missing
+
+
+def test_library_entries_carry_their_obligations():
+    body = TEMPLATE_FP.read_text(encoding="utf-8").split("## Inherited classes", 1)[1]
+    blocks = re.split(r"(?m)^### ", body)[1:]
+    assert len(blocks) >= 100, "the library shrank below the genericized corpus"
+    ids = [b.split(" - ", 1)[0] for b in blocks]
+    assert len(ids) == len(set(ids)), "an id is used twice in the library"
+    for b in blocks:
+        cid = b.split(" - ", 1)[0]
+        for field in ("**Discovered:**", "**Symptom:**", "**Root cause:**", "**Check:**",
+                      "> class-guard:", "VARIANT:"):
+            assert field in b, "%s lacks %s" % (cid, field)
