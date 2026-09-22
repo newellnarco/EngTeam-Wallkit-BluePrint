@@ -43,9 +43,10 @@ guesses jurisdiction:
 |---|---|---|
 | **PII** | GDPR, CCPA/CPRA, national privacy acts | Lawful basis, minimization, subject rights, breach clocks, cross-border transfer rules |
 | **PHI** | HIPAA (+ state health law) | BAAs with every processor — a hosted LLM included; minimum necessary; audit trails |
+| **Medical-device / FDA-regulated** | QMSR (21 CFR 820), IEC 62304, FD&C §524B, 21 CFR Part 11 | Design controls and lifecycle by safety class; SBOM + vulnerability duties; trustworthy records where they support an approved application; change control with submissions decided in writing |
 | **PCI** | PCI-DSS | Scope containment, tokenization over storage, segmentation, no PAN in logs or fixtures ever |
 | **Government / law-enforcement reach** | Patriot Act / CLOUD Act exposure, CJIS, FedRAMP, ITAR/EAR | Residency and provider constraints; a cloud region choice IS a compliance decision; some data cannot ride commercial clouds at all |
-| **Regulated-industry** | SOX, GLBA, FERPA, sector rules the intake names | Change-control evidence, retention schedules, access separation |
+| **Regulated-industry** | SOX, GLBA, FERPA, NIST-bound contracts (CSF 2.0, SP 800-171 for CUI, SSDF attestation), sector rules the intake names | Change-control evidence, retention schedules, access separation; CUI segregated where a federal contract reaches |
 | **Contract-bound** | NDAs, DPAs, customer terms | Whatever the paper says — read it, cite it |
 
 One datum can carry several classes; the strictest obligation wins. Residency

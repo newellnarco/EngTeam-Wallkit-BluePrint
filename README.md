@@ -138,7 +138,7 @@ The four oversight tabs (`WALL_DASHBOARDS.md`, DEC-0026/0027/0028):
 | | |
 |---|---|
 | ![The RETRO tab — retrospective trends, landed diffs, pending Patron inputs](docs/screenshots/wall-retro.png) | ![The POSTURE tab — Warden rulings by gate plus the compliance regimes with their challenges](docs/screenshots/wall-posture.png) |
-| **RETRO** — signal trends across waves, diffs landed + re-measured, and pending `wall retro-note` inputs the next retro must address | **POSTURE** — the Warden's latest ruling per subject; blocked/refused front and center; the **compliance regimes** (SOC 2 · HIPAA/PHI · PCI · PII/privacy · government · sector) with the Patron's selections, both-direction challenges and the selection decision log |
+| **RETRO** — signal trends across waves, diffs landed + re-measured, and pending `wall retro-note` inputs the next retro must address | **POSTURE** — the Warden's latest ruling per subject; blocked/refused front and center; the **compliance regimes** (SOC 2 · HIPAA/PHI · PCI · PII/privacy · government · sector · NIST · FDA) with the Patron's selections, both-direction challenges and the selection decision log |
 | ![The DOCS tab — documents of record with review states and the decision log](docs/screenshots/wall-docs.png) | ![The FLOW tab — velocity, sizing, bugs and burndown per iteration](docs/screenshots/wall-flow.png) |
 | **DOCS** — every SOP/standard at its sha: current / CHANGED / never-reviewed / feedback-open / missing; sign off with `wall ack-doc`, object with `--feedback` | **FLOW** — per-iteration shipped, estimate-vs-actual points, bugs filed, open-at-close burndown; each row opens the drill-in |
 | ![The compliance self-attestation popout — controls with pass/fail/waiver and their attest verbs](docs/screenshots/wall-audit.png) | ![The iteration drill-in popout — cost, agents, duration, delivered vs not delivered](docs/screenshots/wall-iteration.png) |
@@ -624,7 +624,7 @@ authority on which commands are in that state today.
 | `UX_STANDARDS.md` | Usability as a requirement axis: interaction budgets, named trajectories, the four ditch prohibitions, user docs move with code |
 | `DATA_PROTECTION.md` | The Warden's data charter: exposure map, regime table, rest/motion/in-use, six lifecycle checkpoints, ways forward over full stops |
 | `WALL_DASHBOARDS.md` | The wall's tab charter: the nine tabs, the oversight folds (RETRO / POSTURE / DOCS / FLOW), the sha-carrying review + feedback loop, the DESIGN slice-2 contract |
-| `compliance/` (six blueprints) | SOC 2 · HIPAA/PHI · PCI DSS v4.0.1 · PII/privacy · government reach · sector rules — source-cited, self-attestation checklists synced to `tools/wall/compliance.py` by a pin |
+| `compliance/` (eight blueprints) | SOC 2 · HIPAA/PHI · PCI DSS v4.0.1 · PII/privacy · government reach · sector rules · NIST (CSF 2.0, 800-171, SSDF) · FDA-regulated software (QMSR, 524B, Part 11) — source-cited, self-attestation checklists synced to `tools/wall/compliance.py` by a pin |
 | `LOGGING_AND_AUDIT.md` | Three planes, per-run artifacts, trace commands |
 | `FAST_TRACK.md` | Doc-only routing (generator sources are code), and the CI meter economics that go with it |
 | `MCP_INTEGRATION.md` | The wall as an MCP server: one integration point for every editor and agent, role-gated |

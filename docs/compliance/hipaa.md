@@ -39,6 +39,11 @@ compensating control with its rationale (the 2013 rule's "addressable"
 mechanism) — the NPRM would remove that flexibility, so every waiver
 carries a lifting plan.
 
+**Device software is its own regime.** Software that is or serves a
+medical device — SaMD/SiMD, or records supporting an approved
+application — takes `fda.md` beside this one; HIPAA covers the PHI, not
+the device duties.
+
 Sources: [HIPAA Security Rule update status](https://www.hipaajournal.com/hipaa-updates-hipaa-changes/),
 [Proposed Security Rule overhaul (Alston & Bird)](https://www.alston.com/en/insights/publications/2025/11/hipaa-security-rule-overhaul),
 [Update delayed until 2027 (Clark Hill)](https://www.clarkhill.com/news-events/news/hipaa-security-rule-update-delayed-until-2027/)

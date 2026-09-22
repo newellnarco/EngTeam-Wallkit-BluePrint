@@ -46,7 +46,8 @@ def test_every_regime_has_its_blueprint_with_every_control_id():
 
 def test_registry_shape_and_the_named_regimes():
     assert set(compliance.REGIME_IDS) == {
-        "soc2", "hipaa", "pci", "privacy", "government", "sector"}
+        "soc2", "hipaa", "pci", "privacy", "government", "sector",
+        "nist", "fda"}
     assert compliance.ATTEST_STATUSES == ("pass", "fail", "waiver")
     # PCI carries exactly the 12 requirements of v4.0.1
     assert compliance.control_ids("pci") == tuple(

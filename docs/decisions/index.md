@@ -38,6 +38,7 @@ Format and front-matter contract: `docs/WALL_STANDARDS.md` section 6.
 | [DEC-0028](DEC-0028.md) | active | The compliance register: blueprints, Patron selection, challenged both ways, attested control by control | compliance | 2026-09-21 |
 | [DEC-0029](DEC-0029.md) | active | The sibling fold-in: MAX3/REEF/MRC method graduates into the kit, agnostically | process | 2026-09-22 |
 | [DEC-0030](DEC-0030.md) | active | Regime lifecycle: scan recommends, Patron decides, Warden audits — on the ledger | compliance | 2026-09-22 |
+| [DEC-0031](DEC-0031.md) | active | Two regimes join the register: NIST, and FDA-regulated software | compliance | 2026-09-22 |
 
 ---
 

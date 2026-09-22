@@ -7,12 +7,15 @@ The human blueprints live in ``docs/compliance/<id>.md``; a pin test keeps
 every control id here present in its document, so the page's popout and the
 prose can never disagree about what is being attested.
 
-Grounded against the current authorities (2026-09, DEC-0028): PCI DSS
-v4.0.1 (fully mandatory since 2025-03-31), the HIPAA Security Rule in force
-(2013) with the 2025 NPRM noted as pending (~2027), SOC 2 = 2017 Trust
-Services Criteria with 2022 Revised Points of Focus, GDPR + CCPA/CPRA with
-the 2026 California regulations, FedRAMP Rev5/20x, CJIS v6.x on NIST
-800-53. Translation, not reproduction: the checklists are the kit's
+Grounded against the current authorities (2026-09, DEC-0028; NIST + FDA
+added under DEC-0031): PCI DSS v4.0.1 (fully mandatory since 2025-03-31),
+the HIPAA Security Rule in force (2013) with the 2025 NPRM noted as
+pending (~2027), SOC 2 = 2017 Trust Services Criteria with 2022 Revised
+Points of Focus, GDPR + CCPA/CPRA with the 2026 California regulations,
+FedRAMP Rev5/20x, CJIS v6.x on NIST 800-53, NIST CSF 2.0 + SP 800-171 r3
++ SSDF 800-218, and the FDA stack for regulated software (QMSR in force
+2026-02, IEC 62304, FD&C 524B, 21 CFR Part 11, the AI/ML PCCP guidance).
+Translation, not reproduction: the checklists are the kit's
 self-attestation framing of public structures, and the documents cite the
 sources.
 
@@ -137,6 +140,48 @@ REGIMES = (
             ("SOX", "SOX ICFR: change control and access evidence over systems feeding financial reports"),
             ("GLB", "GLBA Safeguards Rule: written infosec program, risk assessment, MFA, encryption, vendor oversight"),
             ("FER", "FERPA: education records identified, disclosures consent-gated, directory-info opt-outs honored"),
+        ),
+    },
+    {
+        "id": "nist",
+        "name": "NIST (CSF 2.0, SP 800-171 r3, SSDF 800-218)",
+        "doc": "docs/compliance/nist.md",
+        "applies_when": "a contract, customer or program requires NIST "
+                        "alignment: CSF 2.0 as the named framework, 800-171 "
+                        "for CUI in a federal supply chain, SSDF attestation "
+                        "for software sold to the US government",
+        "keywords": ("nist", "csf", "800-53", "800-171", "800-218", "ssdf",
+                     "cui", "cybersecurity framework", "sprs"),
+        "controls": (
+            ("GV", "CSF Govern: risk strategy, roles, policy, oversight and supply-chain risk management established and owned"),
+            ("ID", "CSF Identify: assets, risks and improvement opportunities inventoried and assessed"),
+            ("PR", "CSF Protect: identity and access, awareness, data security, platform security, resilience"),
+            ("DE", "CSF Detect: continuous monitoring and adverse-event analysis in place"),
+            ("RS", "CSF Respond: incident management, analysis, reporting and mitigation exercised"),
+            ("RC", "CSF Recover: recovery execution and communications planned and tested"),
+            ("CUI", "SP 800-171 r3 (conditional): CUI identified, controls mapped, the self-assessment score current and true"),
+            ("SSD", "SSDF SP 800-218: secure-development practices mapped for the software produced; attestation ready where a buyer requires it"),
+        ),
+    },
+    {
+        "id": "fda",
+        "name": "FDA-regulated software (SaMD/SiMD, QMSR, 524B, Part 11)",
+        "doc": "docs/compliance/fda.md",
+        "applies_when": "the software is a medical device (SaMD), is embedded "
+                        "in or controls one (SiMD), or produces records "
+                        "supporting an FDA-approved application (drug, "
+                        "biologic, device)",
+        "keywords": ("fda", "samd", "simd", "medical device", "510(k)", "pma",
+                     "de novo", "qmsr", "62304", "part 11", "sbom", "524b",
+                     "pccp"),
+        "controls": (
+            ("QMS", "QMSR quality system with design controls established (ISO 13485-aligned, in force 2026-02)"),
+            ("LC", "IEC 62304 lifecycle: software safety class assigned; development and maintenance planned to it"),
+            ("PMK", "Premarket pathway identified (510(k) / De Novo / PMA) with software documentation at the level the 2023 guidance sets"),
+            ("CYB", "524B cyber-device duties: SBOM maintained, vulnerabilities monitored and disclosed, updates deliverable"),
+            ("P11", "Part 11: electronic records and signatures trustworthy wherever records support a regulated submission"),
+            ("PMS", "Postmarket: complaint handling, Part 803 adverse-event reporting, corrections and removals ready"),
+            ("CHG", "Change control: whether a modification needs a new submission is decided in writing; AI/ML-enabled change rides a PCCP"),
         ),
     },
 )
