@@ -332,3 +332,14 @@ def test_why_actions_ride_the_queue_gate(template_text: str) -> None:
 def test_missing_reason_is_reported_not_invented(template_text: str) -> None:
     assert "No reason recorded and no open question" in template_text
     assert "wall trace" in template_text
+
+
+def test_file_mode_catches_up_when_the_tab_is_looked_at(template_text: str) -> None:
+    """A reload tick that lands while the tab is hidden is remembered and
+    fires on the next visibilitychange -- not on every focus (CodeRabbit on
+    the reference deployment's #1673: the interval-only check left a hidden
+    tab stale after return, contradicting the branch's own comment)."""
+    assert "missedReload" in template_text
+    i = template_text.index("missedReload = false")
+    block = template_text[i:i + 600]
+    assert "visibilitychange" in block and "missedReload) location.reload()" in block

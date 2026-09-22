@@ -891,10 +891,17 @@ footer {
       if (!document.hidden) live();
     });
   } else {
+    // Same courtesy as the poll, made true both ways: a tick that lands
+    // while the tab is hidden is REMEMBERED, and the reload fires when the
+    // viewer next looks -- not on every focus (a fresh page needs none).
+    var missedReload = false;
     setInterval(function () {
-      // Same courtesy as the poll: a hidden tab reloads when next looked at.
-      if (!document.hidden) location.reload();
+      if (document.hidden) { missedReload = true; return; }
+      location.reload();
     }, FILE_RELOAD_MS);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && missedReload) location.reload();
+    });
   }
 
   // ---- status vocabulary --------------------------------------------------
