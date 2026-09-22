@@ -35,13 +35,36 @@ fixed):
 }
 ```
 
-**Deny beats allow, always.** Three entries are worth defending:
+**Deny beats allow, always.** Four entries are worth defending:
 
 - `.github/workflows/**` - a builder editing CI to turn its own tests green is
   the classic escape hatch. It is code.
 - `**/CLAUDE.md` - it matches `**/*.md`, so the allow glob would fast-track it,
   but it changes the behavior of every future agent. It is code.
 - `tools/**` - wall tooling can corrupt the ledger. Not a doc.
+- **Every document a generator or prompt-builder consumes** - a standards
+  file compiled into a reviewer prompt, a failure registry that seeds
+  instruction files, anything a build step reads. An edit there changes a
+  generated artifact and can fail the build (a sibling deployment's prompt
+  build refused at 862 characters over its ceiling on a "docs-only" edit),
+  so it takes the full gate. By construction, every generator-source row in
+  the budget register (`BUDGETED_DOCS`) is on this deny list - the two files
+  cross-reference.
+
+Three refinements the sibling deployments paid for:
+
+- **The route is a property of the BRANCH, never of the newest commit.**
+  Classify from the pull request's whole diff against its base; a code file
+  pushed earlier does not become invisible because the latest commit is
+  prose.
+- **Classify by what a file IS, not what it looks like.** Generated markdown
+  a builder writes - a catalog, an index, a glossary queue - is build output,
+  not documentation, and takes the content's checks, not the doc lane's.
+- **Print the decision, and a red lane expands.** The chosen route and
+  everything skipped are printed with reasons on every path, and any red on
+  the cheap lane expands to the full gate and prints that it did. A lane is
+  proven the way the full gate is: offer the lane's checks every relevant
+  mutation.
 
 Mixed changesets **split** rather than get an exception, which is what a good
 push routine already tells you to do by hand. `wall fast-track` offers the
@@ -145,6 +168,26 @@ decision about *what* to run:
 And the free lane is the point of all of it: **the local gate costs nothing and
 runs offline, so a hosted reviewer finding something the local gate would have
 caught is a registered process failure**, not a lucky catch.
+
+Two rules about the levers themselves:
+
+- **A skip rule is either a pre-dispatch gate or an in-context instruction,
+  and only the gate saves anything.** A cost-saving exclusion written as
+  prose the tool reads cannot prevent the run that reads it; only a
+  platform-evaluated filter (path, title, event type) applied before
+  dispatch is a cost control - and nothing in the config file distinguishes
+  the two, so classify every skip rule explicitly. Then **verify the skip by
+  watching one real change get skipped**: a "docs-only" skip is typically
+  unsatisfiable because doc changes also touch generated artifacts
+  (manifests, indexes) the rule does not name. Measured: thirteen billed
+  reviews of an article about review pricing, under a skip rule that could
+  never fire.
+- **Every cost or speed lever carries a quality floor.** Never adopt a lever
+  that cuts wall-clock or spend by raising the escaped-defect rate; price
+  the escape (rework, extra runs, extra review rounds) and roll the lever
+  back if it nets negative. Normalize every efficiency claim per merged unit
+  of work, never per run - a lever that speeds one run but doubles runs is a
+  loss that photographs well.
 
 ---
 

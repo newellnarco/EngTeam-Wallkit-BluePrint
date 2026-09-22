@@ -81,6 +81,76 @@ load-bearing fields, and why each earns its place:
 - **Default philosophy: the incumbent wins ties.** Swap only on *clearly*
   better; churn has a cost the bench never shows.
 
+## 3b. Adopting a metered external service — meter first, extrapolate never
+
+Metered tools (hosted reviewers, CI, per-seat services) fail evaluation in a
+way benches don't show: the cost model. Every rule here was paid for in a
+sibling deployment, where six cost claims were corrected in two days and
+every correction came from a meter.
+
+- **Run one complete unit of work end-to-end, with the agents working the
+  way they actually work, and read the vendor's billing meter** — never a
+  proxy counter, a pricing page, or recollection. Of five readings of one
+  billable unit taken in three days, only the metered one survived; one was
+  attached to the wrong vendor entirely. Measure a unit only after it
+  finishes — mid-flight readings are honest and low.
+- **The billable event and how many of it your workflow generates are two
+  different questions.** An agent loop produces several times more of most
+  priced units — pushes, reviews, runs — per unit of *intent* than any human
+  intuition predicts; a page-derived estimate ran five times low against the
+  meter.
+- **Ask where the tool's compute runs.** A hosted tool can be free on its
+  own invoice and still bill a metered resource you own (one bundled
+  reviewer executed its runs as workflows in the host's own CI, hundreds of
+  minutes a month).
+- **Audit coverage settings as pricing levers before tuning them.** A file
+  cap or a draft trigger is a spend control under some billing models;
+  raising one "for fairness" multiplied billable reviews 2.9× in the field.
+- **A trial ends by calendar or by allowance — know which.** A "14-day
+  trial" was exhausted in a day and a half of agent-velocity work. And where
+  a per-seat allowance's unit price beats the overage price, buying unused
+  seats is the cheaper route — arithmetic, not loyalty.
+- **A free tier is a dependency with no contract behind it.** Treat its
+  sunset as a scheduled event of unknown date; cost the replacement before
+  it is urgent, and keep a self-hosted break-glass lane installed-but-
+  disabled so a vendor decision cannot leave the repo reviewer-less on the
+  vendor's schedule (a sibling's only active reviewer was withdrawn by the
+  vendor mid-tenure: "we were not shopping, we were replacing something
+  that was removed"). **Count your lanes on every subscription change** — a
+  bundled tool can arrive with a plan upgrade and put the repo over its own
+  lane cap without anyone deciding it.
+
+## 3c. Comparing live lanes — the controls a bench doesn't need
+
+A head-to-head of live services (two reviewers, two graders) is not a bench:
+the subjects act on moving work, and six confounds silently favour one side.
+Fix these before the data arrives, with the decision rule and "what would
+change the verdict" written down first so neither can be fitted afterwards:
+
+1. **Trigger-point parity** — both lanes see the same head, or one reviews
+   already-cleaned diffs.
+2. **Grounding parity, or the asymmetry stated** — a tuned incumbent versus
+   a cold challenger measures your setup work, not the tools.
+3. **Configuration verified by observation**, never by schema validation —
+   a config can parse and be inert.
+4. **A declined or skipped review is not a clean one.** Never score a
+   decline as a pass.
+5. **Sole-credit accounting stated as a confound** — it depresses
+   overlapping lanes and flatters solo tenures.
+6. **Normalize by tenure, with a minimum-tenure guard.** A two-sample tenure
+   extrapolated to a rate topped a comparison chart in the field before the
+   guard existed.
+
+Add a **negative control**: one surface where the lane is off must correctly
+produce zero. And choose second lanes for **disjointness of mechanism**: the
+strongest value of a second lane is two lanes finding the same defect
+independently — corroboration that converts an opinion into near-fact without
+trusting either — so a challenger overlapping the incumbent on the same axis
+is disqualified by redundancy even on a better score (one lane was dropped
+exactly so, despite the record's best normalized rate). State honestly that
+the number that would truly price a second lane — how often both miss — is
+unmeasured.
+
 ## 4. Who does what
 
 | Step | Owner |
@@ -99,6 +169,10 @@ load-bearing fields, and why each earns its place:
 - docs/decisions/ — where the verdict lives, with `Revisit if`
 - CAPACITY_REBALANCING.md — the same measure-before-flip discipline applied
   to the crew's own knobs
+- CAPABILITY_TRUST.md — the adoption gate every discovered candidate passes
+  before this document's evaluation even starts
+- templates/REVIEWER_LANES.md.template — where §3b/§3c's answers live on,
+  per lane
 - DIAGNOSTICS_LOOP.md — where an experiential trigger usually arrives from
 - .claude/skills/reviewer-integration/SKILL.md — reviewer lanes follow this
   discipline through their own add/baseline procedure

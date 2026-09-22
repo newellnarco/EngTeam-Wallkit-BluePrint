@@ -88,6 +88,20 @@ cannot state its own ship gate is two slices or one unfinished thought.
 Dependencies between slices are stated here, not implied by the order:
 `<ST_NNN>` needs `<ST_NNN>`'s interface.
 
+Two laws bind the plan's shape:
+
+- **Every producer's consumer is in the plan.** A slice that adds a producer
+  without the thing that reads it is half a slice, and says so - a computed
+  signal nothing consumes is decoration, not delivery (WORKFLOW section 5's
+  consumer line, applied at planning time where it is cheapest).
+- **Skeleton before depth, at the program level.** Where this arc is part of
+  standing up a system: every subsystem present, wired and exercisable - 
+  honest stubs included - before any one is deep; then deepen one vertical
+  slice at a time, each shippable, the system continuously runnable. No
+  "refactoring for two months" period; integration risk is paid down while
+  every architectural mistake is still cheap to rework. The discipline is
+  resisting the urge to deepen one slice early.
+
 ## 8. Test plan
 
 <Which tiers get what, per docs/TESTING_STANDARDS.md: the unit seams, the

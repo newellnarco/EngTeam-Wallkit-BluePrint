@@ -80,6 +80,16 @@ Skipping a reviewer never licenses claiming it passed. A tool that returns
 - [ ] **Irreversible surfaces:** if this change touches one registered in
       `OWNER_DECISIONS.md`, its **probe against the real system has reported**.
       A green suite describes a runner; only the probe describes the world.
+- [ ] **The failure path is observable, not only the success path.** A new
+      capability ships with its failure/degraded signal - a counter in the
+      health digest, an event on the failure branch - never a silent swallow.
+      Wins-only telemetry is not done; it goes quiet at exactly the moment it
+      is needed.
+- [ ] **Operator instructions this change ships meet the command-block
+      standard** - exact window and privilege named, nothing but pasteable
+      commands inside the fence, verified run or labeled unrun
+      (`docs/DIAGNOSTICS_LOOP.md` section 6) - and the linter over shipped
+      instruction strings ran, where the product ships any.
 
 ---
 
@@ -165,6 +175,28 @@ Skipping a reviewer never licenses claiming it passed. A tool that returns
       result - what ran, and roughly what it cost. A run nobody can price is a
       run nobody can scope next time.
 - [ ] The merge is the coordinator's call. Report green and stop.
+
+---
+
+## K. Where the change LANDS (published or deployed surfaces only)
+
+Delete this section if nothing this repository ships leaves the repository.
+Where the published output is the product - a site, a deployed tree, a served
+artifact - a green release job proves only that the release script exited 0:
+
+- [ ] **Verify on the serving side, after every release.** Fetch the
+      published surfaces; compare served bytes to what the release pins;
+      probe that private paths are unreachable. A check that reads the
+      repository cannot see the site - an effect that leaves the system is
+      not observable in the state it leaves behind, so assert where the
+      effect lands. *(Measured: five new pages 404 for an hour while the
+      deploy reported success; header-level protections that existed only in
+      what the host sent, invisible to every repo-reading check.)*
+- [ ] **Close-out conditions for such changes name the live check** -
+      "merges AND the pages serve 200" - not the merge alone.
+- [ ] **The live probe re-runs on a schedule**, because a host drifts
+      without a commit: a panel change disables a header, a rewrite stops
+      firing, and no repository event marks the day.
 
 ---
 

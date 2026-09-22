@@ -215,6 +215,15 @@ A builder is not done when its tests pass. Minimum gate:
       appears in the host's system/topology map and in its diagnostics or health
       registry, with an **honest stub status** if it is not lit yet. A component
       nothing can see is a component nobody can find when it fails.
+- [ ] **Something consumes it, and the consumer is named.** The recurring
+      failure of agent-built systems is built-not-wired: a subsystem that
+      computes correctly and is read by nobody. A slice that adds a producer
+      without its consumer is half a slice and its item says so; a signal no
+      code path or person acts on is decoration. The question is literal:
+      *what consumes this, and is the consumer in this change or named on the
+      board?* (Three live instances stood in the reference deployment's tree
+      when the rule was written — a learned prior computed by a module with
+      zero references from the path meant to read it among them.)
 - [ ] **Telemetry covers its failures and its contention, not only its wins.**
       A degrading `try/except` still emits; a path that waits on a busy resource
       says so. Wins-only telemetry is not done — it produces a surface that goes
@@ -469,6 +478,42 @@ finding it did not want.
 **counterfactual test**: a test that fails under the suggested fix and passes
 under yours, or the reverse, shown in the reply. Three findings were closed this
 way. Without the counterfactual it is a preference, not a refutation.
+
+**Fix the claim, not the anchor.** An anchored finding creates false closure:
+the reviewer verifies that the anchored line changed, not that the claim
+changed. When a finding concerns a claim that can be stated in more than one
+place — a rule, a config value, a documented contract — search for every
+expression of the claim before marking the thread addressed. (Measured: a
+config rule fixed at its anchored line while the same rule sat forty lines
+below in the structured block that would actually fire; the thread read
+"Addressed" and the round went green.)
+
+**Triage off the finding's text, never its severity label.** Detection and
+prioritisation are separate capabilities, and review tools get the second
+wrong on their best catches — a defect that silently disabled review criteria
+across a whole directory arrived graded "nitpick — trivial". Severity labels
+order the reading queue at most; the text decides the response.
+
+**A lane's outage is a service state, not a verdict on the work.** When an
+external check goes red, first establish whether anything RAN — failed, versus
+cancelled, versus the service reporting its own error as a failed check on the
+pull request. A lane that publishes its own unavailability as your failure
+trains the team to ignore red checks, which costs the next real one. The
+red-side twin of "a green proves the check ran, not that the diff was read."
+And quality observations of a lane made only during its degraded service are
+excluded from its scorecard, stated as such.
+
+**Do not end the head a review is reading — the property, not the instance
+list.** "Never push mid-review" states two instances of a broader property:
+merging, or marking ready (which itself fires the request), ends the reviewed
+head as surely as a push moves it — the metered request is spent against a
+closed pull request and any findings have nowhere to land. A CI-green pull
+request with a review still running is not finished. The meta-lesson travels:
+a rule written as a list of its instances is silently permissive about every
+instance it does not list; state the property. A companion: a rejection that
+is a lane's *expected* response (vendor unavailable, diff too large,
+already-reviewed) is the lane working — an answer, not a flake; re-run at most
+once to distinguish a one-off, never to buy a different verdict.
 
 **Metered lanes are named, not waited on.** A quota-exhausted or rate-limited
 lane is recorded as unavailable in the wave report and does not hold the PR.

@@ -1124,3 +1124,104 @@ def test_readme_front_door_is_the_architects_and_upgrades_are_written():
     assert "Re-vendor verbatim, never fork" in readme
     assert "Config is additive by contract" in readme
     assert "One PR per upgrade, citing the kit commit" in readme
+
+
+# ------------------------------------------- the sibling fold-in (DEC-0029)
+
+def test_capability_trust_doc_is_default_deny_and_wired():
+    """DEC-0029: discovery is never trust. Drop the parked default, the
+    output-relay gate, or the RULES/README wiring and this names which."""
+    ct = " ".join(_text(KIT / "docs" / "CAPABILITY_TRUST.md").split())
+    assert "lands **parked**, never auto-adopted" in ct
+    assert "scanned, never followed" in ct
+    assert "zero runnable instructions" in ct
+    assert "forgeable inputs, never verdicts" in ct
+    rules = _text(KIT / "templates" / "RULES.md.template")
+    assert "Discovered capabilities are parked, never adopted" in rules
+    assert "state the property, not" in rules
+    assert "CAPABILITY_TRUST.md" in _text(README)
+
+
+def test_derived_and_published_surfaces_section():
+    """DEC-0029 (MRC's production classes): both-ways regeneration, the
+    orphan, the tautology trap, no build clock, one-fact-two-paths."""
+    ts = _text(KIT / "docs" / "TESTING_STANDARDS.md")
+    assert "proven in BOTH directions" in ts and "**orphan**" in ts
+    assert "must not be a tautology" in ts
+    assert "No build clock in derived surfaces" in ts
+    assert "compare them where they LAND" in ts
+    assert "DELETED at zero" in ts
+    assert "counted-noun register" in ts
+
+
+def test_close_out_is_conditional_and_three_tenses():
+    """DEC-0029: a close-out riding its own PR is a forecast, not a fact."""
+    ws = " ".join(_text(KIT / "docs" / "WALL_STANDARDS.md").split())
+    assert "conditional, by construction" in ws
+    assert "name the number" in ws
+    assert "Three records, three tenses" in ws
+    assert "Bookkeeping rides the work's own commit" in ws
+
+
+def test_metered_service_and_live_lane_sections():
+    """DEC-0029: cost claims come from the meter; live-lane comparisons
+    carry their controls."""
+    te = _text(KIT / "docs" / "TECH_EVALUATION.md")
+    assert "read the vendor's billing meter" in te
+    assert "billable event and how many of it your workflow generates" in te
+    assert "negative control" in te
+    assert "disjointness of mechanism" in te
+    assert "break-glass" in te
+
+
+def test_budget_ceiling_never_raised_to_green():
+    """DEC-0029: rule 6 — compress first, second raise files the durable
+    alternative; and the divergence plan exists before the cap forces one."""
+    bd = _text(KIT / "templates" / "BUDGETED_DOCS.md.template")
+    assert "Never raise a ceiling to make a check pass" in bd
+    assert "plan the divergence" in bd
+    assert "fast-track deny list" in bd
+
+
+def test_generator_sources_are_on_the_fast_track_deny_list():
+    ft = _text(KIT / "docs" / "FAST_TRACK.md")
+    assert "generator or prompt-builder consumes" in ft
+    assert "property of the BRANCH" in ft
+    assert "pre-dispatch gate or an in-context instruction" in ft
+    assert "quality floor" in ft
+
+
+def test_reviewer_lane_standing_rules_grew_the_fold_in_set():
+    rl = " ".join(_text(KIT / "templates" / "REVIEWER_LANES.md.template").split())
+    assert "refreshes its corpus immediately before each review" in rl
+    assert "green, with an attestation of absence" in rl
+    assert "Do not end the head a review is reading" in rl
+    assert "Delivery format:" in rl and "Disjointness rationale:" in rl
+
+
+def test_diagnostics_gained_arrival_recording_and_entailment():
+    dl = _text(KIT / "docs" / "DIAGNOSTICS_LOOP.md")
+    assert "recorded on arrival" in dl
+    assert "Registration is not execution" in dl
+    assert "entailed by its measurement" in dl
+    assert "armed by measured precision" in dl
+    assert "only pasteable commands" in dl
+
+
+def test_ship_checklist_verifies_where_the_change_lands():
+    sc = _text(KIT / "templates" / "SHIP_CHECKLIST.md.template")
+    assert "Verify on the serving side" in sc
+    assert "failure path is observable" in sc
+
+
+def test_failure_registry_gained_the_four_inherited_classes():
+    fp = _text(KIT / "templates" / "FAILURE_PATTERNS.md.template")
+    for cls in ("F-LAUNDER-001", "F-ALARM-ENTAIL-001",
+                "F-IDENT-REP-001", "F-PRECOND-001"):
+        assert cls in fp, f"missing inherited class {cls}"
+
+
+def test_authoring_rules_cover_outcome_and_audience():
+    ia = _text(ITEM_AUTHORING)
+    assert "State the outcome the mechanism exists for" in ia
+    assert "reuse filters at the consumer" in ia

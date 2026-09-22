@@ -145,7 +145,7 @@ drifting apart.
 }
 ```
 
-Deny beats allow, always. Three entries are worth defending:
+Deny beats allow, always. Four entries are worth defending:
 
 - `.github/workflows/**` - a builder editing CI to turn its own tests green is
   the classic escape hatch. It is code.
@@ -153,6 +153,9 @@ Deny beats allow, always. Three entries are worth defending:
   the behaviour of every future agent. It is code, and it gets full review.
 - `tools/**` - wall tooling can corrupt the ledger, and in this deployment it is
   shipped. Not a doc.
+- Every document a generator or prompt-builder consumes - an edit there
+  changes a generated artifact and can fail the build (FAST_TRACK.md; every
+  generator-source row of the budget register belongs here).
 
 Mixed changesets split rather than get an exception.
 
@@ -221,6 +224,39 @@ GitHub says is merged - and in the reference deployment the resulting stale
 state produced a red lint that the *next, unrelated* pull request inherited.
 The courier treats "item claims an open pull request that is merged or closed"
 as an integrity flag.
+
+**Bookkeeping rides the work's own commit, never a follow-up push.** Status
+fragments, ledger entries and board flips go into the FIRST commit of a
+change, before the first push; a late one batches with the next genuine fix
+push. A bookkeeping-only push moves the pull-request head, which kills any
+running review and re-spends the meter — a measured quota exhaustion in the
+field traced largely to status fragments pushed as separate follow-up
+commits.
+
+**A close-out written inside the change that carries it is conditional, by
+construction.** An entry riding the very pull request it describes cannot
+state the post-merge state truthfully — the merge has not happened and the
+commit it would name does not exist — and care does not fix it; the sentence
+form does: *"pull request #N carries this entry, and when it lands, X is
+true."* That is true while the change is open and true after it lands, which
+no flat claim about either state can be. The flat "nothing in flight" is
+written only by a later session that independently confirmed every idle
+condition (mainline clean, no CI running, no review pending, no pull request
+open) — for that session it is a fact, not a forecast. Two corollaries: a
+correct conditional about this pull request says nothing about the items
+beside it in the same section, and "the pull request open for this branch"
+is not a referent — it never becomes false or checkable; name the number.
+(A sibling deployment's in-flight tracker was wrong six times in six
+distinct ways before this form was adopted, the last caught by an external
+reviewer seconds before merge.)
+
+**Three records, three tenses.** What is happening now (the wall / in-flight
+tracker), what is found but not yet worked (the known-issues intake,
+DIAGNOSTICS_LOOP), and what is fixed and guarded (the failure registry) are
+different tenses of the same story and live in different surfaces on
+purpose. A finding parked in the wrong tense — a defect living only in a
+review thread, a fixed class still listed as open — is invisible to exactly
+the reader who needs it.
 
 ---
 

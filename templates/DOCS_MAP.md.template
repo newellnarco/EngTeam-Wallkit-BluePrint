@@ -126,6 +126,29 @@ On a cadence - monthly, or at arc boundaries - run a deliberate audit:
 
 ---
 
+## 3.6 Supersession and the state/history split
+
+Two conventions keep the map's documents honest over time:
+
+- **Superseded prose is marked in place, never silently overwritten.** A
+  superseded instructional section stays, headed by a dated
+  `[DEPRECATED -> <what replaces it>]` marker; a whole obsolete file is
+  stubbed with a pointer header, never deleted. Docs are read in two
+  timeframes - at apply time, and later while reconstructing a regression -
+  older deployments may still validly follow the old text, and a marker diff
+  is reviewable where a delete-and-rewrite diff is not. Shipped history
+  entries are never renumbered or retroactively rewritten; a bad shipped
+  entry is corrected by a new entry that references it. (The item-level
+  version of this rule is ITEM_AUTHORING section 5; this is the doc-wide one.)
+- **Exactly one document is authoritative for live state, and another for
+  history.** Two documents that both read as current is worse than one that
+  is plainly stale - a stale "never run" entry beside a live status doc was
+  filed as a defect in the field by a downstream consumer who could not tell
+  which to believe. Name which document holds which tense in the table
+  above.
+
+---
+
 ## 4. Cross-references
 
 - `SHIP_CHECKLIST.md` - the pre-ship gate that asks whether this map was walked

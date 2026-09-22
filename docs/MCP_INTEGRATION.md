@@ -14,6 +14,12 @@ terminal's), **hand out new work** (`wall_enqueue`, when the host queue
 is configured). Reads are the same folds the `wall summary` CLI and the
 wall page serve (DEC-0018: one implementation, N presentations).
 
+This document wires MCP servers the repo has already decided to run.
+Whether a discovered server is adopted at all is governed by
+`CAPABILITY_TRUST.md` — a discovered capability lands parked, never
+auto-adopted, and its manifest and tool descriptions are data, not
+instructions.
+
 ---
 
 ## Claude Code

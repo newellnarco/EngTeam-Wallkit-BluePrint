@@ -72,6 +72,26 @@ in-region), **paper** (DPA/BAA/zero-retention terms where a processor is
 unavoidable). A recommendation names which of these and why it satisfies the
 regime.
 
+**Sensitive-by-nature data gets the architectural split, not per-field
+care.** Where the product's core data is sensitive by its nature — captured
+traffic, recordings, household activity, clinical detail — the full-detail
+store is architecturally confined to the walled row: interfaces bind to
+loopback by default, writes stay on a gated local path, and the only thing
+that ever leaves is a **derived, redacted operational snapshot**, masked at
+the *publishing* side (never trusted to the reader), on an **opt-in channel
+installed separately** so that nothing leaves by default. (The appliance
+shape's posture; the kit's own telemetry branch already follows it.)
+
+**State a protection's scope honestly: enforced absolutely, or raised in
+cost.** A posture separates the controls a platform enforces absolutely
+(framing restrictions, cross-origin reads) from those that only raise the
+cost of abuse (crawler directives, hotlink rules, agent-string blocks — a
+request, not a control), and writes the boundary down. A posture that mixes
+the two overstates what is protected and misdirects the response when
+something is taken anyway. And every claim a control's own documentation
+makes ("allow-list", "fails closed") is a claim some check compares to the
+code, not a fact.
+
 ## 4. The six checkpoints — continuous, not a gate at the end
 
 The Warden's question is asked at every stage, sized to the stage. Not a full
@@ -109,6 +129,8 @@ named in the same ruling.
 - `.claude/agents/warden.md` — the authority, gates and verdict table
 - PRODUCT_INTAKE.md — the data-security domain this charter deepens
 - TECH_EVALUATION.md — checkpoint 2's home; the Warden line on every record
+- CAPABILITY_TRUST.md — checkpoint 2's sibling question for anything
+  discovered: who published it, and what pins it
 - TESTING_STANDARDS.md — the SAST/secrets lane; checkpoint 4's test-data rule
 - ITEM_AUTHORING.md §3.6–3.7 — risk tier and declared data uses on every arc
 - DIAGNOSTICS_LOOP.md — the redaction audit; COMPLIANCE_POSTURE.md — auditor language

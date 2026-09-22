@@ -326,11 +326,14 @@ def test_best_practices_feature_removal_evicts_state_and_stays_gone():
 
 
 def test_best_practices_new_rules_are_additive_not_a_renumber():
-    """3.19/3.20 append; the project-specific slot moves to 3.21 and the
-    numbered sections other docs cite are untouched."""
+    """3.19/3.20 append (fleet round); 3.21/3.22 append (DEC-0029); the
+    project-specific slot moves to 3.23 and the numbered sections other
+    docs cite are untouched."""
     t = _text(BEST_PRACTICES_T)
     assert "**3.18 Test a guard through the seam that actually runs.**" in t
-    assert "**3.21 <PROJECT_SPECIFIC_HONESTY_RULE>.**" in t
+    assert "**3.21 A command or claim handed to a human was verified first" in t
+    assert "**3.22 A defensive default is honest only if the caller can tell" in t
+    assert "**3.23 <PROJECT_SPECIFIC_HONESTY_RULE>.**" in t
     for heading in ("## 3. Honesty discipline", "## 4. Recurring bug classes",
                     "## 4.5 Root cause, not repair", "## 5. Style and structure",
                     "## 6. Before you push"):
