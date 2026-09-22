@@ -1,0 +1,32 @@
+{
+  "_doc": "The structural-scan lane (docs/TESTING_STANDARDS.md section 5.1). Pins, the failure-registry sources the ast-grep rules are generated from, SkillSpector's targets and policy, and the per-rule promotion record. Read by tools/wall/quality.py; edited by hand only for promotions and policy -- version bumps go through `quality.py bump` on a PR.",
+  "tools": {
+    "ast-grep": {
+      "install": "pypi:ast-grep-cli",
+      "version": "0.45.3",
+      "rollback": "0.45.3",
+      "reason": "Pinned so an upstream release cannot turn every PR red overnight (UPGRADE_DISCIPLINE.md). The scheduled scanner-bump workflow proposes the latest release as a PR.",
+      "lifting": "Lifted every week by the scanner-bump PR once its canary run is green."
+    },
+    "skillspector": {
+      "install": "git:https://github.com/NVIDIA/skillspector",
+      "version": "v2.11.2",
+      "rollback": "v2.11.2",
+      "reason": "Not published to PyPI; installed from its git tag. Pinned for the same reason as ast-grep.",
+      "lifting": "Lifted every week by the scanner-bump PR once its canary run is green."
+    }
+  },
+  "failure_sources": ["FAILURE_PATTERNS.md", "KNOWN_ISSUES.md"],
+  "generated_rules_dir": ".ast-grep/rules/generated",
+  "generated_tests_dir": ".ast-grep/rule-tests/generated",
+  "skillspector": {
+    "targets": [".claude/skills/*", ".claude/agents", ".claude/hooks"],
+    "always_block": ["PE3", "E2", "TT3"],
+    "always_block_reason": "Credential access, environment-secret harvesting and credential exfiltration are secrets-class findings, and a secrets finding is never report-only (TESTING_STANDARDS.md section 5).",
+    "block_on_do_not_install": true
+  },
+  "promotions": {
+    "ast-grep": [],
+    "skillspector": []
+  }
+}

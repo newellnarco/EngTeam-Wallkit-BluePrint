@@ -1,0 +1,9 @@
+id: py-shell-true
+language: python
+severity: warning
+message: "A subprocess call with shell=True -- pass an argument list instead"
+note: "shell=True hands the whole string to /bin/sh; one interpolated value becomes command injection."
+rule:
+  pattern:
+    context: f(shell=True)
+    selector: keyword_argument

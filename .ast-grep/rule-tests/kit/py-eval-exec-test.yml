@@ -1,0 +1,7 @@
+id: py-eval-exec
+valid:
+  - ast.literal_eval(text)
+  - json.loads(text)
+invalid:
+  - eval(text)
+  - exec(compile(src, "f", "exec"))

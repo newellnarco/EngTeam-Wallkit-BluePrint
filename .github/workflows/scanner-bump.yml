@@ -1,0 +1,88 @@
+# Keeps the structural-scan lane on the latest ast-grep and SkillSpector
+# without letting an upstream release break the blocking gate: the gate runs
+# the PINNED versions (ci.yml); this job runs the LATEST as a canary and, when
+# a newer release exists, opens a draft PR that moves the pins and names the
+# rollback (UPGRADE_DISCIPLINE.md). The upgrade then rides normal review.
+#
+# PRs opened with the default GITHUB_TOKEN do not trigger other workflows, so
+# CI would not run on the bump PR. Set a SCANNER_BUMP_TOKEN secret (a
+# fine-grained token or GitHub App token with contents + pull-requests write)
+# to get CI on it; the repo must also allow Actions to create pull requests.
+name: Scanner bump
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"   # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: scanner-bump
+  cancel-in-progress: false
+
+jobs:
+  latest:
+    name: Canary on latest scanners, propose the bump
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.SCANNER_BUMP_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.SCANNER_BUMP_TOKEN || github.token }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve latest releases
+        id: latest
+        run: |
+          ag=$(python -c "import json,urllib.request;print(json.load(urllib.request.urlopen('https://pypi.org/pypi/ast-grep-cli/json'))['info']['version'])")
+          ss=$(git ls-remote --tags --refs https://github.com/NVIDIA/skillspector 'v*' | sed 's#.*refs/tags/##' | sort -V | tail -n 1)
+          test -n "$ag" && test -n "$ss"
+          echo "ast_grep=$ag" >> "$GITHUB_OUTPUT"
+          echo "skillspector=$ss" >> "$GITHUB_OUTPUT"
+          echo "latest: ast-grep $ag, skillspector $ss"
+      - name: Move the pins
+        id: bump
+        run: |
+          python tools/wall/quality.py bump --ast-grep "${{ steps.latest.outputs.ast_grep }}" --skillspector "${{ steps.latest.outputs.skillspector }}" | tee bump.txt
+          if git diff --quiet; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Canary -- the full lane on the new pins
+        id: canary
+        if: steps.bump.outputs.changed == 'true'
+        continue-on-error: true
+        run: |
+          bash tools/quality/install.sh
+          bash tools/quality/scan.sh ci 2>&1 | tee canary.txt
+          exit "${PIPESTATUS[0]}"
+      - name: Open the bump PR
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          branch="scanner-bump/ast-grep-${{ steps.latest.outputs.ast_grep }}-skillspector-${{ steps.latest.outputs.skillspector }}"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+            echo "$branch already proposed"; exit 0
+          fi
+          git switch -c "$branch"
+          # Identity per invocation, never written to repo config (F-IDENT-002).
+          git -c user.name="scanner-bump[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -am "Bump structural scanners: $(tr '\n' ';' < bump.txt)"
+          git push -u origin "$branch"
+          {
+            echo "Moves the structural-scan lane's pins (tools/quality/quality.json)."
+            echo
+            echo '```'; cat bump.txt; echo '```'
+            echo
+            echo "Canary run of \`tools/quality/scan.sh ci\` on the new versions: **${{ steps.canary.outcome }}**"
+            echo
+            echo '<details><summary>Canary output</summary>'
+            echo; echo '```'; tail -n 80 canary.txt; echo '```'; echo '</details>'
+            echo
+            echo "A new scanner release can add rules. New findings are report-only until promoted; triage them here before merging (TESTING_STANDARDS.md section 5)."
+          } > body.md
+          gh pr create --draft --base "${{ github.event.repository.default_branch }}" \
+            --title "Bump structural scanners (ast-grep ${{ steps.latest.outputs.ast_grep }}, SkillSpector ${{ steps.latest.outputs.skillspector }})" \
+            --body-file body.md

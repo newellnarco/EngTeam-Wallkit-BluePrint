@@ -1,0 +1,6 @@
+id: py-pickle-load
+valid:
+  - json.load(fh)
+invalid:
+  - pickle.load(fh)
+  - pickle.loads(blob)

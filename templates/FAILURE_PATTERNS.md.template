@@ -65,8 +65,40 @@ what the registry already knows, which makes it a regression test for one bug
 wearing a class guard's name. The variant fixture is what makes it a guard
 over the family.
 
-Adding a `> class-guard:` line to an existing entry is the **one** amendment
-the append-only rule permits: it adds a defence without rewriting the record.
+Adding a `> class-guard:` line, or the structural rule below, to an existing
+entry is the **one** amendment the append-only rule permits: it adds a defence
+without rewriting the record.
+
+### The structural rule: a fenced `ast-grep` block
+
+When a class has a **code shape** -- a call, a comparison, a missing argument
+-- the entry carries the shape as an ast-grep rule, and the rule is rebuilt
+into the scanner automatically (`docs/TESTING_STANDARDS.md` section 5.1).
+Put two fenced blocks in the entry: `ast-grep` holds the rule body (any
+ast-grep rule keys except `id`, `severity` and `metadata`, which the generator
+owns), and `ast-grep-test` holds its `valid:` and `invalid:` cases. The
+`VARIANT:` fixture belongs in `invalid:`.
+
+    ```ast-grep
+    language: python
+    rule:
+      pattern: $NEEDLE in $URL
+    note: Parse the URL, then compare the host.
+    ```
+
+    ```ast-grep-test
+    valid:
+      - "urlparse(url).hostname == host"
+    invalid:
+      - "host in url"
+      # VARIANT: the same membership test on a normalised copy
+      - "host in url.lower()"
+    ```
+
+Commit the entry; the pre-commit hook regenerates `.ast-grep/rules/generated/`
+(or run `python3 tools/wall/quality.py rules`). The rule starts report-only.
+Prose-only classes with no code shape carry no block -- a behavioural guard
+is still a test.
 
 ---
 
@@ -82,6 +114,8 @@ Check         the gate that catches the next one, automated where possible
 Command       the exact command, when there is one
 class-guard   for a recurring class: the named assertion that fails when any
               member of the class recurs (see the digest above)
+ast-grep      when the class has a code shape: the fenced rule and its test
+              cases, rebuilt into the scanner on commit (see above)
 ```
 
 Add an entry **and** the corresponding item in `SHIP_CHECKLIST.md` at the same

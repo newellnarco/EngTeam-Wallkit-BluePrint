@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Regenerate derived artifacts inside the commit (docs/GIT_HOOKS.md section 2).
+# Never blocks: missing python or a malformed registry block warns and proceeds;
+# CI's `quality.py rules --check` is the gate that refuses the drift.
+[ -n "${SKIP_RULES_REGEN:-}" ] && exit 0
+root="$(git rev-parse --show-toplevel)" || exit 0
+py="$(command -v python3 || command -v python)" || exit 0
+cd "$root" || exit 0
+if git diff --cached --name-only | grep -qE '(^|/)(FAILURE_PATTERNS|KNOWN_ISSUES)\.md$|^tools/quality/quality\.json$'; then
+  if "$py" tools/wall/quality.py rules; then
+    git add -A .ast-grep/rules/generated .ast-grep/rule-tests/generated
+  else
+    echo "pre-commit: ast-grep rule regeneration failed (above); committing anyway -- CI will refuse the drift" >&2
+  fi
+fi
+exit 0

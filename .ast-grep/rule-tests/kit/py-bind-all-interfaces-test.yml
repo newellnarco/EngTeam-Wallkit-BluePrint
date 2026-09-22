@@ -1,0 +1,7 @@
+id: py-bind-all-interfaces
+valid:
+  - server = HTTPServer(("127.0.0.1", port), Handler)
+  - host = "::1"
+invalid:
+  - server = HTTPServer(("0.0.0.0", port), Handler)
+  - app.run(host="0.0.0.0")

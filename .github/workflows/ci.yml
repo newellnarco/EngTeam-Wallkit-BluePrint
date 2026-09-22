@@ -1,13 +1,20 @@
 # The kit's own gate. The kit tells every host repo "a suite nobody runs on
 # push is a gate that stopped gating" (TESTING_STANDARDS.md §6) — this makes
-# the kit hold itself to that line. Stdlib-only runtime (DEC-0017): the only
-# install is the test runner and the linter.
+# the kit hold itself to that line. Stdlib-only runtime (DEC-0017): the suite's
+# only install is the test runner and the linter; the scanners are dev tooling
+# in their own job.
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
+
+# A superseded push to the same PR cancels its stale run instead of billing
+# minutes for a result nobody will read. main is never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   suite:
@@ -27,3 +34,23 @@ jobs:
           ruff check tests --isolated --select F
       - name: Test suite
         run: python -m pytest tests/ -q
+
+  scans:
+    # The structural-scan lane (TESTING_STANDARDS.md section 5.1): ast-grep
+    # rules derived from the failure registry, and SkillSpector over the kit's
+    # skills, agents and hooks. Pinned versions; report-only until a rule is
+    # promoted in tools/quality/quality.json. Runs beside the suite, not after.
+    name: Structural scans (ast-grep + SkillSpector)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tools/quality/quality.json
+      - name: Install scanners at their pins
+        run: bash tools/quality/install.sh
+      - name: Scan
+        run: bash tools/quality/scan.sh ci
