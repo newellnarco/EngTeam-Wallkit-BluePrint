@@ -33,6 +33,8 @@ trail after the fact; here it is the working state.
 | **Incident learning / CAPA** | The failure registry + graduation rule: every incident class gets a named entry, a mechanical check, and a checklist line in the same change — corrective *and* preventive, with the recurrence test in CI | FAILURE_PATTERNS template, TESTING_STANDARDS.md |
 | **Capacity / availability management** | Measured signals, advisory budgets, recorded from→to rebalances with review horizons; dead timers surface as heartbeat failures, never as silence | CAPACITY_REBALANCING.md, INSTALL.md |
 | **Vendor / tool governance** | Reviewer lanes and technology choices enter through recorded evaluations and decisions with re-eval triggers; removal keeps adopted rules and closes open threads with dispositions | reviewer-integration skill, decision log |
+| **Secure development framework** (the SSDF / §524B "SPDF" ask) | The definition of done IS the framework in evidence form: SAST + secrets with per-rule promotion, mutation-proved tests, gates-last, cold review, the dependency register as the SBOM's source, default-deny capability adoption | TESTING_STANDARDS.md, CAPABILITY_TRUST.md, UPGRADE_DISCIPLINE.md, docs/compliance/nist.md · fda.md |
+| **Design-control traceability** (the FDA ask) | Requirement → design section → test → release, walkable by command; per-arc design documents with rollback stories; change decisions written before dispatch, AI change inside a PCCP envelope | `wall trace`, DESIGN_DOC template, .claude/agents/warden.md §7 |
 
 ## 2. Industry notes
 
@@ -46,7 +48,23 @@ trail after the fact; here it is the working state.
   repository content, which is why `.wall/logs/` and `.wall/runs/` are
   gitignored with TTLs and never shipped; if the repo itself contains PHI-touching
   code, say so in the data-security domain and treat run artifacts
-  as in-scope storage.
+  as in-scope storage. The adjacent rules ride the same selection
+  (docs/compliance/hipaa.md): 42 CFR Part 2 segregation for SUD records
+  (OCR-enforced since 2026-02), the FTC HBNR for health apps outside
+  HIPAA, and information blocking for anything holding EHI.
+- **Medical device (FDA):** where the software is or serves a device, the
+  kit's chain is the design-control evidence — traceability by command,
+  per-arc designs, the append-only ledger as the Part 11 pattern, the
+  dependency register feeding the §524B SBOM — and the Warden's standing
+  watch (warden.md §7) holds the change-control line: no device-function
+  modification dispatches without the new-submission question answered,
+  and AI change stays inside its PCCP envelope (docs/compliance/fda.md).
+- **Federal / defense supply chain (NIST):** the definition of done maps
+  onto SSDF practices as auditable evidence (EO 14306 having made the
+  conformance itself the enduring requirement), CUI stays in its enclave
+  with the Warden watching the fixtures/prompts seam, and CSF 2.0's
+  Govern function is the decision log + authority matrix in auditor
+  language (docs/compliance/nist.md).
 - **E-commerce (PCI, consumer-data regulation):** the same two levers —
   data-classification answered at intake, evidence trail from the ledger —
   plus the security escalation class: a finding touching payment or consumer
