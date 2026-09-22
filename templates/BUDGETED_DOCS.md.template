@@ -61,6 +61,15 @@ measurement's clothes.
 <BUDGET_CHECK_COMMAND>
 ```
 
+**If no unified check command exists yet, say so here instead of printing an
+aspirational one** - a command in this file that nobody can run is a register
+nobody trusts. In that case, record the per-row command or arithmetic that
+produced each measured number (provenance is part of the measurement), table
+which of the requirements below each existing surface meets, and file the
+gaps as work items rather than asserting them done. *(The reference
+deployment's register does exactly this, with three honest xs in its
+requirements table.)*
+
 Requirements for that command:
 
 - It reports the **measured** number, not a pass/fail alone. The number is what
@@ -90,6 +99,34 @@ Requirements for that command:
    it grows past the new ceiling. Without the ratchet, the next wave refills it.
 5. **A new prompt-loading tool adds a row.** If you teach something to read a
    document into a prompt, that document is now budgeted.
+6. **Never raise a ceiling to make a check pass.** Every raise is weighed
+   against the consumer's real window and carries a written justification in
+   the History below; the content is compressed *before* the number is
+   touched. A second raise within days means the document is structurally
+   full - at that point the durable alternative (per-consumer curated
+   exports, or retrieval instead of a static prompt) is filed as a tracked
+   work item, so the next raise has to argue against a real alternative
+   instead of an absent one. *(The reference deployment's second raise in
+   three days came only after the tripping rule was compressed first and the
+   retrieval alternative was filed.)* Attribution corollary: when a full
+   budget trips, the change that tripped it is not the cause - the file was
+   full, and the next substantive addition would have hit the ceiling
+   whoever wrote it.
+7. **A register grows and a context window does not - plan the divergence.**
+   Most hosted graders read exactly one file of yours, so everything they
+   must know has to fit through that hole; size fails loudly (a rejected
+   request) but shape fails silently (a skipped file looks clean). When a
+   counted document nears its cap, decide deliberately - curate per-consumer
+   exports, or move to retrieval - before the cap forces a silent choice
+   about what the next lesson evicts.
+8. **Every generator-source row is on the fast-track deny list.** A document
+   a build step compiles into a prompt is code, not docs (FAST_TRACK.md);
+   the two files cross-reference so neither can drift alone.
+
+A sibling concern with the same mechanics: **numbers stated in prose** (a
+count in a README, an "N of M" in a status doc) go stale unseen without a
+counted-noun register deriving each from the artifact it describes - see
+TESTING_STANDARDS section 8.6.
 
 ---
 

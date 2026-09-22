@@ -55,6 +55,26 @@ falling, wall-clock falling, under the same gates.** A wave that got faster by
 relaxing a gate did not get faster (CAPACITY_REBALANCING: quality is a floor,
 not an axis).
 
+**A findings spike is a signal about upstream grouping, not about the
+finder.** When reviewers or CI start finding more, ask which upstream choice
+missed something that had a cost: test scope too narrow, work unit too big
+or mixed, design under-thought in the first cut, or a recently-adopted
+speed/cost lever letting defects escape. Price the escape — a seven-finding
+second review round on one pull request is a full extra CI pyramid plus a
+review cycle, traced in the field to a contract the first cut should have
+carried — and read every efficiency claim per merged unit of work, never
+per run (FAST_TRACK's lever rule).
+
+**Measure the distribution before applying 80/20 — some distributions are
+flat, and some 20% is load-bearing.** Pareto is a measurement, not an
+assumption. Where the distribution is sharp (one field measurement: 80% of a
+suite's clock in ~3% of its tests), concentrate; where it is flat (the same
+repo's defect classes: ~100 families, the largest at ~12%), a few deep
+defences are the wrong buy — automate cheaply and broadly instead. And
+exempt a named floor from every optimisation: Pareto shows where the mass
+is, not which parts hold the roof up, so the checks that guard the optimiser
+itself are never in scope for the optimiser.
+
 ## 3. The five whys, applied to the process itself
 
 Every retro item that names a defect gets the same chained five-whys read the

@@ -66,6 +66,32 @@ Repeat one of these per lane, including the dead ones.
   running **on its defaults**, looking entirely normal.
 - **Standing rules for this lane:** <WAIT_OR_SKIP_THRESHOLD>,
   <DRAFT_BEHAVIOR>, <WHICH_COMMANDS_ARE_NEVER_INVOKED>
+- **Delivery format:** <ANCHORED_ITEMS / SUMMARY_ONLY> - require, in
+  configuration where the tool supports it, that findings arrive as anchored,
+  replyable, resolvable items; a lane that writes findings into author-owned
+  surfaces (the pull-request body) is effectively silent (a measured 45-to-1
+  inline gap, and twelve reviews discovered appended invisibly to a PR
+  description).
+- **Skip rules, classified:** each cost-saving exclusion is a
+  <PRE_DISPATCH_GATE / IN_CONTEXT_INSTRUCTION> - only the gate saves money,
+  nothing in the config file distinguishes them, and each gate is verified by
+  watching one real change get skipped (FAST_TRACK.md).
+- **Expected rejections:** <THE_LANE'S_KNOWN_NON-ANSWERS> - vendor
+  unavailable, diff too large, already-reviewed. An expected rejection is
+  the lane working, not a flake; re-run at most once.
+- **Channel verification:** <CANARY_STATUS_AND_DATE> - the instrument that
+  proves this lane's instruction files are READ, not merely parsed
+  (`/reviewer-integration baseline`); until it fires, load-bearing rules stay
+  duplicated in a verifiable channel with a stated sync rule.
+- **Compute and billing:** <WHERE_ITS_RUNS_EXECUTE_AND_WHO_PAYS> - a hosted
+  tool can be free on its own invoice and bill your CI minutes; a per-seat
+  lane bills by the author of record, so automation-opened pull requests are
+  authored by the covered identity (agent attribution goes in Co-Authored-By,
+  never the author field).
+- **Disjointness rationale:** <WHAT_THIS_LANE_CATCHES_THAT_THE_OTHERS_DON'T> -
+  a second lane is bought for corroboration, and a lane overlapping an
+  incumbent on the same axis is disqualified by redundancy even on a better
+  score (TECH_EVALUATION.md section 3c).
 - **Owner actions owed:** <WHAT_ONLY_THE_OWNER_CAN_DO> - uninstalling an app,
   changing a dashboard-side setting, adjusting branch protection. A
   cancellation an agent cannot finish is **tracked here**, never assumed done.
@@ -82,6 +108,28 @@ Repeat one of these per lane, including the dead ones.
   draft-skipping lane on a repo that reviews drafts reports nothing and looks
   configured. Decide that per lane, deliberately, and pin the choice with a
   test in both directions - flipping it back should fail CI.
+- **A grader refreshes its corpus immediately before each review.** Every
+  learning surface - the failure registry, the shared criteria, the standing
+  rules - is re-read before reviewing a diff, never from a cached copy. The
+  corpus freshness IS the capability: the single most valuable finding in one
+  field deployment was a reviewer citing a failure class *by id* to catch a
+  recurrence of a class registered that same hour - impossible on a stale
+  corpus.
+- **A lane missing its prerequisite fails soft: green, with an attestation of
+  absence.** No API key, tool not installed, service unreachable - the lane
+  exits green with an explicit "this change was NOT reviewed" summary,
+  because a missing credential is a setup gap, not a failing change, and a
+  permanently red check is one everybody learns to ignore. The summary never
+  reads as "clean" - green-with-attestation is the only honest shape, and it
+  is what keeps the read-side rule (a bare green is UNKNOWN) workable.
+- **Do not end the head a review is reading.** Pushing, merging, and marking
+  ready all spend the metered request against a head the lane can no longer
+  answer about; a CI-green pull request with a review still running is not
+  finished (WORKFLOW section 10).
+- **The lane count is re-checked on every subscription change.** A bundled
+  tool can arrive with a plan upgrade and put the repository over its own
+  lane cap without anyone deciding it - one arrived in the field at a $10
+  plan bump and burned 227 credits by day six, "and nobody decided that."
 
 ---
 

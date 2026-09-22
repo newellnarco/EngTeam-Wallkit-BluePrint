@@ -36,6 +36,7 @@ Format and front-matter contract: `docs/WALL_STANDARDS.md` section 6.
 | [DEC-0026](DEC-0026.md) | active | Three oversight dashboards on the wall; the DESIGN tab waits for its data contract | observability | 2026-09-21 |
 | [DEC-0027](DEC-0027.md) | active | Assimilation authors the context, the Patron's review governs it, and FLOW measures the work | adoption | 2026-09-21 |
 | [DEC-0028](DEC-0028.md) | active | The compliance register: blueprints, Patron selection, challenged both ways, attested control by control | compliance | 2026-09-21 |
+| [DEC-0029](DEC-0029.md) | active | The sibling fold-in: MAX3/REEF/MRC method graduates into the kit, agnostically | process | 2026-09-22 |
 
 ---
 

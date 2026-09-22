@@ -628,6 +628,7 @@ authority on which commands are in that state today.
 | `LOGGING_AND_AUDIT.md` | Three planes, per-run artifacts, trace commands |
 | `FAST_TRACK.md` | Doc-only routing, and the CI meter economics that go with it |
 | `MCP_INTEGRATION.md` | The wall as an MCP server: one integration point for every editor and agent, role-gated |
+| `CAPABILITY_TRUST.md` | Discovery is never trust: the default-deny adoption gate for tools, servers and skills; fetched content is data; the output-relay gate |
 | `FLEET.md` | More than one adopting repository: exit-code verdicts, the spin-off exchange, one byte-identical artifact, dispositions |
 | `INSTALL.md` | Machine-wide timer, serving, platform specifics |
 | `OPEN_QUESTIONS.md` | Settled decisions, and whatever is open now |

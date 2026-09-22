@@ -264,7 +264,38 @@ and a test asserts the behaviour stays gone with the stale key present. Record
 whether the feature was **removed** (practical) or **retired** (a decision, with
 its reason), so nobody proposes rebuilding it.
 
-**3.21 <PROJECT_SPECIFIC_HONESTY_RULE>.** <Add yours here as they are learned.
+**3.21 A command or claim handed to a human was verified first, or is labeled
+unverified.** Nothing executable goes to the owner - in a reply, a report, a
+runbook - unrun: a command goes out only if it was actually run here, or with
+an explicit "I have not run this" in the same breath (the label is the
+accuracy, not an apology). Every path in an offered command is checked to
+exist first; shell/OS syntax is named per block, never blended; a runbook
+example is never presented as a verified instruction, because docs drift and
+the code (`--help`, the entrypoint) is the authority. *Check:* the tell is
+the phrasing - "probably", "should be", "I think that's the path" means the
+next action is a check, not a send. *(Field incident: a block copied from a
+runbook referenced a file that existed nowhere, mixed shells under one
+heading, and cost two round trips of the owner testing the assistant's
+output - rated there as the general case of three separately-registered
+failure classes: an unverified belief presented at the confidence of a
+checked fact.)*
+
+**3.22 A defensive default is honest only if the caller can tell it from a
+real answer.** The idiom `x if isinstance(x, list) else []` (and `or {}`,
+`or 0`) converts "could not read this" into "read it, and it was empty" - and
+it is contagious inside hardening passes, because it wears the same shape as
+the correct checks beside it. One laundering step *upstream* of a chain of
+honest per-field guards defeats all of them at once - the fix belongs where
+the payload enters. *Check:* for every defensive default, what will the empty
+value MEAN to the caller, and can the caller distinguish it from a real empty
+result? Distinguish absent from unreadable using distinctions the upstream
+itself encodes; an unparseable value is NAMED, never blanked. Laundering that
+feeds a recommendation engine is graver than one feeding a status - advice
+gets acted on. (The failure registry carries this as its own class; eleven
+paid instances in one sibling deployment, five written *after* the rule
+existed.)
+
+**3.23 <PROJECT_SPECIFIC_HONESTY_RULE>.** <Add yours here as they are learned.
 Every entry names the check that catches the next one.>
 
 ---

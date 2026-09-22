@@ -46,6 +46,24 @@ duplicated. The measured incidents behind this: a two-day-old snapshot read
 as current, and a heartbeat gap that looked like a quiet system instead of a
 dead timer (F-SCHED-001's rule, applied to the diagnostics feed itself).
 
+Two extensions from the appliance shape, where an installed system runs
+beside the repo:
+
+- **Registration is not execution.** A scheduler reporting a task "ready"
+  says nothing about whether the process is alive. Ask of every liveness
+  check *"what would make this go red?"* — if the component dying is not on
+  the list, the check checks something else. (Measured: a disabled logon
+  task killed five daemons, telemetry went 7.4 days stale, and the check
+  stayed green because the scheduler reports registration, not execution.)
+- **An integration certifies itself from live signal, on a cadence.** A
+  tool, feed, sensor or integration is not done when coded and green — only
+  when demonstrably producing value on the live system, proven by a
+  timestamped liveness certificate the system writes from its own telemetry,
+  re-written on a cadence, never a human running a check. This extends
+  §6.3's machine-verifier from one-shot-at-ship to standing. And one recruit
+  reaches the frontline before the next starts: finish bringing an
+  integration to live value before adopting another.
+
 ## 3. Stage three — automated review, under a standing grant
 
 Any session that observes the snapshot moved — the wave skill's ground
@@ -99,6 +117,31 @@ The ledger carries the chain: `diagnostic_finding` (signature, class, route)
 → `story_filed` (finding id → item id), so `wall trace` walks from a log
 line on the box to the merged PR that closed it.
 
+**A finding is recorded on arrival — before reproducing, before fixing,
+before replying.** A finding that exists only in a review thread disappears
+when the pull request merges (one sat unanswered for days in the field
+because the thread was the only place it existed). The intake record is
+cheap: symptom, where seen, one line. Grouping comes second: findings are
+grouped into a FAMILY by shared mechanism, not symptom, and a family
+reaching three members is elevated to a guarded recurring class. The
+three-tense split (WALL_STANDARDS §4) says where each record lives — and the
+test-selection for a fix is chosen *from the known-issues list*, because a
+selection made without it is a guess about what could be wrong made without
+the list of what is.
+
+**An alarm's text must be entailed by its measurement.** A monitoring
+surface must not render a true observation as its unproven consequence —
+"tunnel down" alarmed as "your traffic is exposed right now" while the
+actual exposure probe, measured two lines below, was never consulted.
+Severity and the alarmed condition are different axes: a finding can be
+legitimately high and definitionally not the specific harm the sentence
+claims. The check on every alarm text: name the measurement, and verify it
+entails the sentence. And **an alert channel is armed by measured precision,
+not by feature completion** — paging on findings the system is not yet
+confident in trains the owner to ignore the alarm, which is worse than no
+alarm; the arming condition is real work, recorded in the owner-decisions
+register with its lifting condition.
+
 ## 5. The owner-verification queue — the loop's other direction
 
 Every shipped change that alters something the owner could see or feel
@@ -136,6 +179,30 @@ Three rules make the discipline real:
    in the same change, so the result channel reports proof rather than hope —
    an ask the system cannot verify is not done, and "tell me when you did it"
    is not a verification.
+
+Where a step genuinely must be run by a human on a machine (the
+installed-system shapes force some), the command block is held to a written
+standard, because the reader pastes the whole block:
+
+- **Every block is headed by the exact shell/window and the privilege
+  level** — privilege stated even when it is "none", because silence is an
+  omission, not a default. An elevation-needing command run unelevated can
+  answer quietly and wrongly ("Access is denied" as ordinary output).
+- **The fence contains only pasteable commands.** No prose, no comments, no
+  prompt characters — explanatory text inside the fence executes as garbage.
+  One window per block; multi-window steps get labeled blocks and a note on
+  which stays running.
+- **Nothing executable is handed over unrun.** A command goes out only if it
+  was actually run here, or with an explicit "I have not run this" in the
+  same breath — the label is the accuracy, not an apology. Every path in an
+  offered command is checked to exist first; a runbook example is never
+  presented as a verified instruction, because docs drift and the code
+  (`--help`, the entrypoint) is the authority. The tell is the phrasing:
+  "probably" or "should be" means the next action is a check, not a send.
+- **The standard is enforced mechanically** where the product ships operator
+  instructions: a linter over the shipped instruction strings, wired into
+  CI. (It found nine violations the day it was written in the field; the
+  owner had pasted markdown into a shell twice in one session before that.)
 
 ## 7. Sign-off — who is always in this loop
 

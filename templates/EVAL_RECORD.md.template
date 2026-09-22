@@ -43,6 +43,17 @@ HOW TO USE    Copy to docs/decisions/EVAL-<TOPIC>.md (or fold into the
   challenger <VALUE>
 - **Flip protocol followed:** flag <FLAG_NAME>, baseline run <REF>, flipped
   run <REF>, adopted only on measured win: YES / NO / N-A because <REASON>
+- **Provenance and confidence, per figure:** each number above states its
+  class - <MEASURED_FIRST_PARTY / LIST_PRICE / REPORTED_BY_VENDOR /
+  CORRECTED_IN_PUBLIC> - and a confidence tier, so anything citing this
+  record inherits its limits. A cost figure for a metered service is valid
+  only as MEASURED_FIRST_PARTY off the vendor's own meter
+  (docs/TECH_EVALUATION.md section 3b).
+- **Live-lane comparison controls** (delete unless comparing live services,
+  section 3c): trigger-point parity <HELD/NOT>, grounding parity <HELD/STATED>,
+  configuration verified by observation <HOW>, declines never scored as
+  passes <CONFIRMED>, sole-credit confound <STATED>, tenure normalization
+  with minimum-tenure guard <N>, negative control <SURFACE_AND_RESULT>.
 
 ## Disqualifiers checked (deployment cost counts, independent of accuracy)
 
@@ -68,3 +79,14 @@ NONE if none is known.>
   NEW_DEPLOYMENT_TARGET, DEPENDENCY_PAIRING_THAT_NEWLY_RESOLVES>
 - Experiential: <e.g. A_LIVE_QUALITY_PROBLEM_THE_OWNER_ACTUALLY_FEELS>
 - Bench assets for the re-run: <PATHS> - re-run is: <THE_TWO_COMMANDS>
+
+## Expiry and supersession
+
+Verdicts carry dates because they expire. "What would change this verdict"
+is the trigger list above, written BEFORE the next round of data so it
+cannot be fitted afterwards. When this record is superseded, mark it in
+place with a dated banner pointing at the current authority - never rewrite
+it, and never leave two records both reading as current: one document is
+authoritative for live state and another for history, and a stale entry
+that still reads as current is a defect a downstream consumer will file
+(one did, in the field).

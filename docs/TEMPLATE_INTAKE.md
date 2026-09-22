@@ -104,6 +104,30 @@ as a method, not a questionnaire about one product:
   packets; a feed product's: never hammer an upstream past its limits.)*
 - "What counts as identity in your data model?" *(MAX3: correlation IDs on
   every event; the probe generalizes to 'what joins your audit trail'.)*
+- "How does the crew adopt a tool, server or skill it discovered?" — the
+  answer is a default-deny gate or it is a standing incident
+  (`docs/CAPABILITY_TRUST.md`; RULES template 2.13). Lookalike-repository
+  campaigns target exactly the autonomous-agent README-reader; every shape
+  that searches public ecosystems carries this rule.
+- "Can the product ACT on the world, or only observe it?" — an active
+  posture is its own rule set: outward-acting steps go through one loop
+  (observe with evidence → concrete options tagged by blast-radius tier →
+  explicit owner approval, stronger auth plus automatic pre-mutation backup
+  for destructive tiers → execute the one approved action through the
+  narrowest interface → return a **machine-readable undo artifact** whose
+  reversal is its own gated endpoint). Never autonomous by default; an
+  auto-mode, if ever added, is a per-rule owner choice, still logged and
+  undoable. *(REEF's standing incident: an armed auto-resolve executor
+  severed the whole LAN once — taking down the network AND the tool that
+  would have undone it — and no revert brought it back.)*
+- "Does any component sit on a trust boundary with privileged access?" — the
+  safety ladder, safest to forbidden: scoped API → named, parameterized,
+  allow-listed server-side actions → read-only telemetry sidecar → separate
+  probe host → **never a general command channel on the boundary**, because
+  an inbound shell on the perimeter is the exact attack pattern such a
+  system exists to detect. A need that seems to require a shell is the
+  signal to add a named action and revisit the decision record, not to work
+  around it. *(REEF: ADR-grade, "root RCE on the perimeter".)*
 
 ## 3. FAILURE_PATTERNS.md.template — the registry
 
@@ -154,6 +178,18 @@ as a method, not a questionnaire about one product:
   'CI green'.)*
 - "Is there a step everyone does from memory?" — that step is the next
   checklist item, verbatim.
+- "When the published output IS the product, what checks the serving side?"
+  — a green deploy proves the deploy script exited 0, nothing more; the
+  checklist's section K (fetch the published surfaces, compare served bytes,
+  probe private paths, re-probe on a schedule) exists because five new pages
+  404'd for an hour in the field while the release reported success, and
+  header-level protections existed only in what the host sent — invisible to
+  every repository-reading check.
+- "Which cheap lane exists, and is its skip a gate or an instruction?" — a
+  docs-only or content-only lane is decided from the whole branch diff, per
+  file, printed with reasons, expanding to the full gate on any red
+  (FAST_TRACK.md); and each of its cost-saving skip rules is verified by
+  watching one real change get skipped.
 - Shape contrasts: an appliance ships a capture-safety check (never ship a
   build that defaults to promiscuous capture ON); a feed product ships a
   dry-run against recorded upstream fixtures; a research repo ships a
@@ -180,6 +216,11 @@ as a method, not a questionnaire about one product:
   without delayed expansion' from exactly this mining.)*
 - "Which reviewer comment do you keep making by hand?" — that comment is a
   rule that belongs in the body, where every grader makes it for you.
+- "What may the crew hand the owner unverified?" — nothing executable: a
+  command goes out run-here-first or labeled "I have not run this"
+  (BEST_PRACTICES 3.21). The probe is "when did the owner last test a
+  command of yours that didn't run?" — the incident behind the rule cost two
+  round trips.
 
 ## 6. BUDGETED_DOCS.md.template — the prompt-budget register
 
@@ -203,6 +244,18 @@ as a method, not a questionnaire about one product:
   rules); register it with a margin, not just a limit.
 - Per-lane caps for every reviewer wired via the reviewer-integration skill
   — the skill's step 5 lands here.
+- "Who may raise a ceiling, and what must be filed when one is raised
+  twice?" — never to green a failing check; compress first, and a second
+  raise within days files the durable alternative (curated exports or
+  retrieval) as a work item (template rule 6). *(MAX3's second raise in
+  three days came only after the tripping rule was compressed and the
+  retrieval item filed.)*
+- "Which counted documents feed a GENERATOR rather than a session?" — every
+  generator-source row belongs on the fast-track deny list, because an edit
+  there changes build output and can fail the build (FAST_TRACK.md).
+- "What is the plan for the day the register outgrows the window?" — a
+  registry grows and a context window does not; decide curation or
+  retrieval before the cap forces a silent eviction (template rule 7).
 
 ## 7. DOCS_MAP.md.template — the change-kind → doc-surfaces map
 
@@ -224,6 +277,11 @@ as a method, not a questionnaire about one product:
   with them, and which should have?" The misses are rows.
 - "Which doc do people complain is always stale?" — that doc is missing from
   some kind's row, by definition.
+- "Which document is authoritative for live state, and which for history?"
+  — two documents both reading as current is worse than one plainly stale
+  (template §3.6); and "which facts render on more than one surface, and
+  what compares the surfaces where they land?" (TESTING_STANDARDS §8.6 —
+  the one-fact-two-paths class no per-surface check can see).
 - Shape contrasts: an appliance maps config-surface changes to its install/
   upgrade notes (REEF); a research repo maps article changes to its catalog
   and index (MRC); an extension maps permission changes to store listings
@@ -295,6 +353,25 @@ as a method, not a questionnaire about one product:
 - "Does any lane skip the state your work sits in?" — a draft-skipping lane on
   a repo that reviews drafts is silently disabled; whichever way that is
   decided, pin it with a test in both directions.
+- "What is the lane's billable event, and how many of it does YOUR workflow
+  generate?" — two different questions; an agent loop produces several times
+  more priced units per unit of intent than intuition predicts, and the only
+  valid cost figure is one read off the vendor's meter after one real unit
+  of work (TECH_EVALUATION §3b). Ask in the same breath where the lane's
+  compute runs (a "free" lane can bill your CI minutes) and whether billing
+  keys on the pull-request author (then automation authors as the covered
+  identity, agents in Co-Authored-By).
+- "What happens the day the vendor withdraws the lane?" — a free tier is a
+  dependency with no contract; name the break-glass replacement kept
+  installed-but-disabled, and re-count lanes on every subscription change,
+  because a bundled tool can arrive with a plan upgrade unasked. *(A sibling
+  shape's only active reviewer was sunset by its vendor mid-tenure.)*
+- "What does each lane catch that the others don't?" — a second lane is
+  bought for corroboration and mechanistic disjointness, and is
+  disqualified by redundancy even on a better score (TECH_EVALUATION §3c).
+- "How do this lane's findings arrive?" — anchored, replyable, resolvable
+  items, required in configuration where the tool supports it; a lane that
+  writes into author-owned surfaces is effectively silent.
 - Shape contrasts: a repo may deliberately run **no** AI review lane at all
   (feedhacker) — that is a recorded posture with a reason, not an empty file.
 
@@ -339,6 +416,21 @@ prevent (`docs/FLEET.md` §3).
 - "Does anything else in this tree already claim to be the method?" A partial
   standard in a contributing guide or a role sheet is a copy that will drift;
   map it to this document and delete the overlap (the adopt skill's law).
+- "What ENFORCES the consumer list?" Q10.3 names who a rule must reach; the
+  harder question is what goes red when the copies disagree — "change a rule
+  in one, change it in all" held by discipline is held by nothing. A test
+  asserts the rule-bearing surfaces still agree and still name files that
+  exist, and the checker's file list is DERIVED, not remembered: a suite
+  says loudly that every file it reads is honest, and nothing about WHICH
+  files it reads, so the standing question for every new rule-bearing file
+  (a skill, a prompt, a config) is "what reads this, and what would go red
+  if it were softened?" *(MRC: a whole class was deleted from a reviewer
+  config while every suite stayed green — the file was open in the suite for
+  other clauses, and outside the scan for that one.)*
+- "Are requirements written about outcomes or about existence?" A
+  requirement of the form "the checks exist and fail soft" yields tests
+  about presence, green while the thing the mechanism exists for has never
+  happened once (ITEM_AUTHORING writing rule 8).
 
 ## 11. DESIGN_DOC.md.template — the per-arc design
 
@@ -359,6 +451,11 @@ prevent (`docs/FLEET.md` §3).
   re-derive mid-story?" Each one is a section the design should have carried.
 - "Has an arc ever shipped without a rollback story?" — if the answer is yes
   and nothing broke, that is luck, and the section stays required anyway.
+- "Is the whole system exercisable end-to-end today?" — if not, which
+  subsystem is *absent* rather than shallow? The skeleton-before-depth law
+  (DESIGN_DOC §7) wants every subsystem present and wired, honest stubs
+  included, before any is deep — and "what consumes this slice's output,
+  and is the consumer in the plan?" is asked of every producer slice.
 - Shape contrasts: an appliance's design names the capture boundary and the
   lab-versus-live split in its constraints; a research repo names licensing of
   anything gathered; a feed product names the upstream's terms and rate limits,
@@ -400,6 +497,14 @@ adoption path is how it stops being incomplete:
 3. **The same rule in reverse:** a template no adoption has filled in three
    rounds is a candidate for removal — a slot nobody needs is drift with a
    byline, the same law as the Architect's stale-document rule.
+
+One candidate kind is already on record from the field: the **operator cheat
+sheet** — a one-page muscle-memory surface with the three-or-four commands
+actually run daily, an exact-symptom → exact-fix table keyed to
+failure-registry classes, a don't-do list, and the start/end-of-session
+rituals; deliberately redundant with the deep documents it links. One
+adoption carries the specimen (MAX3); per rule 2 it graduates when a second
+adoption needs it or the engineer names it wanted.
 
 This is the failure-registry discipline applied to the template set itself:
 the field teaches, the kit graduates the lesson, and the next adoption starts

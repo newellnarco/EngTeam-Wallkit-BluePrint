@@ -557,3 +557,105 @@ outage.
 > an ownership check>
 > VARIANT: a cleanup that runs at start-up rather than on failure - the class
 > is "deleting state whose owner was assumed", not "the reaper".
+
+### F-LAUNDER-001 - a defensive default launders "could not read" into "read it, and it was empty"
+
+- **Discovered:** inherited, not yet observed here
+- **Symptom:** A surface renders a healthy empty - zero findings, an empty
+  list, a quiet panel - over data that was never successfully read. Found
+  late, because nothing is red; the strongest form gives *advice* computed
+  from a value it never read.
+- **Root cause:** The idiom `x if isinstance(x, list) else []` (or
+  `Array.isArray(x) ? x : []`, `or {}`, `or 0`) at a read site. It is
+  contagious inside hardening passes because it wears the same shape as the
+  correct checks beside it - one sibling deployment logged eleven instances,
+  five written *after* the rule against it existed - and one laundering step
+  **upstream** of a chain of honest per-field guards defeats all of them at
+  once.
+- **Check:** For every defensive default: what will the empty value MEAN to
+  the caller, and can the caller tell it from a real empty result? Fix where
+  the payload ENTERS, not field by field. Distinguish absent from unreadable
+  using distinctions the upstream itself encodes (a serializer that emits
+  null for nil); an unparseable value is NAMED, never blanked. Grade
+  laundering that feeds a recommendation path above laundering that feeds a
+  status - advice gets acted on.
+- **Command:** <GREP_FOR_DEFENSIVE_DEFAULT_IDIOMS_AT_READ_SITES>
+
+> class-guard: <assertion that read-path type guards raise or mark unknown,
+> never silently default>
+> VARIANT: F-STATUS-001 is this class observed at the render layer; this
+> entry is the read-site source of it, one hop upstream.
+
+### F-ALARM-ENTAIL-001 - a true observation alarmed as its unproven consequence
+
+- **Discovered:** inherited, not yet observed here
+- **Symptom:** An alarm or finding text asserts a specific harm ("your
+  traffic is exposed right now") when what was measured is a state from
+  which that harm does not follow ("the tunnel is down") - while the probe
+  that would actually establish the harm sits unconsulted beside it. Four
+  instances landed on one surface in the field before the class was named.
+- **Root cause:** Severity and the alarmed condition are different axes. The
+  renderer graded by severity, which passes every unit test and still
+  mislabels a legitimately-high finding as the specific consequence it
+  definitionally is not.
+- **Check:** For every alarm text: name the measurement, and verify it
+  ENTAILS the sentence. The companion rule: an alert channel is armed by
+  measured precision, not by feature completion - paging on findings the
+  system is not yet confident in trains the owner to ignore the channel,
+  which is worse than no alarm; the arming condition is recorded in the
+  owner-decisions register with its lifting condition.
+- **Command:** <SWEEP_ALARM_TEXTS_AGAINST_THEIR_MEASUREMENTS>
+
+> class-guard: <assertion that each alarm template cites the measurement it
+> renders>
+> VARIANT: a report sentence that upgrades "not verified" to "verified" in
+> prose - same class, the harm being a claim rather than a page.
+
+### F-IDENT-REP-001 - identity encoded as whatever representation the first producer used
+
+- **Discovered:** inherited, not yet observed here
+- **Symptom:** Two records about one referent score as two referents (a
+  hostname and its IP; an id and its alias), under-counting corroboration -
+  or, in the unrecoverable direction, records about *different* referents
+  merge and manufacture corroboration nobody supplied. A comment beside one
+  call site documents the gap for months without becoming a defect.
+- **Root cause:** "These refer to the same thing" was implemented as
+  equality of current representations. Nothing states what identity IS, so
+  tests derived from the implementation keep passing as new producers
+  arrive with different representations of the same referent.
+- **Check:** Write the identity invariant explicitly, apart from any
+  producer. Merging under uncertainty is asymmetric: failing to merge two
+  records about one referent under-counts (recoverable); merging two
+  referents manufactures evidence (not walkable back) - so ambiguous
+  evidence keeps its own identity, and absent or stale evidence is unknown,
+  never a silent no-match. A documented workaround beside a call site is a
+  requirement nobody filed; file it, and re-ask when the next producer
+  arrives.
+- **Command:** <TEST_IDENTITY_JOIN_WITH_TWO_REPRESENTATIONS_OF_ONE_REFERENT>
+
+> class-guard: <assertion that the identity join resolves representations
+> before comparing>
+> VARIANT: F-SUBSTR-001 is comparison by a weaker relation than identity;
+> this class is comparison by an accidental one.
+
+### F-PRECOND-001 - "not finished" treated as "not allowed"
+
+- **Discovered:** inherited, not yet observed here
+- **Symptom:** A startup gate holds users or callers out for minutes while
+  something that never refuses anything warms up - a cache fill or index
+  build read as a precondition, measured in the field at ~170 seconds of
+  lockout per launch.
+- **Root cause:** Startup *preconditions* (a check that answered NO refuses
+  entry) and *progress* (a warm-up that has refused nothing and must never
+  gate) were conflated into one list, so completion of work gated access.
+- **Check:** Two lists, explicitly: preconditions gate, progress only
+  reports. Derive the gating set from the same list the status surface
+  renders, so a newly added check cannot silently start gating - or
+  silently stop.
+- **Command:** <ASSERT_WARMUP_STATES_NEVER_APPEAR_IN_THE_GATE_SET>
+
+> class-guard: <assertion that the gate set is derived and names only
+> refusal-capable checks>
+> VARIANT: the reverse failure - a genuine precondition demoted to progress
+> so the surface opens broken - is the same conflation, walked the other
+> way.

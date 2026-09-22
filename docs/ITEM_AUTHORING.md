@@ -154,6 +154,24 @@ Every story carries, at authoring time:
 
    The method these rules come from is `ENGINEERING_STANDARD.md` section 1;
    this is its authoring half, and the two say the same thing on purpose.
+8. **State the outcome the mechanism exists for, not the mechanism's
+   existence.** A requirement written as "the checks exist and fail soft"
+   yields tests about *presence*, and the whole suite can be green while the
+   thing the mechanism exists for has never happened once. At least one
+   clause names the outcome ("a review was posted" / "no review was posted"),
+   asserted per run from the mechanism's own summary, never inferred from a
+   check's colour. (A measured incident: four lanes green, zero reviews ever
+   posted, money spent on nothing — and every test derived faithfully from
+   the presence-shaped requirement. Faithful tests of a wrong-question
+   requirement are not weak tests; the fix is at the requirement.)
+9. **Authored text carries an audience, and reuse filters at the consumer.**
+   Nothing in a data field says which reader it was written for; a field
+   authored in one register (a plain-language abstract, an expert log line)
+   reused verbatim at a destination with a different reader is wrong there
+   while being right where it was written. A criterion for any surface that
+   reuses authored text names the destination's reader — and a mismatch is
+   fixed at the consumer, never by editing the source, because the source
+   was correct for its own audience.
 
 ## 5. Amending items — the design is living, the change is not silent
 

@@ -30,6 +30,25 @@ state the system does not hold. A stale number renders as stale, a dead
 backend renders as OFFLINE, a partial load says so. Misrepresentation to look
 healthy is the UX equivalent of a fabricated test.
 
+### The untrained-reader bar
+
+Where the product's job is making expert-grade data usable by a non-expert
+owner, **translation is the product, not a garnish on it**: every surface
+carries a plain-language "what am I seeing", and every finding states its
+observation in human terms with its evidence — "talked to a newly-registered
+domain every 58±3 seconds for two hours", never a bare code or a raw
+indicator. The acceptance test for such a surface is written as a criterion:
+*would the untrained owner see what is happening and understand it well
+enough to decide what to do?* Piping an expert surface through unchanged is
+not shipping it; visibility without comprehension is another dashboard.
+(The appliance shape's doctrine, adopted kit-wide because every shape has at
+least one expert surface — a CI matrix, a budget gauge, a compliance
+register — that some reader meets untrained.)
+
+One paid corollary: **when two surfaces show the same quantity over
+different time windows, the window is part of the answer** — render it on
+both, or the reader reads a disagreement where there is none.
+
 ## 2. Trajectories — the workflows, named
 
 Every user-facing arc's design names its **trajectories**:

@@ -454,6 +454,63 @@ Five rules keep it honest:
    request.** A pipeline that runs a different set than the matrix describes has
    two definitions of the gate, and the cheaper one wins by default.
 
+## 8.6 Derived and published surfaces — check where the reader reads
+
+When committed output is generated from sources — and above all when the
+published output IS the product (a site, a catalog, a rendered report) — the
+checks that keep it honest have shapes of their own, each one paid for in a
+sibling deployment's production:
+
+1. **Regeneration is proven in BOTH directions.** Rebuild from source in a
+   throwaway tree and compare byte-for-byte both ways: a committed file whose
+   bytes differ is **stale**, and a committed file no build produces is an
+   **orphan** — a live surface served from bytes the generator never wrote.
+   The staleness half alone misses the orphan entirely. And the comparison
+   must not be a tautology: ask where side B came from — a clean room seeded
+   from the tree it grades compares each file against a copy of itself, and
+   no tampering can fail it.
+2. **Every build writes every output.** A "skip-if-exists" path goes quietly
+   inert: the file is present, current-looking, and permanently stale.
+3. **No build clock in derived surfaces.** Bytes change only when content
+   does. Output that embeds a timestamp restamps itself on every build — a
+   feed that does so tells every aggregator the whole archive was just
+   republished — and drowns the diff that regeneration checks depend on. Give
+   output a total ordering (tie-break on a stable key) so it never reshuffles
+   on an unrelated edit.
+4. **One fact, two paths: compare them where they LAND.** When one fact
+   reaches a reader by two independent routes — a field on an index card and
+   on the item's own page, two report sections computed from one input — no
+   per-surface check can see the disagreement, because each surface is
+   individually well-formed. The join goes where both paths end, on the
+   rendered surfaces, and fixing the source field must provably move both.
+   (Measured: one article carrying two different topic names on two pages,
+   both pages valid; one digest printing "100% internal traffic" above "no
+   movement recorded".)
+5. **Membership is checked in the direction that catches absence.** "Every
+   record names a real item" is true of every registry that shrinks; "every
+   item has a record" is the direction that catches silent absence. State at
+   the check site which direction is meant — `both-ways`, or `one-way-ok`
+   with a reason.
+6. **Count requirements the way the builder counts.** Required companion
+   fields (summaries, citations, keywords) are counted after the consumer's
+   own filtering — three authored entries can be one usable one once blanks
+   and duplicates drop. A breakdown is checked against its PARTS, never only
+   its total ("23 moved and 9 more, so 33" can add overlapping sets and land
+   on the right number by cancelling its own error), and a tool states its
+   own total rather than anyone counting by eye off its output.
+7. **A backfill exemption list only ever shrinks, and is DELETED at zero.**
+   An exemption list nobody can be in is a clause that cannot fail, and an
+   empty one invites the next item into it; replace it with a non-vacuity
+   check on the derived population.
+8. **Numbers stated in prose get a counted-noun register.** A count written
+   in a document with nothing comparing it to reality goes stale unseen.
+   Register every stated count keyed on its noun, derive the true value from
+   the artifact it describes, and run the arithmetic on every "N of M — P%"
+   claim. The register is only as wide as its nouns and the files it scans —
+   a count restated with the noun dropped, or a file the register never
+   reads, is invisible to it (three counts drifted at once in the field
+   through exactly that seam).
+
 ## 9. What the Reviewer rejects
 
 The list is in `.claude/agents/reviewer.md`. It is short by design: an assertion
