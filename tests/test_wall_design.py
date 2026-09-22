@@ -352,3 +352,22 @@ def test_why_dialog_traps_and_restores_focus(template_text: str) -> None:
     assert "whyOpener = document.activeElement" in template_text
     assert "whyOpener.focus" in template_text
     assert "e.shiftKey && document.activeElement === first" in template_text
+
+
+def test_tab_strip_wraps_instead_of_hiding_tabs(template_text: str) -> None:
+    """Nine tabs in a narrow container must WRAP, never overflow out of view.
+
+    Found downstream: a deployment framed the wall at ~761px while the strip
+    needs ~896px, and with overflow-x:auto the DOCS and FLOW tabs sat past the
+    edge -- rendered, reachable only by a scroll nothing advertised, and
+    indistinguishable from a wall with seven tabs. A wrapped row degrades
+    visibly; an overflowed one lies about the tab count.
+    """
+    rule = re.search(r"nav\.tabs \{[^}]*\}", template_text)
+    assert rule, "no nav.tabs rule in the template"
+    assert "flex-wrap: wrap" in rule.group(0), (
+        "nav.tabs does not wrap -- a narrow container hides trailing tabs"
+    )
+    assert "overflow-x" not in rule.group(0), (
+        "overflow-x on the tab strip reintroduces the hidden-tabs failure"
+    )

@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-22T18:05:58.764Z",
+  "generated_at": "2026-09-22T20:53:00.879Z",
   "repo": {
     "name": "Atlas-Core",
-    "path": "/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kit/sample",
+    "path": "/tmp/kit-main-render/sample",
     "branch": "main"
   },
   "courier": {
-    "last_run_ms": 1,
+    "last_run_ms": 0,
     "events": 78,
     "shards": 3
   },
@@ -108,7 +108,7 @@
         "kind": "unassigned_past_sla",
         "question_id": "q_0051",
         "item_id": "ST-112",
-        "age_min": 4137.0,
+        "age_min": 4304.0,
         "sla_min": 5,
         "detail": "nobody picked it up"
       },
@@ -117,9 +117,9 @@
         "question_id": "q_0051",
         "item_id": "ST-112",
         "tier": "researcher",
-        "age_min": 4137.0,
+        "age_min": 4304.0,
         "sla_min": 60,
-        "detail": "open 4137 min at tier 'researcher' -- escalate a tier"
+        "detail": "open 4304 min at tier 'researcher' -- escalate a tier"
       }
     ],
     "stale_claims": [
@@ -862,7 +862,7 @@
     ],
     "period_start": "2026-09-01T00:00:00+00:00",
     "period_end": "2026-10-01T00:00:00+00:00",
-    "pct_period_remaining": 27.5
+    "pct_period_remaining": 27.1
   },
   "queue_api": null,
   "agents_feed": null,
@@ -1268,7 +1268,7 @@
         },
         {
           "id": "hipaa",
-          "name": "HIPAA / PHI (Security, Privacy, Breach Rules)",
+          "name": "Healthcare privacy (HIPAA/PHI, Part 2, HBNR, info blocking)",
           "doc": "docs/compliance/hipaa.md",
           "applies_when": "the system creates, receives, maintains or transmits protected health information, or serves one that does (business associate)",
           "applicable": null,
@@ -1284,7 +1284,7 @@
             "pass": 0,
             "fail": 0,
             "waiver": 0,
-            "unattested": 7
+            "unattested": 10
           },
           "controls": [
             {
@@ -1338,6 +1338,30 @@
             {
               "id": "BN-NOT",
               "statement": "Breach Notification (164.400s): discovery clocks, individual and HHS notice",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "P2",
+              "statement": "42 CFR Part 2 (in force 2026-02-16, OCR-enforced): SUD records identified, segregated, consent-tracked; NPP updated",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "HBN",
+              "statement": "FTC Health Breach Notification Rule (2024): non-HIPAA health data in apps/devices covered, breach clocks known",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "IB",
+              "statement": "Information blocking + certified health IT (ASTP/ONC): no practice that blocks EHI; certification duties current where the product is certified",
               "status": null,
               "note": null,
               "by": null,
@@ -1646,6 +1670,172 @@
             {
               "id": "FER",
               "statement": "FERPA: education records identified, disclosures consent-gated, directory-info opt-outs honored",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            }
+          ]
+        },
+        {
+          "id": "nist",
+          "name": "NIST (CSF 2.0, SP 800-171 r3, SSDF 800-218)",
+          "doc": "docs/compliance/nist.md",
+          "applies_when": "a contract, customer or program requires NIST alignment: CSF 2.0 as the named framework, 800-171 for CUI in a federal supply chain, SSDF attestation for software sold to the US government",
+          "applicable": null,
+          "selected_by": null,
+          "reason": null,
+          "challenge": "unanswered -- select applicable or not (`wall compliance nist ...`)",
+          "recommended": false,
+          "evidence": [],
+          "scanned_at": null,
+          "disposition": "undecided",
+          "last_audit": null,
+          "counts": {
+            "pass": 0,
+            "fail": 0,
+            "waiver": 0,
+            "unattested": 8
+          },
+          "controls": [
+            {
+              "id": "GV",
+              "statement": "CSF Govern: risk strategy, roles, policy, oversight and supply-chain risk management established and owned",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "ID",
+              "statement": "CSF Identify: assets, risks and improvement opportunities inventoried and assessed",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "PR",
+              "statement": "CSF Protect: identity and access, awareness, data security, platform security, resilience",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "DE",
+              "statement": "CSF Detect: continuous monitoring and adverse-event analysis in place",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "RS",
+              "statement": "CSF Respond: incident management, analysis, reporting and mitigation exercised",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "RC",
+              "statement": "CSF Recover: recovery execution and communications planned and tested",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "CUI",
+              "statement": "SP 800-171 r3 (conditional): CUI identified, controls mapped, the self-assessment score current and true",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "SSD",
+              "statement": "SSDF SP 800-218: secure-development practices mapped for the software produced; attestation ready where a buyer requires it",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            }
+          ]
+        },
+        {
+          "id": "fda",
+          "name": "FDA-regulated software (SaMD/SiMD, QMSR, 524B, Part 11)",
+          "doc": "docs/compliance/fda.md",
+          "applies_when": "the software is a medical device (SaMD), is embedded in or controls one (SiMD), or produces records supporting an FDA-approved application (drug, biologic, device)",
+          "applicable": null,
+          "selected_by": null,
+          "reason": null,
+          "challenge": "unanswered -- select applicable or not (`wall compliance fda ...`)",
+          "recommended": false,
+          "evidence": [],
+          "scanned_at": null,
+          "disposition": "undecided",
+          "last_audit": null,
+          "counts": {
+            "pass": 0,
+            "fail": 0,
+            "waiver": 0,
+            "unattested": 7
+          },
+          "controls": [
+            {
+              "id": "QMS",
+              "statement": "QMSR quality system with design controls established (ISO 13485-aligned, in force 2026-02)",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "LC",
+              "statement": "IEC 62304 lifecycle + IEC 81001-5-1 security activities: safety class assigned; secure development and maintenance planned to them",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "PMK",
+              "statement": "Premarket pathway identified (510(k) / De Novo / PMA) with software documentation at the level the guidance sets",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "CYB",
+              "statement": "524B cyber-device duties per the 2025 final guidance: SBOM, secure development framework, vulnerabilities monitored and disclosed, updates deliverable",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "P11",
+              "statement": "Part 11: electronic records and signatures trustworthy wherever records support a regulated submission",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "PMS",
+              "statement": "Postmarket: complaint handling, Part 803 adverse-event reporting, corrections and removals ready",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "CHG",
+              "statement": "Change control: whether a modification needs a new submission is decided in writing; AI-enabled change rides a PCCP (Dec 2024 final, all AI functions)",
               "status": null,
               "note": null,
               "by": null,
