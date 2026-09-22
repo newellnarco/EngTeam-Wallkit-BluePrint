@@ -168,3 +168,37 @@ class TestTimestampsCompareAsInstants:
             capture_output=True, text=True)
         assert out.returncode == 2
         assert "not a timestamp" in out.stderr
+
+
+class TestAuditNamesCorruptTimestamps:
+    """A malformed timestamp silently drops its tenure from holder_at, so a
+    corrupt row must never read as a clean roster (CodeRabbit on the
+    reference deployment's #1673 — the docstring claimed this before the
+    code did it)."""
+
+    def test_invalid_claimed_is_a_named_problem(self, repo):
+        reg = AgentRegistry(repo)
+        row = reg.claim("builder", "s1", name="Desmond")
+        rows = reg.read()
+        for r in rows:
+            if r["key"] == row["key"]:
+                r["claimed"] = "yesterday-ish"
+        reg.write(rows)
+        problems = reg.audit()
+        assert any("invalid claimed" in p and row["key"] in p for p in problems)
+
+    def test_invalid_released_is_a_named_problem(self, repo):
+        reg = AgentRegistry(repo)
+        row = reg.claim("builder", "s1", name="Desmond")
+        reg.release(row["key"])
+        rows = reg.read()
+        for r in rows:
+            if r["key"] == row["key"]:
+                r["released"] = "not-a-time"
+        reg.write(rows)
+        assert any("invalid released" in p for p in reg.audit())
+
+    def test_em_dash_released_is_absence_not_a_problem(self, repo):
+        reg = AgentRegistry(repo)
+        reg.claim("builder", "s1", name="Desmond")
+        assert reg.audit() == []

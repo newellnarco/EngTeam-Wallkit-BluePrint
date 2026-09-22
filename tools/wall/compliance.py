@@ -64,9 +64,9 @@ REGIMES = (
         "applies_when": "the system creates, receives, maintains or transmits "
                         "protected health information, or serves one that does "
                         "(business associate)",
-        "keywords": ("hipaa", "phi", "health", "baa", "business associate",
-                     "part 2", "substance use", "information blocking",
-                     "health app", "tefca"),
+        "keywords": ("hipaa", "phi", "protected health information", "baa",
+                     "business associate", "42 cfr part 2", "substance use",
+                     "information blocking", "health app", "tefca"),
         "controls": (
             ("SR-ADM", "Administrative safeguards (164.308): risk analysis, workforce training, access management, contingency plan"),
             ("SR-PHY", "Physical safeguards (164.310): facility access, workstation and device controls"),
@@ -183,7 +183,7 @@ REGIMES = (
                         "supporting an FDA-approved application (drug, "
                         "biologic, device)",
         "keywords": ("fda", "samd", "simd", "medical device", "510(k)", "pma",
-                     "de novo", "qmsr", "62304", "part 11", "sbom", "524b",
+                     "de novo", "qmsr", "62304", "21 cfr part 11", "524b",
                      "pccp"),
         "controls": (
             ("QMS", "QMSR quality system with design controls established (ISO 13485-aligned, in force 2026-02)"),
@@ -260,15 +260,17 @@ def _tracked_files(root):
             return [p for p in out.stdout.splitlines() if p.strip()]
     except (OSError, subprocess.SubprocessError):
         pass
+    import os
     skip_dirs = {".git", "node_modules", ".venv", "__pycache__", "dist"}
     found = []
-    for p in root.rglob("*"):
-        if not p.is_file():
-            continue
-        rel = p.relative_to(root).as_posix()
-        if any(part in skip_dirs for part in p.parts):
-            continue
-        found.append(rel)
+    # Prune BEFORE descent: rglob walked all of node_modules just to throw
+    # the paths away, which on a large non-git tree is the whole cost.
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in skip_dirs]
+        for name in filenames:
+            p = Path(dirpath) / name
+            if p.is_file():
+                found.append(p.relative_to(root).as_posix())
     return found
 
 

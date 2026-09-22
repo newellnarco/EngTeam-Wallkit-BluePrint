@@ -600,3 +600,39 @@ def append_event(repo: Path, session_id: str, payload: dict,
     finally:
         os.close(fd)
     return record
+
+
+def append_events(repo: Path, session_id: str, payloads: list[dict],
+                  ts: str | None = None, day: str | None = None) -> list[dict]:
+    """Append several records as ONE `write()` under `O_APPEND`.
+
+    For a group that must land together or not at all -- an audit's control
+    attestations plus its completion marker (DEC-0030): building every line
+    first means a failure mid-preparation writes NOTHING, and the single
+    write cannot leave a partial batch on disk. Sequential `seq` values are
+    allocated up front for the whole batch."""
+    repo = Path(repo)
+    ts = ts or now_iso()
+    day = day or ts[:10]
+    records, lines = [], []
+    seq = next_seq(repo, session_id)
+    for i, payload in enumerate(payloads):
+        record = {
+            "schema_version": SCHEMA_VERSION,
+            "event_id": str(uuid.uuid4()),
+            "seq": seq + i,
+            "ts": ts,
+            "session_id": session_id,
+        }
+        record.update({k: v for k, v in payload.items() if k not in record})
+        records.append(record)
+        lines.append(json.dumps(record, ensure_ascii=False) + "\n")
+    shard = repo / ".wall" / "events" / day / f"{session_id}.jsonl"
+    shard.parent.mkdir(parents=True, exist_ok=True)
+    blob = "".join(lines).encode("utf-8")
+    fd = os.open(str(shard), os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+    try:
+        os.write(fd, blob)
+    finally:
+        os.close(fd)
+    return records

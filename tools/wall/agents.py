@@ -304,6 +304,20 @@ class AgentRegistry:
             problems.append(f"duplicate key: {k}")
         by_name: dict[str, list[dict]] = {}
         for r in rows:
+            # A malformed timestamp silently drops its tenure from holder_at
+            # and mis-sorts history, so the audit NAMES it rather than letting
+            # a corrupt row read as a clean roster. Empty / em-dash released
+            # is the valid absence marker, never a problem.
+            claimed_raw = (r.get("claimed") or "").strip()
+            if parse_ts(claimed_raw) is None:
+                problems.append(
+                    f"invalid claimed timestamp for {r['key']}: {claimed_raw!r} "
+                    f"-- this tenure is invisible to 'whois --at'")
+            released_raw = (r.get("released") or "").strip()
+            if released_raw not in ("", "—") and parse_ts(released_raw) is None:
+                problems.append(
+                    f"invalid released timestamp for {r['key']}: "
+                    f"{released_raw!r} -- this tenure reads as open-ended")
             by_name.setdefault(r["name"], []).append(r)
         floor = datetime.min.replace(tzinfo=timezone.utc)
         for name, tenures in sorted(by_name.items()):

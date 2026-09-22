@@ -201,3 +201,54 @@ class TestPostureSurface:
     def test_directives_are_the_warden_ones(self):
         assert "'warden_audit'" in TEMPLATE
         assert "'warden_regime'" in TEMPLATE
+
+
+class TestScanKeywordPrecision:
+    def test_the_word_health_alone_is_not_hipaa_evidence(self, tmp_path):
+        (tmp_path / "ops.md").write_text(
+            "the health check endpoint returns 200", encoding="utf-8")
+        assert not compliance.scan_repo(tmp_path)["hipaa"]
+
+    def test_node_modules_is_pruned_not_walked(self, tmp_path):
+        deep = tmp_path / "node_modules" / "some-pkg"
+        deep.mkdir(parents=True)
+        (deep / "billing.js").write_text("stripe cardholder pan", encoding="utf-8")
+        assert not compliance.scan_repo(tmp_path)["pci"]
+
+
+class TestAttestNoteStrip:
+    def test_whitespace_only_note_is_refused(self, tmp_path):
+        r = _wall(tmp_path, "attest", "pci", "R3", "--status", "pass",
+                  "--note", "   ")
+        assert r.returncode == 2 and "note is the record" in r.stderr
+
+
+class TestAuditAtomicity:
+    def test_the_batch_is_one_write_with_sequential_seqs(self, tmp_path):
+        import items as items_mod
+        (tmp_path / ".wall" / "events").mkdir(parents=True)
+        recs = items_mod.append_events(tmp_path, "s_warden", [
+            {"event": "compliance_attested", "regime": "pci", "control": "R1",
+             "status": "pass", "note": "n"},
+            {"event": "compliance_audited", "regime": "pci"},
+        ])
+        assert [r["seq"] for r in recs] == [recs[0]["seq"], recs[0]["seq"] + 1]
+        lines = _events(tmp_path)
+        assert [e["event"] for e in lines] == [
+            "compliance_attested", "compliance_audited"]
+
+    def test_audit_verb_lands_marker_with_attestations_or_nothing(self, tmp_path, monkeypatch):
+        # the marker rides the same single write as the attestations
+        results = {c: {"status": "pass", "note": "verified"}
+                   for c in compliance.control_ids("sector")}
+        f = tmp_path / "res.json"
+        f.write_text(json.dumps(results), encoding="utf-8")
+        r = _wall(tmp_path, "audit", "sector", "--file", str(f))
+        assert r.returncode == 0, r.stderr
+        ev = _events(tmp_path)
+        attests = [e for e in ev if e["event"] == "compliance_attested"]
+        markers = [e for e in ev if e["event"] == "compliance_audited"]
+        assert len(markers) == 1 and len(attests) == len(
+            compliance.control_ids("sector"))
+        # every record in the batch shares one ts — the single-write signature
+        assert len({e["ts"] for e in attests + markers}) == 1

@@ -959,20 +959,21 @@ def cmd_attest(a):
         print(f"status must be one of {compliance_mod.ATTEST_STATUSES}",
               file=sys.stderr)
         return 2
-    if not a.note:
+    note = (a.note or "").strip()
+    if not note:
         # DEC-0030 tightened this from waiver-only to every verdict: an audit
-        # row is pass/fail/waiver PLUS its proof or reason, never a bare word.
+        # row is pass/fail/waiver PLUS its proof or reason, never a bare word
+        # -- and whitespace is a bare word wearing a coat.
         print("refusing an attestation without --note: pass needs its proof, "
               "fail and waiver need their reason -- the note is the record",
               file=sys.stderr)
         return 2
     record = items_mod.append_event(repo, a.session, {
         "event": "compliance_attested", "regime": a.regime,
-        "control": a.control, "status": a.status, "note": a.note or "",
+        "control": a.control, "status": a.status, "note": note,
         "by": a.by, "role": "human", "source": "human",
     })
-    print(f"{a.regime} {a.control}: {a.status}"
-          f"{' -- ' + a.note if a.note else ''}  (seq {record['seq']})")
+    print(f"{a.regime} {a.control}: {a.status} -- {note}  (seq {record['seq']})")
     print("  run `wall run-once` to refresh the POSTURE tab")
     return 0
 
@@ -1045,18 +1046,20 @@ def cmd_audit_regime(a):
               f"AND a non-empty note (proof or reason) -- bad: "
               f"{', '.join(bad)}", file=sys.stderr)
         return 2
-    for cid in ids:
-        row = results[cid]
-        items_mod.append_event(repo, a.session, {
-            "event": "compliance_attested", "regime": a.regime,
-            "control": cid, "status": row["status"],
-            "note": str(row["note"]).strip(),
-            "by": a.by, "role": "warden", "source": a.source or "warden",
-        })
-    record = items_mod.append_event(repo, a.session, {
+    # One atomic batch (append_events, single O_APPEND write): a failure
+    # while preparing writes NOTHING, so the ledger can never hold a partial
+    # audit -- attestations without their completion marker.
+    payloads = [{
+        "event": "compliance_attested", "regime": a.regime,
+        "control": cid, "status": results[cid]["status"],
+        "note": str(results[cid]["note"]).strip(),
+        "by": a.by, "role": "warden", "source": a.source or "warden",
+    } for cid in ids]
+    payloads.append({
         "event": "compliance_audited", "regime": a.regime, "by": a.by,
         "role": "warden", "source": a.source or "warden",
     })
+    record = items_mod.append_events(repo, a.session, payloads)[-1]
     tally = {}
     for cid in ids:
         s = results[cid]["status"]

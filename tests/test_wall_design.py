@@ -343,3 +343,12 @@ def test_file_mode_catches_up_when_the_tab_is_looked_at(template_text: str) -> N
     i = template_text.index("missedReload = false")
     block = template_text[i:i + 600]
     assert "visibilitychange" in block and "missedReload) location.reload()" in block
+
+
+def test_why_dialog_traps_and_restores_focus(template_text: str) -> None:
+    """div[role=dialog] gets no browser focus management: Tab is trapped
+    inside the dialog and focus returns to the invoking control on close
+    (CodeRabbit on the reference deployment's #1673)."""
+    assert "whyOpener = document.activeElement" in template_text
+    assert "whyOpener.focus" in template_text
+    assert "e.shiftKey && document.activeElement === first" in template_text

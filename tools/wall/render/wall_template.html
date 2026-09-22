@@ -1076,6 +1076,8 @@ footer {
   // session on the wall MCP adapter, an editor agent, anything speaking the
   // HTTP queue API) picks the work up in this repo.
   var whyItem = null;
+  var whyOpener = null;  // focus returns here on close (role="dialog" divs
+                         // get no browser focus management for free)
 
   function itemById(id){
     return allItems().filter(function(i){ return i.item_id === id; })[0] || null;
@@ -1111,6 +1113,7 @@ footer {
     var msg = document.querySelector('[data-role="why-msg"]');
     if (msg) msg.textContent = '';
     $('whyActions').removeAttribute('hidden');
+    whyOpener = document.activeElement;
     $('whyVeil').removeAttribute('hidden');
     $('whyClose').focus();
   }
@@ -1118,6 +1121,8 @@ footer {
   function closeWhy(){
     whyItem = null;
     $('whyVeil').setAttribute('hidden', '');
+    if (whyOpener && whyOpener.focus) { try { whyOpener.focus(); } catch (e) {} }
+    whyOpener = null;
   }
 
   document.addEventListener('click', function(e){
@@ -1127,7 +1132,26 @@ footer {
     if (e.target && e.target.id === 'whyVeil') closeWhy();  // backdrop
   });
   document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape' && !$('whyVeil').hasAttribute('hidden')) closeWhy();
+    if ($('whyVeil').hasAttribute('hidden')) return;
+    if (e.key === 'Escape') { closeWhy(); return; }
+    if (e.key !== 'Tab') return;
+    // Trap Tab inside the dialog: a div[role=dialog] gets no browser focus
+    // management, and tabbing out of a modal onto the dimmed page is a trap
+    // of the wrong kind.
+    var focusables = $('whyVeil').querySelectorAll(
+      'button:not([disabled]):not([hidden]), [href], input, select, textarea');
+    var list = Array.prototype.filter.call(focusables, function(el){
+      return el.offsetParent !== null;
+    });
+    if (!list.length) return;
+    var first = list[0], last = list[list.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault(); last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault(); first.focus();
+    } else if (!$('whyVeil').contains(document.activeElement)) {
+      e.preventDefault(); first.focus();
+    }
   });
 
   document.addEventListener('click', function(e){
@@ -1175,6 +1199,7 @@ footer {
         : '');
     $('whyNote').textContent = r.scanned_at ? 'Scan recorded ' + ago(r.scanned_at) + '.' : '';
     $('whyActions').setAttribute('hidden', '');
+    whyOpener = document.activeElement;
     $('whyVeil').removeAttribute('hidden');
     $('whyClose').focus();
   });
