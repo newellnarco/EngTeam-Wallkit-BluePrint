@@ -229,6 +229,31 @@ class AgentRegistry:
         r = self.resolve(key)
         return r["name"] if r else key
 
+    # ------------------------------------------------------- name lookback
+
+    def history(self, name: str) -> list[dict]:
+        """Every tenure a name has had, oldest first. A reused name returns one
+        row per key that held it, so 'which Desmond?' is answerable from the
+        registry alone."""
+        return sorted((r for r in self.read() if r["name"] == name),
+                      key=lambda r: r.get("claimed") or "")
+
+    def holder_at(self, name: str, at: str) -> dict | None:
+        """The agent that held `name` at UTC instant `at` (ISO-8601 Z, the same
+        shape the registry and ledger write). Timestamps compare lexically at
+        that shape. A live tenure is open-ended; the release instant still
+        belongs to the releasing agent. Hand-edited overlaps are an audit
+        problem — here the latest claim wins so the answer is deterministic."""
+        match = None
+        for r in self.history(name):
+            claimed = r.get("claimed") or ""
+            if not claimed or claimed > at:
+                continue
+            released = r.get("released") or ""
+            if r["status"] == "live" or released in ("", "—") or at <= released:
+                match = r
+        return match
+
     def audit(self) -> list[str]:
         """Problems a human should see. Collisions are the one that matters."""
         rows, problems = self.read(), []
@@ -249,18 +274,37 @@ class AgentRegistry:
         keys = [r["key"] for r in rows]
         for k in {k for k in keys if keys.count(k) > 1}:
             problems.append(f"duplicate key: {k}")
+        by_name: dict[str, list[dict]] = {}
+        for r in rows:
+            by_name.setdefault(r["name"], []).append(r)
+        for name, tenures in sorted(by_name.items()):
+            tenures = sorted(tenures, key=lambda r: r.get("claimed") or "")
+            for prev, cur in zip(tenures, tenures[1:]):
+                if prev["status"] == "live" and cur["status"] == "live":
+                    continue  # already reported as a name collision above
+                prev_end = prev.get("released") or ""
+                open_ended = prev["status"] == "live" or prev_end in ("", "—")
+                if open_ended or (cur.get("claimed") or "") < prev_end:
+                    problems.append(
+                        f"tenure overlap: '{name}' held by {prev['key']} "
+                        f"(claimed {prev.get('claimed')}, released {prev_end or '—'}) "
+                        f"and {cur['key']} (claimed {cur.get('claimed')}) -- "
+                        f"'whois --at' inside the overlap cannot be trusted")
         return problems
 
 
 if __name__ == "__main__":
     import argparse
     p = argparse.ArgumentParser(description="Claim, release and inspect agent names.")
-    p.add_argument("action", choices=["claim", "release", "roster", "resolve", "audit"])
+    p.add_argument("action",
+                   choices=["claim", "release", "roster", "resolve", "whois", "audit"])
     p.add_argument("--repo", default=".")
     p.add_argument("--role", default="builder")
     p.add_argument("--session", default="local")
     p.add_argument("--key")
-    p.add_argument("--name", help="request a specific name")
+    p.add_argument("--name", help="request a specific name (claim) or look one up (whois)")
+    p.add_argument("--at", help="whois: resolve the name at this UTC instant "
+                                "(ISO-8601 Z, as ledger events are stamped)")
     p.add_argument("--json", action="store_true")
     a = p.parse_args()
 
@@ -274,6 +318,30 @@ if __name__ == "__main__":
     elif a.action == "resolve":
         row = reg.resolve(a.key)
         print(json.dumps(row) if row else f"unknown key {a.key}")
+    elif a.action == "whois":
+        if not a.name:
+            p.error("whois needs --name")
+        if a.at:
+            row = reg.holder_at(a.name, a.at)
+            if row:
+                print(json.dumps(row) if a.json else
+                      f"{row['name']} at {a.at} was {row['key']} ({row['role']}, "
+                      f"claimed {row['claimed']}, released {row.get('released') or '—'})")
+            else:
+                print(f"no agent held '{a.name}' at {a.at}")
+                raise SystemExit(1)
+        else:
+            tenures = reg.history(a.name)
+            if not tenures:
+                print(f"no agent has ever held '{a.name}'")
+                raise SystemExit(1)
+            if a.json:
+                print(json.dumps(tenures))
+            else:
+                for r in tenures:
+                    print(f" {r['key']:<12} {r['role']:<12} "
+                          f"claimed {r['claimed']}  released {r.get('released') or '—'}"
+                          f"{'  (live)' if r['status'] == 'live' else ''}")
     elif a.action == "audit":
         problems = reg.audit()
         print("\n".join(problems) if problems else "roster clean")

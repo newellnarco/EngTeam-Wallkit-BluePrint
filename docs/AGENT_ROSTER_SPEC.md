@@ -46,6 +46,17 @@ Keys are identity. Names are labels.
 
 Store: `.wall/registry/agents.md`, written by `tools/wall/agents.py`.
 
+**Names stay referenceable after reuse.** Every registry row is a permanent
+tenure record — key, name, claimed, released — and every ledger event snapshots
+both `agent_key` and `agent_name` at write time. So when a name has been
+recycled, the Foreman or Maestro resolves "which Desmond did this?" two ways:
+read the `agent_key` straight off the event, or ask the registry —
+`wall agents whois --name Desmond` lists every key that has held the name with
+its tenure window, and `--at <event ts>` returns the one key that held it at
+that instant. `wall agents audit` flags overlapping tenures for the same name
+(only a hand edit can create one), because an overlap is exactly what makes
+that lookback ambiguous.
+
 The allocator refuses a name that shares its first two letters with a live agent,
 plus a hand-listed confusable set. With one name to identify by, "tell Theo to
 stop" landing on Otto is a real failure. Uniqueness is a hard rule; distinctness

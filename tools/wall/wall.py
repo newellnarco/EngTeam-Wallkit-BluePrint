@@ -423,6 +423,26 @@ def cmd_agents(a):
     elif a.agents_action == "release":
         row = reg.release(a.key)
         print(f"released {row['name']} ({a.key})" if row else f"no live agent {a.key}")
+    elif a.agents_action == "whois":
+        if not a.name:
+            print("whois needs --name")
+            return 1
+        if a.at:
+            row = reg.holder_at(a.name, a.at)
+            if not row:
+                print(f"no agent held '{a.name}' at {a.at}")
+                return 1
+            print(f"{row['name']} at {a.at} was {row['key']} ({row['role']}, "
+                  f"claimed {row['claimed']}, released {row.get('released') or '—'})")
+        else:
+            tenures = reg.history(a.name)
+            if not tenures:
+                print(f"no agent has ever held '{a.name}'")
+                return 1
+            for r in tenures:
+                print(f" {r['key']:<12} {r['role']:<12} "
+                      f"claimed {r['claimed']}  released {r.get('released') or '—'}"
+                      f"{'  (live)' if r['status'] == 'live' else ''}")
     elif a.agents_action == "audit":
         p = reg.audit()
         print("\n".join(p) if p else "roster clean")
@@ -1167,12 +1187,14 @@ def main() -> int:
     s.set_defaults(fn=cmd_classify)
 
     s = sub.add_parser("agents", help="roster operations")
-    s.add_argument("agents_action", choices=["roster", "claim", "release", "audit"],
+    s.add_argument("agents_action",
+                   choices=["roster", "claim", "release", "whois", "audit"],
                    nargs="?", default="roster")
     s.add_argument("--role", default="builder")
     s.add_argument("--session", default="local")
     s.add_argument("--key")
     s.add_argument("--name")
+    s.add_argument("--at", help="whois: resolve the name at this UTC instant")
     s.set_defaults(fn=cmd_agents)
 
     s = sub.add_parser("rebuild", help="regenerate .wall/items/ from events alone")
