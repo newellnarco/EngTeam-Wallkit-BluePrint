@@ -42,7 +42,7 @@ guesses jurisdiction:
 | Class | Regime examples | Obligations that follow |
 |---|---|---|
 | **PII** | GDPR, CCPA/CPRA, national privacy acts | Lawful basis, minimization, subject rights, breach clocks, cross-border transfer rules |
-| **PHI** | HIPAA (+ state health law) | BAAs with every processor — a hosted LLM included; minimum necessary; audit trails |
+| **PHI / health data** | HIPAA; 42 CFR Part 2 (SUD records, in force 2026-02); FTC HBNR for non-HIPAA health apps; info blocking (ASTP/ONC); state health-privacy laws | BAAs with every processor — a hosted LLM included; minimum necessary; audit trails |
 | **Medical-device / FDA-regulated** | QMSR (21 CFR 820), IEC 62304, FD&C §524B, 21 CFR Part 11 | Design controls and lifecycle by safety class; SBOM + vulnerability duties; trustworthy records where they support an approved application; change control with submissions decided in writing |
 | **PCI** | PCI-DSS | Scope containment, tokenization over storage, segmentation, no PAN in logs or fixtures ever |
 | **Government / law-enforcement reach** | Patriot Act / CLOUD Act exposure, CJIS, FedRAMP, ITAR/EAR | Residency and provider constraints; a cloud region choice IS a compliance decision; some data cannot ride commercial clouds at all |

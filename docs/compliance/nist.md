@@ -7,8 +7,12 @@ in 2.0 and supply-chain risk management inside it; **SP 800-171 r3** for
 protecting Controlled Unclassified Information (CUI) in nonfederal
 systems, with its self-assessment score reported to SPRS in the defense
 supply chain; and the **Secure Software Development Framework, SP
-800-218**, the practice set behind the federal secure-software
-attestations that EO 14028 set in motion. (SP 800-53 sits underneath
+800-218**, the practice set behind federal secure-software attestation.
+EO 14028 set that in motion; **EO 14306 (June 2025)** then removed the
+central CISA validation of attestations — agencies may still request the
+March 2024 form, and the enduring requirement is **auditable SSDF
+conformance itself**. 800-171 r3 (final May 2024) ships with 800-171A r3
+for assessment and a 2025 small-business primer (SP 1352). (SP 800-53 sits underneath
 FedRAMP and CJIS — the kit carries those in the government regime.)
 
 **Applies when** a contract, customer or program requires NIST alignment:
@@ -45,5 +49,6 @@ no software to a buyer who can require the attestation. Both recorded,
 never silent.
 
 Sources: [NIST CSF 2.0](https://www.nist.gov/cyberframework),
+[SP 800-171A r3 (assessment)](https://csrc.nist.gov/pubs/sp/800/171/a/r3/final),
 [SP 800-171 r3](https://csrc.nist.gov/pubs/sp/800/171/r3/final),
 [SSDF SP 800-218](https://csrc.nist.gov/Projects/ssdf)

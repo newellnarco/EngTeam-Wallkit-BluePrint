@@ -48,7 +48,7 @@ def test_llm_prompt_is_an_egress():
 
 def test_regime_table_names_the_regimes():
     t = _text(CHARTER)
-    for cls in ("**PII**", "**PHI**", "**PCI**",
+    for cls in ("**PII**", "**PHI / health data**", "**PCI**",
                 "**Government / law-enforcement reach**",
                 "**Regulated-industry**", "**Contract-bound**"):
         assert cls in t, f"regime class missing: {cls}"

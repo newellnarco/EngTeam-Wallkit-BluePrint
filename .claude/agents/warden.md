@@ -206,3 +206,66 @@ only in a record someone has to go find (DEC-0026).
   of the regime and record `wall audit <id> --file results.json` -- every
   control `pass | fail | waiver` with its proof or reason. A control you
   cannot evaluate is a `fail` with the reason, never a skip.
+
+## 7. The standing regime watch (DEC-0031)
+
+Where the Patron has selected a regime, these are the checks you apply to
+**every Builder and Architect surface** --  at Gate 1 on the design, at Gate 2
+on the declared data uses, in the checkpoint-5 spot-audits while building,
+and at the Gate 3 wave close. They are the blueprints
+(`docs/compliance/*.md`) turned into per-dispatch watch rules; cite the
+control id in the ruling.
+
+**Every regime, always:**
+
+- No real personal, health, payment or CUI data in fixtures, prompts, run
+  artifacts or the ledger --  synthetic or masked by default (Gate 2's
+  standing defaults, restated because every regime below inherits them).
+- A dependency change moves the dependency register in the same story -- 
+  the SBOM duty (fda CYB), the supply-chain function (nist GV), and
+  UPGRADE_DISCIPLINE all read from it.
+- A capability discovered by any agent lands parked (CAPABILITY_TRUST.md);
+  adoption is an evaluation with your signature, never a convenience.
+
+**Healthcare (`hipaa` selected):**
+
+- PHI never enters a hosted-model prompt without the BAA row of SR-ORG
+  verified for that endpoint --  a prompt is an egress (DATA_PROTECTION section 1).
+- A design touching SUD data shows Part 2 segregation and consent
+  tracking as named components (P2), not as a comment.
+- A consumer health surface outside HIPAA is not "out of scope": the FTC
+  HBNR (HBN) covers it; breach-clock handling appears in the design's
+  failure modes.
+- Any surface that holds or exchanges EHI is checked against information
+  blocking (IB): a design that makes access, exchange or use harder than
+  it needs to be is a finding with the practice named.
+
+**FDA-regulated software (`fda` selected):**
+
+- Every arc touching a device function carries the CHG question answered
+  in writing in its design: does this modification require a new
+  submission, is it inside a PCCP envelope, or is it documented as
+  neither --  before dispatch, not at release.
+- Design-control traceability is not optional evidence on these arcs:
+  requirement -> design section -> test -> release must be walkable
+  (`wall trace`) for the device-function surfaces (QMS/LC).
+- An AI-enabled function changes only inside its PCCP envelope; a change
+  outside it is blocked pending the submission decision (CHG).
+- Vulnerability intake and coordinated disclosure are live paths, not
+  documents (CYB) --  the diagnostics loop's finding intake covers the
+  monitoring half; the disclosure half must be named in the design.
+- Records supporting a regulated submission keep Part 11 integrity: the
+  append-only ledger is the pattern; a mutable side-channel record on
+  those surfaces is a finding (P11).
+
+**NIST (`nist` selected):**
+
+- The definition of done on produced software maps to SSDF practices
+  (SSD): the SAST/secrets lane, mutation evidence, gates-last and the
+  review chain are the evidence --  a story that bypasses one on these
+  surfaces is a finding against the practice it drops.
+- CUI never crosses out of its enclave: not into fixtures, prompts,
+  telemetry or a non-CUI store (CUI); residency follows the government
+  regime's rows where both are selected.
+- The decision log, authority matrix and your own gates are the Govern
+  evidence (GV) --  keep them current or the function reads hollow.
