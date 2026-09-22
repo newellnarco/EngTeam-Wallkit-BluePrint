@@ -70,6 +70,23 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
+def parse_ts(value: str | None) -> datetime | None:
+    """A registry or ledger timestamp as an aware UTC datetime, else None.
+    The registry writes seconds ('…:00Z'), ledger events write milliseconds
+    ('…:00.000Z'), and a hand edit can write an offset ('+00:00') — all of
+    which must compare as instants, never as strings."""
+    raw = (value or "").strip()
+    if not raw or raw == "—":
+        return None
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def mint_key(role: str) -> str:
     return f"{ROLE_PREFIX.get(role, 'agt')}_{secrets.token_hex(3)}"
 
@@ -235,23 +252,34 @@ class AgentRegistry:
         """Every tenure a name has had, oldest first. A reused name returns one
         row per key that held it, so 'which Desmond?' is answerable from the
         registry alone."""
+        floor = datetime.min.replace(tzinfo=timezone.utc)
         return sorted((r for r in self.read() if r["name"] == name),
-                      key=lambda r: r.get("claimed") or "")
+                      key=lambda r: parse_ts(r.get("claimed")) or floor)
 
     def holder_at(self, name: str, at: str) -> dict | None:
-        """The agent that held `name` at UTC instant `at` (ISO-8601 Z, the same
-        shape the registry and ledger write). Timestamps compare lexically at
-        that shape. A live tenure is open-ended; the release instant still
-        belongs to the releasing agent. Hand-edited overlaps are an audit
-        problem — here the latest claim wins so the answer is deterministic."""
+        """The agent that held `name` at UTC instant `at`. Timestamps are
+        PARSED, never string-compared: the registry writes seconds but ledger
+        events carry milliseconds, and '…00.500Z' sorts lexically before
+        '…00Z', so a raw comparison would miss an active tenure for exactly
+        the lookup this exists for. A live tenure is open-ended; the release
+        instant still belongs to the releasing agent, even when a reuse is
+        claimed that same second. Hand-edited overlaps are an audit problem —
+        here the latest claim wins so the answer is deterministic. An
+        unparseable `at` raises ValueError; an unparseable stored `claimed`
+        skips its row, and an unparseable `released` is treated as open
+        (audit surfaces the corrupt row either way)."""
+        at_dt = parse_ts(at)
+        if at_dt is None:
+            raise ValueError(f"not a timestamp: {at!r}")
         match = None
         for r in self.history(name):
-            claimed = r.get("claimed") or ""
-            if not claimed or claimed > at:
+            claimed = parse_ts(r.get("claimed"))
+            if claimed is None or claimed > at_dt:
                 continue
-            released = r.get("released") or ""
-            if r["status"] == "live" or released in ("", "—") or at <= released:
-                match = r
+            released = parse_ts(r.get("released"))
+            if r["status"] == "live" or released is None or at_dt <= released:
+                if match is None or parse_ts(match.get("released")) != at_dt:
+                    match = r
         return match
 
     def audit(self) -> list[str]:
@@ -277,17 +305,24 @@ class AgentRegistry:
         by_name: dict[str, list[dict]] = {}
         for r in rows:
             by_name.setdefault(r["name"], []).append(r)
+        floor = datetime.min.replace(tzinfo=timezone.utc)
         for name, tenures in sorted(by_name.items()):
-            tenures = sorted(tenures, key=lambda r: r.get("claimed") or "")
+            tenures = sorted(tenures, key=lambda r: parse_ts(r.get("claimed")) or floor)
             for prev, cur in zip(tenures, tenures[1:]):
                 if prev["status"] == "live" and cur["status"] == "live":
                     continue  # already reported as a name collision above
-                prev_end = prev.get("released") or ""
-                open_ended = prev["status"] == "live" or prev_end in ("", "—")
-                if open_ended or (cur.get("claimed") or "") < prev_end:
+                prev_end = parse_ts(prev.get("released"))
+                open_ended = prev["status"] == "live" or prev_end is None
+                cur_claimed = parse_ts(cur.get("claimed"))
+                # Strictly before, not at: a release and a reuse in the same
+                # second share an instant the contract already resolves (the
+                # release instant belongs to the releasing agent), so a
+                # same-second handoff is legitimate, not an overlap.
+                if open_ended or (cur_claimed is not None and cur_claimed < prev_end):
                     problems.append(
                         f"tenure overlap: '{name}' held by {prev['key']} "
-                        f"(claimed {prev.get('claimed')}, released {prev_end or '—'}) "
+                        f"(claimed {prev.get('claimed')}, released "
+                        f"{prev.get('released') or '—'}) "
                         f"and {cur['key']} (claimed {cur.get('claimed')}) -- "
                         f"'whois --at' inside the overlap cannot be trusted")
         return problems
@@ -322,7 +357,10 @@ if __name__ == "__main__":
         if not a.name:
             p.error("whois needs --name")
         if a.at:
-            row = reg.holder_at(a.name, a.at)
+            try:
+                row = reg.holder_at(a.name, a.at)
+            except ValueError as e:
+                p.error(str(e))
             if row:
                 print(json.dumps(row) if a.json else
                       f"{row['name']} at {a.at} was {row['key']} ({row['role']}, "

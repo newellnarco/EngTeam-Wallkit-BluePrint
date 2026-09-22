@@ -428,7 +428,11 @@ def cmd_agents(a):
             print("whois needs --name")
             return 1
         if a.at:
-            row = reg.holder_at(a.name, a.at)
+            try:
+                row = reg.holder_at(a.name, a.at)
+            except ValueError as e:
+                print(str(e))
+                return 2
             if not row:
                 print(f"no agent held '{a.name}' at {a.at}")
                 return 1

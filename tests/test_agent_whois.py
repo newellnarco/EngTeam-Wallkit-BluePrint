@@ -122,3 +122,49 @@ class TestWhoisCli:
     def test_a_miss_exits_nonzero_so_scripts_notice(self, repo):
         out = self.run(repo, "--name", "Nobody")
         assert out.returncode == 1
+
+
+class TestTimestampsCompareAsInstants:
+    """CodeRabbit on the reference deployment's #1673: the registry writes
+    seconds, ledger events write milliseconds, and '…00.500Z' sorts lexically
+    BEFORE '…00Z' — so string comparison missed active tenures for exactly the
+    ledger-timestamp lookups whois exists for. Timestamps parse, never sort."""
+
+    def test_a_ledger_millisecond_timestamp_resolves_inside_a_live_tenure(self, reused_name):
+        reg, _, second_key = reused_name
+        assert reg.holder_at("Desmond", "2026-09-21T10:00:00.250Z")["key"] == second_key
+
+    def test_an_equivalent_utc_offset_resolves_like_z(self, reused_name):
+        reg, first_key, _ = reused_name
+        assert reg.holder_at("Desmond", "2026-09-20T11:00:00+00:00")["key"] == first_key
+
+    def test_a_same_second_handoff_belongs_to_the_releasing_agent(self, repo):
+        reg = AgentRegistry(repo)
+        first = reg.claim("builder", "s1", name="Desmond")
+        reg.release(first["key"])
+        second = reg.claim("builder", "s2", name="Desmond")
+        rows = reg.read()
+        for r in rows:
+            if r["key"] == first["key"]:
+                r["claimed"], r["released"] = "2026-09-20T10:00:00Z", "2026-09-20T12:00:00Z"
+            if r["key"] == second["key"]:
+                r["claimed"] = "2026-09-20T12:00:00Z"  # reused the same second
+        reg.write(rows)
+        assert reg.holder_at("Desmond", "2026-09-20T12:00:00Z")["key"] == first["key"]
+        assert reg.holder_at("Desmond", "2026-09-20T12:00:01Z")["key"] == second["key"]
+        # the shared instant is contract-resolved, so it is not an overlap
+        assert reg.audit() == []
+
+    def test_an_unparseable_at_raises_instead_of_guessing(self, reused_name):
+        reg, _, _ = reused_name
+        with pytest.raises(ValueError):
+            reg.holder_at("Desmond", "yesterday-ish")
+
+    def test_the_cli_rejects_a_bad_at_loudly(self, reused_name):
+        reg, _, _ = reused_name
+        out = subprocess.run(
+            [sys.executable, str(AGENTS_PY), "whois", "--repo", str(reg.repo),
+             "--name", "Desmond", "--at", "yesterday-ish"],
+            capture_output=True, text=True)
+        assert out.returncode == 2
+        assert "not a timestamp" in out.stderr
