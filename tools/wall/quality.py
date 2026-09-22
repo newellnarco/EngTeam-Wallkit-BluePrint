@@ -10,7 +10,7 @@ imports them, it only generates their inputs and judges their outputs.
     quality.py suppressions           verify every .gitleaksignore entry is dated
     quality.py proofs                 list custom rules with the fixture proving each
     quality.py baseline-path TARGET   print a SkillSpector target's baseline file
-    quality.py history [--ci]         refuse (ci) or warn on a shallow git history
+    quality.py history [--ci]         a shallow history: exit 1 in ci, 3 (unknown) locally
     quality.py pin <tool>             print a tool's pinned version
     quality.py promoted <tool>        print promoted rule ids, one per line
     quality.py install-plan           print what tools/quality/install.sh installs
@@ -285,9 +285,13 @@ def promotion_problems(cfg: dict) -> list[str]:
                 if field not in p:
                     problems.append("%s promotion %r lacks %s"
                                     % (tool, p.get("rule"), field))
-            if p.get("standing_count") not in (0, None):
-                problems.append("%s promotion %r: a rule is promoted only at "
-                                "zero standing findings" % (tool, p.get("rule")))
+            count = p.get("standing_count")
+            # A measured zero, as an integer: null records no measurement, and
+            # False == 0 in Python but is not a count.
+            if "standing_count" in p and (type(count) is not int or count != 0):
+                problems.append("%s promotion %r: a rule is promoted only at a "
+                                "measured zero standing count, not %r"
+                                % (tool, p.get("rule"), count))
     return problems
 
 
@@ -612,7 +616,8 @@ def main(argv=None) -> int:
             return 1
         print("scan: %s -- the local result covers less than CI will" % why,
               file=sys.stderr)
-        return 0
+        # Distinct from a finding (1): the caller records UNKNOWN and goes on.
+        return 3
     if a.cmd == "baseline-path":
         print(baseline_path(a.target))
         return 0

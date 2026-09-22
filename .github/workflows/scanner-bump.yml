@@ -29,6 +29,12 @@ on:
 
 permissions: {}
 
+# bash -eo pipefail: a failed release lookup piped through tee must fail the
+# step, not surface as an empty "nothing moved" week.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: scanner-bump
   cancel-in-progress: false

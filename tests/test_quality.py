@@ -210,7 +210,17 @@ def test_a_promotion_without_its_record_is_named():
                                             "standing_count": 3, "reason": "x"}]}}
     problems = quality.promotion_problems(cfg)
     assert any("py-eval-exec" in p and "lacks date" in p for p in problems)
-    assert any("EA1" in p and "zero standing" in p for p in problems)
+    assert any("EA1" in p and "measured zero standing" in p for p in problems)
+
+
+@pytest.mark.parametrize("count", [None, False, 0.0, "0", 3])
+def test_a_promotion_records_a_measured_integer_zero(count):
+    """null records no measurement; False == 0 in Python but is not a count."""
+    cfg = {"tools": {"ruff": {}}, "promotions": {"ruff": [
+        {"rule": "S602", "date": "2026-09-22", "standing_count": count, "reason": "r"}]}}
+    assert quality.promotion_problems(cfg), count
+    cfg["promotions"]["ruff"][0]["standing_count"] = 0
+    assert quality.promotion_problems(cfg) == []
 
 
 # ------------------------------------------------------------ SkillSpector gate
@@ -435,6 +445,8 @@ def test_every_action_is_pinned_to_a_sha_and_checkout_persists_no_credentials():
     for wf in sorted((KIT / ".github" / "workflows").glob("*.yml")):
         text = wf.read_text(encoding="utf-8")
         for ref in re.findall(r"uses:\s*(\S+)", text):
+            if ref.startswith(("./", "$/")):
+                continue  # this repository's own action or workflow, at this commit
             assert re.fullmatch(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}", ref), \
                 "%s: %s is not pinned to a commit SHA" % (wf.name, ref)
         checkouts = text.count("actions/checkout@")
@@ -535,8 +547,8 @@ def test_ci_scan_refuses_a_shallow_history(tmp_path, capsys):
 
     assert quality.main(["--root", str(shallow), "history", "--ci"]) == 1
     assert "UNKNOWN, not clean" in capsys.readouterr().err
-    assert quality.main(["--root", str(shallow), "history"]) == 0, \
-        "local mode warns through (GIT_HOOKS.md: a local gate never blocks on its own blind spot)"
+    assert quality.main(["--root", str(shallow), "history"]) == 3, \
+        "local mode reports UNKNOWN (3): never blocking, never 'clean' (F-STATUS-001)"
     assert "covers less than CI will" in capsys.readouterr().err
     assert quality.main(["--root", str(full), "history", "--ci"]) == 0
     bare = tmp_path / "no-git"
@@ -550,6 +562,7 @@ def test_ci_scan_refuses_a_shallow_history(tmp_path, capsys):
 def test_the_scan_lane_wires_the_full_view_check_and_the_registry_names_it():
     scan = (KIT / "tools/quality/scan.sh").read_text(encoding="utf-8")
     assert "$q history --ci || fail=1" in scan
+    assert "3) skipped=$((skipped + 1))" in scan, "a local partial history is UNKNOWN, not clean"
     template = (KIT / "templates/FAILURE_PATTERNS.md.template").read_text(encoding="utf-8")
     block = template.split("### F-PARTIAL-VIEW-001", 1)[1].split("\n### ", 1)[0]
     assert "`test_ci_scan_refuses_a_shallow_history`" in block
@@ -617,3 +630,24 @@ def test_pre_commit_generates_rules_from_the_staged_registry(tmp_path):
     subprocess.run("git archive HEAD | tar -x -C %s" % tree, shell=True, cwd=repo,  # noqa: S602
                    env=env, check=True)
     assert quality.check_rules(tree, quality.load_config(tree)) == []
+
+
+def test_no_global_gitleaks_allowlist_hides_the_fixture_directory():
+    """A global path allowlist over the fixtures would hide a real credential
+    committed there from every rule, built-in ones included. Exemptions are
+    per rule, for that rule's own fixture file only."""
+    text = (KIT / quality.GITLEAKS_CONFIG).read_text(encoding="utf-8")
+    live = "\n".join(ln for ln in text.splitlines() if not ln.lstrip().startswith("#"))
+    assert not re.search(r"^\[\[allowlists\]\]", live, re.M), \
+        "a global [[allowlists]] block is back in .gitleaks.toml"
+    for block in live.split("[[rules]]")[1:]:
+        rid = re.search(r"^id\s*=\s*['\"]([^'\"]+)", block, re.M).group(1)
+        for path in re.findall(r"paths\s*=\s*\[([^\]]*)\]", block):
+            assert rid in path and ".txt" in path, \
+                "rule %s allowlists more than its own fixture: %s" % (rid, path)
+
+
+def test_the_bump_workflow_runs_with_pipefail():
+    bump = (KIT / ".github/workflows/scanner-bump.yml").read_text(encoding="utf-8")
+    assert re.search(r"^defaults:\n  run:\n    shell: bash$", bump, re.M), \
+        "without shell: bash, a failed lookup piped through tee passes"

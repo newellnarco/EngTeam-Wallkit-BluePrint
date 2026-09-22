@@ -99,7 +99,14 @@ $q suppressions || fail=1
 if command -v gitleaks >/dev/null 2>&1; then
   # F-PARTIAL-VIEW-001: a gitleaks pass over a shallow clone is a pass over
   # part of the history. In ci mode that is UNKNOWN, and it fails.
-  if [ "$mode" = ci ]; then $q history --ci || fail=1; else $q history; fi
+  if [ "$mode" = ci ]; then
+    $q history --ci || fail=1
+  else
+    # Locally a partial history never blocks, but it is not "clean" either:
+    # the verdict covers only the fetched commits, so it counts as UNKNOWN.
+    $q history
+    case $? in 0) ;; 3) skipped=$((skipped + 1)) ;; *) fail=1 ;; esac
+  fi
   gitleaks git --no-banner --redact --log-level warn . || fail=1
   # Each custom rule must fire on its fake fixture. Scanned from inside the
   # fixture directory so the config's fixture allowlist does not apply.

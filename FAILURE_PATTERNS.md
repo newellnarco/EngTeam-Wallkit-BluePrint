@@ -24,7 +24,7 @@ pre-commit hook keeps it in sync, and the scan lane runs it
 
 | Class | The reminder, in one line | class-guard |
 |---|---|---|
-| (none yet) | A class arrives here on its second occurrence in this repository. | |
+| F-PARTIAL-VIEW-001 | A local verdict covers less than CI sees, in either direction: it misses what CI finds, or blocks on what CI would clear. | `test_ci_scan_refuses_a_shallow_history` |
 
 ---
 
@@ -62,6 +62,14 @@ class-guard   the named assertion that fails when any member recurs
 > class-guard: `test_ci_scan_refuses_a_shallow_history`
 > VARIANT: a pre-push gate that lints only the outgoing diff while CI lints
 > the tree.
+
+**Second occurrence, 2026-09-22, same PR, the other direction.** A local scan
+of a shallow clone blocked on a false positive. The clone's single grafted
+commit "added" the fake test key under a fingerprint `.gitleaksignore` did not
+name. Same class: the local view was not the view the suppression was written
+for. Fixed by an inline `gitleaks:allow` on the line, which travels with the
+content through every commit and graft, and by counting a shallow local
+history as UNKNOWN instead of clean. The class entered the digest above.
 
 ---
 

@@ -13,13 +13,15 @@
 # description = "<system> token. Finding: <where it was found>, <YYYY-MM-DD>"
 # regex = '''<prefix>_[A-Za-z0-9]{32}'''
 # keywords = ["<prefix>_"]                  # a literal every match contains (fast path)
+# [[rules.allowlists]]                      # THIS rule, THIS rule's fixture, nothing else
+# description = "the rule's own fake fixture"
+# paths = ['''^\.gitleaks/fixtures/kit-<system>-token\.txt$''']
+#
+# Never a global [[allowlists]] over the fixtures directory: it would hide a
+# real credential committed there from every rule, built-in ones included.
+# The per-rule allowlist exempts one file from one rule; the proof step scans
+# the fixture from inside its directory, where the path does not match, so
+# the rule is still seen to fire.
 
 [extend]
 useDefault = true
-
-# The fixtures are fake by construction and exist to be detected; the proof
-# step scans them directly, from inside the fixture directory, where this
-# path does not match.
-[[allowlists]]
-description = "custom-rule fixtures -- fake secrets that prove each rule fires"
-paths = ['''^\.gitleaks/fixtures/''']
