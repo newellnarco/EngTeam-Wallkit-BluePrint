@@ -131,6 +131,10 @@ byte-compare the restore; "git status is clean" is a different question.
 posture: verify before accepting or declining, refute with a parse proof rather
 than an assertion, name an unavailable lane instead of waiting on it. A secrets
 finding is never report-only -- it blocks, and the credential is rotated.
+Where the repo has the structural-scan lane (`tools/quality/scan.sh`,
+TESTING_STANDARDS section 5.1), run it as part of G6 and quote its output. A
+fix for a class in `FAILURE_PATTERNS.md` that has a code shape adds the
+entry's `ast-grep` block in the same change.
 
 **Record your test durations** (`--durations=0`) and put the numbers in your
 report. If you added a test file, it lands in the lightest shard;

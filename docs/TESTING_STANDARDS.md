@@ -326,6 +326,66 @@ Two rules specific to this lane:
 A finding closed without a prevention -- the rule, the regression test, and the
 doc line -- is a finding you will receive again.
 
+### 5.1 The structural-scan lane: ast-grep, SkillSpector, gitleaks, ruff S, actionlint, zizmor
+
+The kit's own instance of this lane, and the shape a host copies. Six scanners,
+one script -- `tools/quality/scan.sh` -- run identically in three places:
+
+| Where | Mode | Blocks on |
+|---|---|---|
+| CI, every PR and push to main (`ci.yml`, job *Structural and security scans*) | `ci`: a missing scanner fails | promoted rules, always-block ids, drift |
+| pre-push hook (`tools/git-hooks/pre-push`) | `local`: a missing scanner warns through | the same, when the scanner is installed |
+| A builder's gates-last step (G6) | `local` | the same; the output is quoted in the report |
+
+**ast-grep** runs structural rules from `sgconfig.yml`: hand-written rules in
+`.ast-grep/rules/kit/`, and rules **derived from the failure registry** in
+`.ast-grep/rules/generated/`. A registry entry that can be caught structurally
+carries a fenced `ast-grep` block (the rule) and a fenced `ast-grep-test`
+block (its `valid:` and `invalid:` cases, the `VARIANT:` among them).
+`tools/wall/quality.py rules` regenerates the derived rules from
+`FAILURE_PATTERNS.md` and `KNOWN_ISSUES.md`. **The rules can never drift from
+the registry:** the pre-commit hook regenerates and re-stages them whenever
+either file changes, and CI and the kit suite run `rules --check`, which fails on
+a missing, stale or orphaned rule. `ast-grep test` runs every rule against its
+`invalid:` cases first, so a rule nobody can watch go red never reaches the scan.
+
+**SkillSpector** scans the agent surface (`.claude/skills/*`, `.claude/agents`,
+`.claude/hooks`) in static mode (`--no-llm`): no API key, no file content
+leaves the runner, and the same answer on every run. Its semantic mode is an
+LLM call, and that makes it a data-use decision for the Warden, not a per-PR
+default.
+
+**gitleaks** scans the full git history (CI checks out with `fetch-depth: 0`)
+and always blocks. **ruff's `S` rules** (the bandit set) cover `tools/` and
+`.claude/hooks`. **actionlint** and **zizmor** (`--offline`) cover
+`.github/workflows`; actionlint is promoted whole from day one, because what
+it reports fails on the first run anyway. The kit's own workflows pin every
+action to a commit SHA, keep checkout credentials unpersisted, and grant
+permissions per job, so zizmor starts at zero.
+
+**The lane grows with every finding.** Each scanner reads support files that
+gain one entry per verified finding: registry blocks for ast-grep, custom
+rules in `.gitleaks.toml`, YARA rules in `.skillspector/yara/`, and the
+promotion record. Each custom rule ships with a fixture that must trip it,
+and the lane fails when one stops tripping. How to build and maintain those
+files is `SCAN_LANE.md`.
+
+**Promotion is recorded, not edited in.** Every rule is authored
+`severity: warning`. Promoting one adds an entry under `promotions` in
+`tools/quality/quality.json` with its date, its measured standing count (zero)
+and the reason, and `scan.sh` applies it with `--error=<id>`. A rule file
+that sets `severity: error` directly is a promotion with no record, and the
+kit suite refuses it. Two classes block from day one: SkillSpector's
+secrets-class ids (`PE3`, `E2`, `TT3`; a secrets finding is never
+report-only), and a `DO_NOT_INSTALL` recommendation.
+
+**Latest without floating.** The blocking job runs **pinned** versions. The
+weekly `scanner-bump` workflow installs the latest releases, runs the full lane
+on them as a canary, and opens a draft PR that moves the pins and names the
+rollback (`UPGRADE_DISCIPLINE.md`). It needs no secret: it runs on the built-in
+token and dispatches CI on its own branch. New upstream rules arrive report-only and
+are triaged on that PR.
+
 ---
 
 ## 6. Sharding, measurement, rebalance

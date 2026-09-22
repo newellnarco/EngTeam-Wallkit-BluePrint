@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# Regenerate derived artifacts inside the commit (docs/GIT_HOOKS.md section 2).
+# The ast-grep rules are generated from the STAGED registry, not the working
+# tree, so a partially staged FAILURE_PATTERNS.md commits rules that match
+# exactly what it commits. Never blocks: a malformed block warns and proceeds;
+# CI's `quality.py rules --check` is the gate that refuses the drift.
+[ -n "${SKIP_RULES_REGEN:-}" ] && exit 0
+root="$(git rev-parse --show-toplevel)" || exit 0
+py="$(command -v python3 || command -v python)" || exit 0
+cd "$root" || exit 0
+git diff --cached --name-only | grep -qE '^(FAILURE_PATTERNS|KNOWN_ISSUES)\.md$|^tools/quality/quality\.json$' || exit 0
+
+snap="$(mktemp -d)"
+trap 'rm -rf "$snap"' EXIT
+# The index's copy of every input, plus the generated dirs as committed, so
+# the generator sees (and can prune) exactly what this commit will contain.
+inputs=(tools/quality/quality.json FAILURE_PATTERNS.md KNOWN_ISSUES.md)
+for f in "${inputs[@]}"; do
+  git cat-file -e ":$f" 2>/dev/null && git checkout-index --prefix="$snap/" -- "$f"
+done
+gen_rules=.ast-grep/rules/generated gen_tests=.ast-grep/rule-tests/generated
+git ls-files -- "$gen_rules" "$gen_tests" | while IFS= read -r f; do
+  git checkout-index --prefix="$snap/" -- "$f"
+done
+if ! "$py" tools/wall/quality.py --root "$snap" rules; then
+  echo "pre-commit: ast-grep rule regeneration failed (above); committing anyway -- CI will refuse the drift" >&2
+  exit 0
+fi
+# Stage the snapshot's generated files straight into the index; the working
+# tree's copies follow suit only where the registry file is fully staged.
+git rm -r -q --cached --ignore-unmatch -- "$gen_rules" "$gen_tests"
+for d in "$gen_rules" "$gen_tests"; do
+  [ -d "$snap/$d" ] || continue
+  for f in "$snap/$d"/*.yml "$snap/$d"/.gitkeep; do
+    [ -f "$f" ] || continue
+    rel="${f#"$snap"/}"
+    blob="$(git hash-object -w "$f")"
+    git update-index --add --cacheinfo "100644,$blob,$rel"
+  done
+done
+partial=0
+for f in FAILURE_PATTERNS.md KNOWN_ISSUES.md; do
+  [ -f "$f" ] && ! git diff --quiet -- "$f" && partial=1
+done
+if [ "$partial" = 0 ]; then
+  rm -rf "$gen_rules" "$gen_tests"
+  mkdir -p "$(dirname "$gen_rules")" "$(dirname "$gen_tests")"
+  cp -R "$snap/$gen_rules" "$gen_rules"
+  cp -R "$snap/$gen_tests" "$gen_tests"
+else
+  echo "pre-commit: registry partially staged -- committed rules match the staged text; run \`python3 tools/wall/quality.py rules\` after your next stage" >&2
+fi
+exit 0

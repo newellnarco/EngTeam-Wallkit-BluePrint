@@ -8,6 +8,13 @@ The kit ships no hook scripts for version control: what a pre-commit must
 regenerate and what a pre-push must run are the host's, not the kit's. What is
 portable is the shape, and the shape is what keeps the free gate free.
 
+The kit's **own** hooks are the one worked example: `tools/git-hooks/pre-commit`
+regenerates the ast-grep rules derived from the failure registry, and
+`tools/git-hooks/pre-push` refuses a direct push to the default branch and runs
+the structural-scan lane (`TESTING_STANDARDS.md` section 5.1). Install them with
+`bash tools/git-hooks/install.sh`. The escape hatches are `SKIP_PUSH_GATE=1`
+and `SKIP_RULES_REGEN=1`.
+
 ---
 
 ## 1. Versioned, installed, never remembered

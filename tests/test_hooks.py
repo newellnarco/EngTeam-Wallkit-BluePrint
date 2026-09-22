@@ -375,7 +375,7 @@ def test_secrets_are_scrubbed_before_they_are_written(wall: Path):
 
 
 def test_private_key_block_is_scrubbed(wall: Path):
-    body = ("-----BEGIN RSA PRIVATE KEY-----\n"
+    body = ("-----BEGIN RSA PRIVATE KEY-----\n"  # gitleaks:allow -- fake fixture
             "MIIEowIBAAKCAQEAxxxxSECRETKEYMATERIALxxxx\n"
             "-----END RSA PRIVATE KEY-----")
     run_hook(TOOL_USE, {"session_id": SESSION, "hook_event_name": "PreToolUse",

@@ -1,0 +1,10 @@
+id: py-bind-all-interfaces
+language: python
+severity: warning
+message: "A literal bind to every interface -- the wall serves 127.0.0.1 only"
+note: "Localhost-only surfaces are part of the security lane (README, SESSION_LIFECYCLE section 4). Tests that prove the refusal are excluded."
+ignores:
+  - "tests/**"
+rule:
+  kind: string
+  regex: "^['\"]0\\.0\\.0\\.0['\"]$"

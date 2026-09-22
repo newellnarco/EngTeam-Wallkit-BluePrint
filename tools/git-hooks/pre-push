@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# The free local gate (docs/GIT_HOOKS.md section 2): refuse a direct push to
+# the remote's default branch, then run the structural-scan lane in local
+# mode. Only definite findings block; a missing scanner warns through.
+# Escape hatch, named and scoped to this hook: SKIP_PUSH_GATE=1 git push
+[ -n "${SKIP_PUSH_GATE:-}" ] && { echo "pre-push: SKIP_PUSH_GATE set; gate skipped" >&2; exit 0; }
+remote="${1:-origin}"
+root="$(git rev-parse --show-toplevel)" || exit 0
+
+# The default branch as the remote reports it (set by clone, or by
+# `git remote set-head <remote> --auto`); main and master are refused too,
+# so a clone that never recorded the remote HEAD is still covered.
+default="$(git symbolic-ref --quiet --short "refs/remotes/$remote/HEAD" 2>/dev/null)"
+default="${default#"$remote"/}"
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  branch="${remote_ref#refs/heads/}"
+  if [ "$branch" = "$default" ] || [ "$branch" = main ] || [ "$branch" = master ]; then
+    echo "pre-push: direct push to $branch (the default branch) refused -- open a PR" >&2
+    exit 1
+  fi
+done
+
+# A 10-minute ceiling where a timeout command exists (GNU coreutils: timeout;
+# Homebrew on macOS: gtimeout). Without one the scan runs unbounded: a missing
+# tool never blocks a push.
+limit=()
+if command -v timeout >/dev/null 2>&1; then limit=(timeout 600)
+elif command -v gtimeout >/dev/null 2>&1; then limit=(gtimeout 600)
+else echo "pre-push: no timeout command; running the scan without a time limit" >&2
+fi
+"${limit[@]}" bash "$root/tools/quality/scan.sh" local
+rc=$?
+[ "$rc" = 124 ] && { echo "pre-push: scan timed out; pushing -- CI remains the gate" >&2; exit 0; }
+exit "$rc"

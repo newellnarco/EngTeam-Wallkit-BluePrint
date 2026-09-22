@@ -1,0 +1,169 @@
+# Keeps the structural-scan lane on the latest release of every scanner
+# without letting an upstream release break the blocking gate: the gate runs
+# the PINNED versions (ci.yml); this workflow runs the LATEST as a canary and,
+# when a newer release exists, opens a draft PR that moves the pins and names
+# the rollback (UPGRADE_DISCIPLINE.md). The upgrade then rides normal review.
+#
+# Two jobs, split by trust. `canary` installs and EXECUTES the newest
+# third-party releases, so it runs with a read-only token and no credentials
+# on disk. `propose` holds the write token and runs only this repository's
+# own code: it re-applies the version bump (quality.py refuses anything that
+# is not a plain version string) and opens the PR. No scanner code ever runs
+# where a write token is reachable.
+#
+# Zero configuration: no secrets, no tokens to mint -- this is a kit, and a
+# kit that needs a per-repo credential is one that half its adopters never
+# finish installing. Everything runs on the built-in GITHUB_TOKEN:
+#   - A push or PR made with GITHUB_TOKEN does not trigger other workflows,
+#     but workflow_dispatch does, so `propose` dispatches CI on the bump
+#     branch itself and the checks land on the PR's head commit.
+#   - If the repository does not allow Actions to create pull requests
+#     (Settings > Actions > General), `propose` opens an issue with the
+#     compare link instead, so the bump is never silently dropped.
+name: Scanner bump
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"   # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+# bash -eo pipefail: a failed release lookup piped through tee must fail the
+# step, not surface as an empty "nothing moved" week.
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: scanner-bump
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    name: Canary on the latest scanners (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      sets: ${{ steps.bump.outputs.sets }}
+      changed: ${{ steps.bump.outputs.changed }}
+      outcome: ${{ steps.canary.outcome }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0   # the canary's gitleaks pass scans every commit
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Resolve latest releases and move the pins
+        id: bump
+        run: |
+          python tools/wall/quality.py latest | tee latest.txt
+          args=()
+          while IFS= read -r kv; do args+=(--set "$kv"); done < latest.txt
+          python tools/wall/quality.py bump "${args[@]}" | tee bump.txt
+          echo "sets=$(tr '\n' ' ' < latest.txt)" >> "$GITHUB_OUTPUT"
+          if git diff --quiet; then echo "changed=false" >> "$GITHUB_OUTPUT"; else echo "changed=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Canary -- install and run the full lane on the new pins
+        id: canary
+        if: steps.bump.outputs.changed == 'true'
+        continue-on-error: true
+        run: |
+          # One log for install AND scan, so a failed install is still
+          # reported, and still ends in a PR that says so.
+          set -o pipefail
+          { bash tools/quality/install.sh && bash tools/quality/scan.sh ci; } 2>&1 | tee canary.txt
+      - name: Canary summary
+        if: always() && steps.bump.outputs.changed == 'true'
+        run: |
+          {
+            echo "### Scanner canary: ${CANARY_OUTCOME}"
+            echo '```'; cat bump.txt; echo '```'
+            echo '<details><summary>Last 80 lines</summary>'; echo
+            echo '```'; tail -n 80 canary.txt 2>/dev/null || echo "(no output)"; echo '```'
+            echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          CANARY_OUTCOME: ${{ steps.canary.outcome }}
+
+  propose:
+    name: Open the bump PR
+    needs: canary
+    if: needs.canary.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write        # push the bump branch
+      pull-requests: write   # open the draft PR
+      actions: write         # dispatch CI on the bump branch
+      issues: write          # fallback when Actions may not open PRs
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      SETS: ${{ needs.canary.outputs.sets }}
+      CANARY_OUTCOME: ${{ needs.canary.outputs.outcome }}
+      BASE_BRANCH: ${{ github.event.repository.default_branch }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Re-apply the bump (repository code only; no scanner runs here)
+        run: |
+          args=()
+          for kv in $SETS; do args+=(--set "$kv"); done
+          python tools/wall/quality.py bump "${args[@]}" | tee bump.txt
+      - name: Push the branch and open the PR
+        run: |
+          # Values reach the shell through env and files, never through
+          # expression expansion into the script (zizmor template-injection).
+          branch="scanner-bump/$(git diff -U0 tools/quality/quality.json | sha256sum | cut -c1-12)"
+          gh auth setup-git   # push with GH_TOKEN; checkout persisted nothing
+          if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
+            echo "$branch already has an open PR"; exit 0
+          fi
+          git switch -c "$branch"
+          # Identity per invocation, never written to repo config (F-IDENT-002).
+          git -c user.name="scanner-bump[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -am "Bump structural scanners: $(tr '\n' ';' < bump.txt)"
+          # The branch is named by its own diff, so an existing one left by a
+          # run that failed before opening its PR holds the same change.
+          git push --force -u origin "$branch"
+          {
+            echo "Moves the structural-scan lane's pins (tools/quality/quality.json)."
+            echo
+            echo '```'; cat bump.txt; echo '```'
+            echo
+            echo "Canary run of \`tools/quality/install.sh\` + \`tools/quality/scan.sh ci\` on the new versions: **${CANARY_OUTCOME}** -- log and summary: ${RUN_URL}"
+            echo
+            echo "A new scanner release can add rules. New findings are report-only until promoted; triage them here before merging (docs/SCAN_LANE.md section 5)."
+          } > body.md
+          title="Bump structural scanners: $(grep -c ' -> ' bump.txt) moved"
+          if ! gh pr create --draft --base "$BASE_BRANCH" --head "$branch" \
+                --title "$title" --body-file body.md; then
+            # The repo does not let Actions open PRs. Say so where a person
+            # will see it, with the one-click link to open it by hand.
+            {
+              echo "The weekly scanner bump is ready on \`$branch\`, but this repository does not allow GitHub Actions to open pull requests."
+              echo
+              echo "Open it: https://github.com/$REPO/compare/$BASE_BRANCH...$branch?expand=1"
+              echo
+              echo "(Or allow it once: Settings > Actions > General > \"Allow GitHub Actions to create and approve pull requests\".)"
+              echo
+              cat body.md
+            } > issue.md
+            # One issue per bump: the branch name is a hash of the change,
+            # so an open issue naming it is this same bump from last week.
+            if [ -z "$(gh issue list --state open --search "\"$branch\" in:body" --json number --jq '.[].number')" ]; then
+              gh issue create --title "$title" --body-file issue.md
+            fi
+          fi
+          # CI does not start on a GITHUB_TOKEN push; a dispatch does, and
+          # its checks land on this commit, so the PR shows them.
+          gh workflow run ci.yml --ref "$branch"

@@ -445,7 +445,7 @@ def test_intake_has_sections_for_both_new_templates_and_ends_with_the_usage():
     s11 = t.find("## 11. DESIGN_DOC.md.template")
     usage = t.find("## Using this document")
     assert -1 < s10 < s11 < usage, "intake sections 10/11 are missing or misordered"
-    assert "run the eleven sections as one batched question round" in _flat(INTAKE)
+    assert "run the twelve sections as one batched question round" in _flat(INTAKE)
 
 
 def test_intake_asks_for_the_irreversible_surfaces_and_the_parked_rulings():

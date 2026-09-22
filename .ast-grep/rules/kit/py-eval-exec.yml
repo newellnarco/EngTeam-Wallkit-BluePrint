@@ -1,0 +1,9 @@
+id: py-eval-exec
+language: python
+severity: warning
+message: "eval()/exec() on a runtime value -- parse the data instead"
+note: "The kit is stdlib-only and reads ledgers, configs and front matter; json and ast.literal_eval cover every legitimate case."
+rule:
+  any:
+    - pattern: eval($$$)
+    - pattern: exec($$$)

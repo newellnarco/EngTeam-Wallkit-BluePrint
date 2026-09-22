@@ -463,9 +463,36 @@ prevent (`docs/FLEET.md` §3).
 
 ---
 
+## 12. KNOWN_ISSUES.md.template — the intake
+
+**Required:**
+
+- Q12.1 Where do findings arrive today, and where do they die? List every
+  source: review threads, CI logs, scanner output, chat, the engineer's
+  memory. Every source whose findings exist only in that source is a leak.
+  Each open one becomes an entry now, before anything else is fixed.
+  *(MRC: a finding sat unanswered on a merged pull request for weeks until a
+  sweep of every PR found it.)*
+- Q12.2 What is already found but not guarded? Mine the open issues, TODO and
+  FIXME comments with owners, and review comments marked "later". Group them
+  by shared MECHANISM, not symptom. Three members make a family, and a family
+  is a candidate class for `FAILURE_PATTERNS.md`.
+
+**LLM probes:**
+
+- "Which check here has never been seen to fail?" A green nobody has watched
+  go red is family A in the template, and the cheapest one to find.
+- "What did you decide NOT to fix, and why?" Every answer is a Declined row
+  with its reason; a declined issue with no recorded reason comes back as a
+  new finding. *(REEF carries a whole section of deliberate non-fixes.)*
+- Shape-specific seeds: appliance — findings that need the real hardware to
+  reproduce (REEF's "needs the real box" list); research repo — review-bot
+  findings on prose and citations (MRC); resident app — per-machine driver
+  and device findings (MAX3).
+
 ## Using this document
 
-- **Empty repo:** run the eleven sections as one batched question round (the
+- **Empty repo:** run the twelve sections as one batched question round (the
   one moment a batch beats a trickle — README empty-repo runbook step 2).
 - **Existing repo:** derive first. Most answers are already in the tree
   under other names; the questions become confirmations with evidence
@@ -482,7 +509,7 @@ prevent (`docs/FLEET.md` §3).
 
 ## How this set grows
 
-The twelve templates are the kit's current answer to "what documents does a
+The thirteen templates are the kit's current answer to "what documents does a
 disciplined repo need" — the answer is allowed to be incomplete, and the
 adoption path is how it stops being incomplete:
 

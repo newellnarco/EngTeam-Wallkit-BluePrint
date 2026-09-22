@@ -1,0 +1,11 @@
+# ast-grep project config (docs/TESTING_STANDARDS.md section 5.1).
+# rules/kit/        hand-written structural rules for this repository
+# rules/generated/  DERIVED from the ```ast-grep blocks in FAILURE_PATTERNS.md
+#                   and KNOWN_ISSUES.md by tools/wall/quality.py -- never edit
+# Every rule is authored `severity: warning` (report-only). Promotion to
+# blocking is per rule, recorded in tools/quality/quality.json, and applied at
+# scan time with --error=<id> by tools/quality/scan.sh.
+ruleDirs:
+  - .ast-grep/rules
+testConfigs:
+  - testDir: .ast-grep/rule-tests

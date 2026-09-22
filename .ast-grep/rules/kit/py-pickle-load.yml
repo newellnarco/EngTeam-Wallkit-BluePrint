@@ -1,0 +1,9 @@
+id: py-pickle-load
+language: python
+severity: warning
+message: "pickle load of data from disk or the network -- use JSON"
+note: "Unpickling runs arbitrary code; the ledger and every config are JSON for a reason."
+rule:
+  any:
+    - pattern: pickle.load($$$)
+    - pattern: pickle.loads($$$)

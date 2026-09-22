@@ -1,0 +1,27 @@
+# gitleaks config: the built-in rules, plus this repository's own secret
+# formats. Grows by one [[rules]] block each time a secret shape the defaults
+# missed is found (docs/SCAN_LANE.md, "gitleaks").
+#
+# Every custom rule ships with .gitleaks/fixtures/<id>.txt -- a FAKE sample
+# that must trip it. `quality.py proofs` refuses a rule without one, and
+# tools/quality/scan.sh scans each fixture and fails if its rule stays silent.
+#
+# Template for the next rule (fill it in, then add the fixture):
+#
+# [[rules]]
+# id = "kit-<system>-token"                  # stable; the fixture file is <id>.txt
+# description = "<system> token. Finding: <where it was found>, <YYYY-MM-DD>"
+# regex = '''<prefix>_[A-Za-z0-9]{32}'''
+# keywords = ["<prefix>_"]                  # a literal every match contains (fast path)
+# [[rules.allowlists]]                      # THIS rule, THIS rule's fixture, nothing else
+# description = "the rule's own fake fixture"
+# paths = ['''^\.gitleaks/fixtures/kit-<system>-token\.txt$''']
+#
+# Never a global [[allowlists]] over the fixtures directory: it would hide a
+# real credential committed there from every rule, built-in ones included.
+# The per-rule allowlist exempts one file from one rule; the proof step scans
+# the fixture from inside its directory, where the path does not match, so
+# the rule is still seen to fire.
+
+[extend]
+useDefault = true
