@@ -300,3 +300,35 @@ def test_active_tab_survives_a_fragmentless_reload(template_text: str) -> None:
     assert "sessionStorage.setItem('wall.tab'" in template_text
     assert "storedTab() || 'main'" in template_text
     assert "storeTab(active)" in template_text
+
+
+# ---- blocked drill-in (Patron direction 2026-09-22) ------------------------
+
+
+def test_blocked_chip_is_a_drill_in_button(template_text: str) -> None:
+    """The BLOCKED chip on a board row opens the why-dialog; every other
+    status stays a plain chip."""
+    assert "chip--why" in template_text
+    assert 'data-why="' in template_text
+    assert "statusChip(it.status, it)" in template_text
+
+
+def test_why_dialog_exists_with_dispatch_actions(template_text: str) -> None:
+    assert 'id="whyVeil"' in template_text
+    assert 'role="dialog"' in template_text
+    assert 'data-why-act="build"' in template_text
+    assert 'data-why-act="research"' in template_text
+    assert '"resolve_blocked"' in template_text or "'resolve_blocked'" in template_text
+
+
+def test_why_actions_ride_the_queue_gate(template_text: str) -> None:
+    """The dispatch buttons are exec-btns, so the body.queue-ok probe gate
+    that keeps a standalone wall read-only covers them for free."""
+    start = template_text.index('data-why-act="build"')
+    tag = template_text.rindex("<button", 0, start)
+    assert "exec-btn" in template_text[tag:start]
+
+
+def test_missing_reason_is_reported_not_invented(template_text: str) -> None:
+    assert "No reason recorded and no open question" in template_text
+    assert "wall trace" in template_text

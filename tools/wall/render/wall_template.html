@@ -279,7 +279,12 @@ code, kbd, samp, .mono { font-family: var(--font-mono); font-size: .92em; }
 
 /* ---- layout -------------------------------------------------------------- */
 
-.app-shell   { max-width: 1320px; margin: 0 auto; padding: 0 var(--space-5) var(--space-7); }
+/* The wide shell has no max-width, so its side padding IS the page gutter on
+   every tab — scale it with the viewport (owner report 2026-09-22: content
+   sat nearly flush left on CREW, FLOW, all pages). clamp keeps a 16px floor
+   on narrow windows and grows toward 48px on wide ones, both sides equal. */
+.app-shell   { max-width: 1320px; margin: 0 auto;
+               padding: 0 clamp(var(--space-4), 3vw, var(--space-7)) var(--space-7); }
 .app-shell--wide { max-width: none; }
 .row { display: flex; align-items: center; gap: var(--space-3); }
 .row > .spacer, .masthead > .spacer { flex: 1 1 auto; }
@@ -525,6 +530,38 @@ body.queue-ok .exec-btn { display: inline-block; }
 .queue-strip .qs-spacer { flex: 1; }
 .queue-strip[hidden] { display: none; }
 
+/* Blocked drill-in: the BLOCKED chip on a board row is a button; clicking it
+   opens a dialog with the recorded reason and, when the host queue answered
+   ok, dispatch actions that enqueue the unblock work for whatever agent
+   consumes the queue (the same port EXECUTE uses). */
+button.chip--why { cursor: pointer; font: inherit; }
+button.chip--why:hover { background: var(--surface-hover); }
+.whyveil { position: fixed; inset: 0; z-index: 40;
+  background: color-mix(in srgb, var(--surface-sunken) 65%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--space-5); }
+.whyveil[hidden] { display: none; }
+.why { background: var(--surface-panel); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md); max-width: 560px; width: 100%;
+  max-height: 80vh; overflow: auto; padding: var(--space-4); }
+  /* No drop shadow — the theme carries depth in hairline rules, and the
+     dimmed veil already separates the dialog from the page. */
+.why header { display: flex; align-items: baseline; gap: var(--space-3);
+  margin-bottom: var(--space-3); }
+.why header h3 { margin: 0; flex: 1; font-size: var(--text-base); }
+.why-x { border: 1px solid var(--line); background: var(--surface-raised);
+  color: var(--text-secondary); font: inherit; border-radius: var(--radius-sm);
+  padding: 0 var(--space-2); cursor: pointer; }
+.why-x:hover { color: var(--text-primary); background: var(--surface-hover); }
+.why-reason { border-left: 3px solid var(--status-alert);
+  background: var(--surface-sunken); padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm); margin: 0 0 var(--space-2);
+  color: var(--text-secondary); }
+.why-actions { display: flex; gap: var(--space-2); align-items: center;
+  margin-top: var(--space-3); }
+.why-note { margin: var(--space-3) 0 0; color: var(--text-muted);
+  font-size: var(--text-xs); }
+
 /* AGENTS port: the optional live wave feed on the CREW tab. */
 .wave-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: var(--space-4); }
@@ -583,7 +620,7 @@ footer {
 }
 
 @media (max-width: 640px) {
-  .app-shell { padding: 0 var(--space-3) var(--space-6); }
+  .app-shell { padding-bottom: var(--space-6); }
   .repo { font-size: var(--text-lg); }
 }
 </style>
@@ -745,6 +782,23 @@ footer {
   </footer>
 </div>
 
+<!-- Blocked drill-in dialog. Filled and shown by the chip--why handler. -->
+<div class="whyveil" id="whyVeil" hidden>
+  <div class="why" role="dialog" aria-modal="true" aria-labelledby="whyTitle">
+    <header>
+      <h3 id="whyTitle"></h3>
+      <button class="why-x" id="whyClose" type="button" aria-label="Close">&#215;</button>
+    </header>
+    <div id="whyBody"></div>
+    <div class="why-actions">
+      <button class="exec-btn" type="button" data-why-act="build">BUILD A FIX &#8594;</button>
+      <button class="exec-btn" type="button" data-why-act="research">RESEARCH IT &#8594;</button>
+      <span class="exec-msg" data-role="why-msg"></span>
+    </div>
+    <p class="why-note" id="whyNote"></p>
+  </div>
+</div>
+
 <script id="wall-data" type="application/json">__WALL_DATA__</script>
 <script>
 (function(){
@@ -866,10 +920,17 @@ footer {
     if (STATUS_ALIAS[k]) return STATUS_ALIAS[k];
     return null;
   }
-  function statusChip(s){
+  function statusChip(s, it){
     var c = canonStatus(s);
     var raw = String(s == null ? '' : s);
     var label = raw === '' ? 'unset' : raw.replace(/_/g, ' ');
+    // A blocked chip on a board row is a drill-in: click for the reason and
+    // the dispatch actions. Every other status stays a plain chip.
+    if (c === 'blocked' && it && it.item_id) {
+      return '<button type="button" class="chip chip--st-blocked chip--why" ' +
+             'data-why="' + esc(it.item_id) + '" data-status="' + esc(raw) + '" ' +
+             'title="Why is this blocked?">' + esc(label) + '</button>';
+    }
     return '<span class="chip chip--st-' + (c || 'unknown') + '" data-status="' + esc(raw) + '">' +
            esc(label) + '</span>';
   }
@@ -998,6 +1059,87 @@ footer {
     });
   }
 
+  // ---- blocked drill-in ---------------------------------------------------
+  // Click the BLOCKED chip on a board row: a dialog names the recorded reason
+  // (the item's blocked_reason/reason field, plus any open asks against the
+  // item — WORKFLOW §4 says blocked-without-a-question is an escalation, so
+  // an empty reason is reported as exactly that). When the host queue
+  // answered ok, BUILD/RESEARCH enqueue a resolve_blocked directive through
+  // the same port EXECUTE uses; whatever consumes the queue (a Claude Code
+  // session on the wall MCP adapter, an editor agent, anything speaking the
+  // HTTP queue API) picks the work up in this repo.
+  var whyItem = null;
+
+  function itemById(id){
+    return allItems().filter(function(i){ return i.item_id === id; })[0] || null;
+  }
+
+  function openWhy(id){
+    var it = itemById(id);
+    if (!it) return;
+    whyItem = it;
+    $('whyTitle').textContent = it.item_id + ' — blocked';
+    var reasons = [];
+    var rec = it.blocked_reason || it.reason;
+    if (rec && String(rec).trim()) reasons.push(esc(String(rec).trim()));
+    (D.waiting_on_you || []).forEach(function(a){
+      if (a.item_id === it.item_id && a.question) {
+        reasons.push(esc(a.question) +
+          ' <span class="cmd">wall answer ' + esc(a.ask_id || '') + '</span>');
+      }
+    });
+    var h = '<p>' + esc(it.title || '(untitled)') + '</p>';
+    h += reasons.length
+      ? reasons.map(function(r){ return '<p class="why-reason">' + r + '</p>'; }).join('')
+      : '<p class="why-reason">No reason recorded and no open question — ' +
+        'blocked without asking is itself a WORKFLOW &sect;4 escalation. ' +
+        'The trace has the history: <span class="cmd">wall trace ' +
+        esc(it.item_id) + '</span></p>';
+    $('whyBody').innerHTML = h;
+    $('whyNote').textContent = document.body.classList.contains('queue-ok')
+      ? 'Dispatch enqueues the unblock work; the agent consuming this repo’s ' +
+        'queue (Claude Code via the wall MCP adapter, or any HTTP consumer) performs it.'
+      : 'Dispatch needs the host queue API — serve the wall beside it ' +
+        '(config queue_api) and the BUILD / RESEARCH actions light up.';
+    var msg = document.querySelector('[data-role="why-msg"]');
+    if (msg) msg.textContent = '';
+    $('whyVeil').removeAttribute('hidden');
+    $('whyClose').focus();
+  }
+
+  function closeWhy(){
+    whyItem = null;
+    $('whyVeil').setAttribute('hidden', '');
+  }
+
+  document.addEventListener('click', function(e){
+    var chip = e.target && e.target.closest ? e.target.closest('.chip--why') : null;
+    if (chip) { openWhy(chip.getAttribute('data-why')); return; }
+    if (e.target && e.target.id === 'whyClose') { closeWhy(); return; }
+    if (e.target && e.target.id === 'whyVeil') closeWhy();  // backdrop
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && !$('whyVeil').hasAttribute('hidden')) closeWhy();
+  });
+
+  document.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('[data-why-act]') : null;
+    if (!b || b.dataset.busy === '1' || !whyItem) return;
+    var mode = b.getAttribute('data-why-act');
+    var msgEl = document.querySelector('[data-role="why-msg"]');
+    b.dataset.busy = '1'; b.disabled = true;
+    enqueue({
+      directive: 'resolve_blocked',
+      mode: mode,
+      item_id: whyItem.item_id,
+      title: (mode === 'research' ? 'Research the blocker on '
+                                  : 'Build the fix for ') + whyItem.item_id,
+      reason: String(whyItem.blocked_reason || whyItem.reason || ''),
+    }, msgEl).then(function(){
+      setTimeout(function(){ b.dataset.busy = ''; b.disabled = false; }, 1500);
+    });
+  });
+
   // One EXECUTE click, one directive: a synchronous busy flag blocks a
   // double-fire, and the button stays disabled until the POST settles plus a
   // short cooldown (the reference wall's re-entrancy discipline, kept).
@@ -1104,7 +1246,7 @@ footer {
         (hasDetail ? '<button class="dtoggle" type="button" aria-expanded="false">detail</button>' : '') +
       '</td>' +
       '<td>' + kindChip(it.kind) + '</td>' +
-      '<td>' + statusChip(it.status) + '</td>' +
+      '<td>' + statusChip(it.status, it) + '</td>' +
       '<td>' + esc(it.assignee || '—') + '</td>' +
       '<td class="num">' + esc(it.estimate || '—') + '</td>' +
       '<td class="num">' + esc(it.actual || '—') + '</td>' +

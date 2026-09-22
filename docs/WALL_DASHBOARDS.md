@@ -110,6 +110,36 @@ the **Warden reviews the register at every checkpoint and wave close**
 (warden.md) — selections vs what the wave touched, attestation freshness,
 waiver lifting conditions.
 
+## 4c. The blocked drill-in (Patron direction 2026-09-22)
+
+A `blocked` status chip on any board row is a **button**. Clicking it opens a
+dialog that answers "why?" from what the ledger already holds — the item's
+`blocked_reason` (or `reason`) field, plus every open ask against the item
+from the WAITING feed — and offers two dispatch actions:
+
+- **BUILD A FIX →** enqueues `{directive: "resolve_blocked", mode: "build",
+  item_id, reason}` to the host queue.
+- **RESEARCH IT →** the same with `mode: "research"`.
+
+Both ride the EXECUTE port: the buttons render only after the same-origin
+queue health probe answers ok, so a standalone wall stays read-only,
+honestly. Who performs the work is the queue consumer's business, not the
+wall's — a Claude Code session pulling through the wall MCP adapter, an
+editor agent (Cursor, VS Code) polling the HTTP queue API, or the Maestro
+draining it by hand all look identical from here.
+
+An item blocked with **no** recorded reason and **no** open question renders
+that fact verbatim — blocked-without-asking is a WORKFLOW §4 escalation, and
+the dialog points at `wall trace <item_id>` for the history rather than
+inventing a reason.
+
+**The reason contract:** whoever flips an item to `blocked` writes the why in
+the same event — snapshot shape `{"status": "blocked", "blocked_reason":
+"…"}` or a `{field: "blocked_reason", after: "…"}` delta. The fold carries
+any non-envelope key onto the item, so no schema change is involved; the
+dialog simply reads what discipline wrote. (`reason` alone is an ENVELOPE
+key and does not fold — use `blocked_reason` on items.)
+
 ## 5. Cross-references
 
 - `tools/wall/oversight.py` — the folds; `docs/EVENT_SCHEMA.md` "Oversight"
