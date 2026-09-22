@@ -40,6 +40,7 @@ Format and front-matter contract: `docs/WALL_STANDARDS.md` section 6.
 | [DEC-0030](DEC-0030.md) | active | Regime lifecycle: scan recommends, Patron decides, Warden audits — on the ledger | compliance | 2026-09-22 |
 | [DEC-0031](DEC-0031.md) | active | Two regimes join the register: NIST, and FDA-regulated software | compliance | 2026-09-22 |
 | [DEC-0032](DEC-0032.md) | active | The DOCS tab reads the document and takes the verdict | wall / oversight / queue | 2026-09-22 |
+| [DEC-0033](DEC-0033.md) | active | The kit ships its failure library and a known-issues intake | templates / registry | 2026-09-22 |
 
 ---
 

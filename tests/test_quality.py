@@ -554,3 +554,66 @@ def test_the_scan_lane_wires_the_full_view_check_and_the_registry_names_it():
     block = template.split("### F-PARTIAL-VIEW-001", 1)[1].split("\n### ", 1)[0]
     assert "`test_ci_scan_refuses_a_shallow_history`" in block
     assert "VARIANT:" in block
+
+
+# ------------------------------------------------------------ the kit's own registry
+
+def test_the_canary_that_runs_new_releases_holds_no_write_token():
+    """F-TRUST-SPLIT-001. The job that installs and EXECUTES the newest
+    third-party releases may read the repository and nothing else; only the
+    job that runs this repository's own code may write."""
+    bump = (KIT / ".github/workflows/scanner-bump.yml").read_text(encoding="utf-8")
+    canary = bump.split("\n  canary:", 1)[1].split("\n  propose:", 1)[0]
+    propose = bump.split("\n  propose:", 1)[1]
+    perms = canary.split("permissions:", 1)[1].split("outputs:", 1)[0]
+    assert [ln.strip() for ln in perms.strip().splitlines()] == ["contents: read"], perms
+    assert "GH_TOKEN" not in canary and "token:" not in canary
+    assert "persist-credentials: false" in canary
+    run = "bash tools/quality/install.sh"
+    assert run in canary and run not in propose, \
+        "third-party code must run only in the read-only job"
+    assert "quality.py bump" in propose, "the writer re-applies the validated bump itself"
+
+
+def test_pre_commit_generates_rules_from_the_staged_registry(tmp_path):
+    """F-DERIVED-INDEX-001. Stage one registry entry, leave a second unstaged,
+    commit: the commit must carry exactly the staged entry's rule, and the
+    committed tree must pass `rules --check`."""
+    import shutil
+    import subprocess
+    repo = tmp_path / "host"
+    repo.mkdir()
+    env = dict(__import__("os").environ, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
+               GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t", HOME=str(tmp_path))
+
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=repo, env=env, check=True,
+                              capture_output=True, text=True).stdout
+
+    git("init", "-q", "-b", "work")
+    shutil.copytree(KIT / "tools", repo / "tools",
+                    ignore=shutil.ignore_patterns("__pycache__"))
+    (repo / quality.CONFIG).write_text(
+        json.dumps(dict(quality.load_config(KIT), promotions={})), encoding="utf-8")
+    git("add", "-A")
+    git("commit", "-q", "-m", "base")
+    subprocess.run(["bash", "tools/git-hooks/install.sh"], cwd=repo, env=env,
+                   check=True, capture_output=True)
+    reg = repo / "FAILURE_PATTERNS.md"
+    reg.write_text(ENTRY, encoding="utf-8")
+    git("add", "FAILURE_PATTERNS.md")
+    reg.write_text(ENTRY.replace("## F-PROSE-001", "## F-EXTRA-001 - unstaged\n\n"
+                                 "```ast-grep\nlanguage: python\nrule:\n  pattern: exec($X)\n```\n\n"
+                                 "```ast-grep-test\ninvalid:\n  - exec(s)\n```\n\n## F-PROSE-001"),
+                   encoding="utf-8")
+    git("commit", "-q", "-m", "add a class")
+
+    committed = git("show", "--name-only", "--format=", "HEAD").split()
+    assert ".ast-grep/rules/generated/f-substr-001.yml" in committed
+    assert not any("f-extra-001" in f for f in committed), \
+        "the unstaged entry's rule was committed"
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    subprocess.run("git archive HEAD | tar -x -C %s" % tree, shell=True, cwd=repo,  # noqa: S602
+                   env=env, check=True)
+    assert quality.check_rules(tree, quality.load_config(tree)) == []

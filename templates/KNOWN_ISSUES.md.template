@@ -1,0 +1,98 @@
+<!--
+TEMPLATE: KNOWN_ISSUES.md
+WHAT THIS IS  The intake: every finding, recorded the moment it is found and
+              before it is worked, grouped into FAMILIES by shared mechanism.
+WHY IT EXISTS A finding that lives only in a review thread, a CI log or
+              somebody's memory disappears when the pull request merges.
+              The failure registry holds what is fixed and guarded; this
+              holds what is known and not yet guarded, which is where a
+              fix's test selection comes from (docs/DIAGNOSTICS_LOOP.md).
+HOW TO USE    Copy to the repo root as KNOWN_ISSUES.md. Keep the discipline
+              and the format. The families below are GENERAL, genericized
+              from three production deployments; keep the ones that can
+              happen to you, and add your own. Fill every <PLACEHOLDER>.
+QUESTIONS      Required questions + LLM probes to fill this well:
+              docs/TEMPLATE_INTAKE.md section 12.
+-->
+
+# KNOWN_ISSUES.md
+
+> Found, not yet worked. Every issue is recorded here **the moment it is
+> found**, whoever found it: an agent, CI, a hosted reviewer, a scanner, or
+> the owner. Referenced by `CLAUDE.md`. Reading it comes before choosing a
+> CI path.
+
+**Three records, three tenses** (`docs/WALL_STANDARDS.md` section 4). The
+wall shows what is **in flight**. This file holds what is **known**.
+`FAILURE_PATTERNS.md` holds what is **fixed and guarded**. A finding parked
+in the wrong tense is invisible to the reader who needed it.
+
+## The discipline, in order
+
+1. **Record it on arrival.** Before reproducing, before fixing, before
+   replying. A finding that exists only in a review thread disappears when the
+   pull request merges.
+2. **Group it into a family and name the shared root.** Group by mechanism,
+   not by symptom. Three variations of one root cost three cycles when they
+   could have cost one.
+3. **Elevate at three.** A family with three members is a candidate
+   recurring class. It gets an entry in `FAILURE_PATTERNS.md` with a
+   `> class-guard:` line, a mutation proving the guard can fail, and a
+   `VARIANT:` fixture.
+4. **Choose the CI path from this file.** Nothing goes to a mutation run, a
+   reviewer, a push or a CI run until this file has been read and the family
+   named. The cheapest, most focused path plus its blast radius is a claim
+   about what could be wrong, and this file is the list of what is.
+5. **Leave in one of two ways.** An entry leaves when it lands in
+   `FAILURE_PATTERNS.md` with a guard, or when it is declined with a reason.
+   There is no third state: silence is not a disposition.
+
+An entry with a code shape may carry a fenced `ast-grep` block and an
+`ast-grep-test` block. It becomes a report-only structural rule on the next
+commit (`docs/SCAN_LANE.md`), so the rest of the tree is searched for the same
+shape while the fix is still being written.
+
+## Entry format
+
+```
+## KI-<YYYY-MM-DD>-<letter> - <one line: what is wrong, as a mechanism>
+- Found by      who or what raised it, and where
+- Symptom       what it looks like from outside
+- Family        the shared root (a family below, or a new one)
+- Blast radius  what it touches if left
+- Next step     the cheapest action that moves it to guarded or declined
+- Disposition   open | guarded -> F-<SCOPE>-<NNN> | declined (see below)
+```
+
+---
+
+## Families - the shared root, not the symptom
+
+<!-- FAMILIES: genericized from three production deployments; filled in below. -->
+
+---
+
+## Open
+
+## KI-<YYYY-MM-DD>-a - <first finding, recorded before it is worked>
+
+- **Found by:** <SOURCE_AND_WHERE>
+- **Symptom:** <WHAT_IT_LOOKS_LIKE>
+- **Family:** <FAMILY>
+- **Blast radius:** <WHAT_IT_TOUCHES>
+- **Next step:** <CHEAPEST_ACTION>
+- **Disposition:** open
+
+---
+
+## Guarded
+
+| Entry | Guarded as |
+|---|---|
+| <KI-ID> | <F-SCOPE-NNN> |
+
+## Declined
+
+| Entry | Reason |
+|---|---|
+| <KI-ID> | <WHY_NOT, and what would reopen it> |

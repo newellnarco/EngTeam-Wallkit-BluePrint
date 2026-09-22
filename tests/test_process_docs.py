@@ -456,7 +456,8 @@ def test_template_intake_covers_every_template_with_both_layers():
                  "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template",
                  "DOCS_MAP.md.template", "OWNER_DECISIONS.md.template",
                  "REVIEWER_LANES.md.template",
-                 "ENGINEERING_STANDARD.md.template", "DESIGN_DOC.md.template"):
+                 "ENGINEERING_STANDARD.md.template", "DESIGN_DOC.md.template",
+                 "KNOWN_ISSUES.md.template"):
         assert name in t, f"intake missing template {name}"
     assert t.count("**Required:**") >= 11
     assert t.count("**LLM probes:**") >= 11
@@ -483,7 +484,8 @@ def test_every_template_points_at_its_question_set():
                  "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template",
                  "DOCS_MAP.md.template", "OWNER_DECISIONS.md.template",
                  "REVIEWER_LANES.md.template",
-                 "ENGINEERING_STANDARD.md.template", "DESIGN_DOC.md.template"):
+                 "ENGINEERING_STANDARD.md.template", "DESIGN_DOC.md.template",
+                 "KNOWN_ISSUES.md.template"):
         t = _text(KIT / "templates" / name)
         assert "TEMPLATE_INTAKE.md" in t, f"{name} lacks its question-set pointer"
 

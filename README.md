@@ -281,7 +281,8 @@ script deliberately leaves to you.
 |---|---|---|
 | `templates/CLAUDE.md.template` | `CLAUDE.md` | Entry point: what the project is, current state, doc index, pointer to the rules. |
 | `templates/RULES.md.template` | `RULES.md` | The binding rules. Part 1 is yours to write; Part 2 ships as-is. |
-| `templates/FAILURE_PATTERNS.md.template` | `FAILURE_PATTERNS.md` | Append-only registry of bug classes, seeded with seventeen general ones plus four inherited classes awaiting their first occurrence here. |
+| `templates/FAILURE_PATTERNS.md.template` | `FAILURE_PATTERNS.md` | Append-only registry of bug classes: seventeen seeded general ones, plus a library of inherited classes genericized from three production deployments (MAX3, REEF, MRC) that await their first occurrence here. |
+| `templates/KNOWN_ISSUES.md.template` | `KNOWN_ISSUES.md` | The intake: every finding recorded on arrival, before it is worked, grouped into families by shared mechanism; it leaves only as guarded (a registry class) or declined with a reason. |
 | `templates/ENGINEERING_STANDARD.md.template` | `docs/ENGINEERING_STANDARD.md` | The canonical method: root cause to requirement to test to code, the done-definition, and a per-repo Bindings zone that is the only part you edit. |
 | `templates/DESIGN_DOC.md.template` | `docs/architecture/<ARC>.md` | The per-arc design an arc's stories cite by section: intent, boundary, slice plan, rollback story. |
 | `templates/SHIP_CHECKLIST.md.template` | `SHIP_CHECKLIST.md` | The pre-ship gate, including gates-run-last and the budget check. |
@@ -593,7 +594,7 @@ authority on which commands are in that state today.
 | Install adapters | One machine-wide timer per platform - scheduled task, launch agent, user timer | Consent-gated: the schedule is printed before it is created |
 | Questions and escalation | Raise, route, answer, record as a decision | Blocking work stops; non-blocking work continues |
 | Integration | Rebase, regenerate derived files, prove, gate, open the pull request | The role sheet exists so the procedure stops being re-typed |
-| Context templates | The root context documents a new project starts from (ten templates) | `templates/`, this repository |
+| Context templates | The root context documents a new project starts from (thirteen templates) | `templates/`, this repository |
 | Decision log | One file per ruling, superseded rather than rewritten | `docs/decisions/` |
 
 ---
