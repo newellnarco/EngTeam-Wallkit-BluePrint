@@ -123,3 +123,13 @@ pixels with the right question, and the owner's eye decides.
 - DIAGNOSTICS_LOOP.md §5 — the owner-verification queue
 - PRODUCT_INTAKE.md — the end-user-experience intake axis this refines
 - frontend/theme/ADOPTION.md — the tokens of record
+
+
+## The page gutter
+
+A full-width shell's side padding IS the page gutter on every screen — there
+is no max-width margin to hide behind. It scales with the viewport:
+`clamp(16px, 3vw, 48px)`, both sides equal, defined once on the shell so
+every tab inherits it (a per-screen gutter drifts). Measured failure: a
+fixed thin padding read as "content flush against the left edge" on every
+tab of a wide window (Patron report 2026-09-22).

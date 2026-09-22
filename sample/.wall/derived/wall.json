@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-20T18:53:16.557Z",
+  "generated_at": "2026-09-22T18:05:58.764Z",
   "repo": {
     "name": "Atlas-Core",
     "path": "/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kit/sample",
@@ -108,7 +108,7 @@
         "kind": "unassigned_past_sla",
         "question_id": "q_0051",
         "item_id": "ST-112",
-        "age_min": 1304.3,
+        "age_min": 4137.0,
         "sla_min": 5,
         "detail": "nobody picked it up"
       },
@@ -117,9 +117,9 @@
         "question_id": "q_0051",
         "item_id": "ST-112",
         "tier": "researcher",
-        "age_min": 1304.3,
+        "age_min": 4137.0,
         "sla_min": 60,
-        "detail": "open 1304 min at tier 'researcher' -- escalate a tier"
+        "detail": "open 4137 min at tier 'researcher' -- escalate a tier"
       }
     ],
     "stale_claims": [
@@ -862,7 +862,7 @@
     ],
     "period_start": "2026-09-01T00:00:00+00:00",
     "period_end": "2026-10-01T00:00:00+00:00",
-    "pct_period_remaining": 34.0
+    "pct_period_remaining": 27.5
   },
   "queue_api": null,
   "agents_feed": null,
@@ -944,5 +944,718 @@
     "s_7f3a",
     "s_b19e",
     "s_c22d"
-  ]
+  ],
+  "oversight": {
+    "posture": {
+      "rulings": [],
+      "tally": {},
+      "blocked": [],
+      "last_delivery_audit": null,
+      "total_rulings": 0,
+      "malformed": 0
+    },
+    "retro": {
+      "held": 0,
+      "latest": null,
+      "trends": [],
+      "pending_inputs": []
+    },
+    "docs": {
+      "registry": [
+        {
+          "path": "RULES.md",
+          "sha": null,
+          "state": "missing",
+          "review": null,
+          "feedback": null
+        },
+        {
+          "path": "FAILURE_PATTERNS.md",
+          "sha": null,
+          "state": "missing",
+          "review": null,
+          "feedback": null
+        },
+        {
+          "path": "SHIP_CHECKLIST.md",
+          "sha": null,
+          "state": "missing",
+          "review": null,
+          "feedback": null
+        },
+        {
+          "path": "BEST_PRACTICES.md",
+          "sha": null,
+          "state": "missing",
+          "review": null,
+          "feedback": null
+        },
+        {
+          "path": "OWNER_DECISIONS.md",
+          "sha": null,
+          "state": "missing",
+          "review": null,
+          "feedback": null
+        },
+        {
+          "path": "REVIEWER_LANES.md",
+          "sha": null,
+          "state": "missing",
+          "review": null,
+          "feedback": null
+        },
+        {
+          "path": "BUDGETED_DOCS.md",
+          "sha": null,
+          "state": "missing",
+          "review": null,
+          "feedback": null
+        },
+        {
+          "path": "DOCS_MAP.md",
+          "sha": null,
+          "state": "missing",
+          "review": null,
+          "feedback": null
+        },
+        {
+          "path": "docs/ENGINEERING_STANDARD.md",
+          "sha": null,
+          "state": "missing",
+          "review": null,
+          "feedback": null
+        }
+      ],
+      "needs_review": 0,
+      "decisions": {
+        "count": 3,
+        "problems": 1,
+        "recent": [
+          {
+            "id": "DEC-0043",
+            "status": "active",
+            "title": "DEC-0043 -- Merge sorts on (ts, session_id, seq) and nothing else",
+            "scope": [
+              "backend/ledger/merge.py"
+            ]
+          },
+          {
+            "id": "DEC-0042",
+            "status": "active",
+            "title": "DEC-0042 -- A retry is a new event; the first is marked superseded",
+            "scope": [
+              "backend/ledger/"
+            ]
+          },
+          {
+            "id": "DEC-0018",
+            "status": "superseded",
+            "title": "DEC-0018 -- Retries reuse the original event_id",
+            "scope": [
+              "backend/ledger/"
+            ]
+          }
+        ]
+      }
+    },
+    "flow": {
+      "iterations": [
+        {
+          "iteration": "current",
+          "current": true,
+          "shipped": 1,
+          "bugs_filed": 3,
+          "estimate_points": 5,
+          "actual_points": 8,
+          "sized_items": 1,
+          "open_at_close": 8,
+          "closed_at": null,
+          "cost_usd": 23.89,
+          "agents": {
+            "adjudicator": 1,
+            "architect": 1,
+            "builder": 3,
+            "foreman": 1,
+            "maestro": 1,
+            "researcher": 2,
+            "reviewer": 1,
+            "unknown": 3
+          },
+          "duration_min": 584.6,
+          "delivered": [
+            {
+              "item_id": "ST-105",
+              "title": "Deterministic merge with dedupe",
+              "kind": "story"
+            }
+          ],
+          "not_delivered": [
+            {
+              "item_id": "BG-021",
+              "title": "Duplicate event_id on retry",
+              "kind": "bug"
+            },
+            {
+              "item_id": "BG-024",
+              "title": "Mixed changeset takes wrong route",
+              "kind": "bug"
+            },
+            {
+              "item_id": "BG-025",
+              "title": "Lease TTL never expires on a crashed agent",
+              "kind": "bug"
+            },
+            {
+              "item_id": "ST-106",
+              "title": "Checkpointed tail reads per shard",
+              "kind": "story"
+            },
+            {
+              "item_id": "ST-111",
+              "title": "Atomic publish + heartbeat",
+              "kind": "story"
+            },
+            {
+              "item_id": "ST-112",
+              "title": "Live-poll upgrade path",
+              "kind": "story"
+            },
+            {
+              "item_id": "ST-120",
+              "title": "Path-based route classifier",
+              "kind": "story"
+            },
+            {
+              "item_id": "ST-121",
+              "title": "No-op status check for protection",
+              "kind": "story"
+            }
+          ]
+        }
+      ],
+      "velocity_series": [],
+      "open_now": 8,
+      "measured": true
+    },
+    "compliance": {
+      "regimes": [
+        {
+          "id": "soc2",
+          "name": "SOC 2 (2017 TSC, 2022 Points of Focus)",
+          "doc": "docs/compliance/soc2.md",
+          "applies_when": "customers or partners ask for assurance over the service's security posture; B2B SaaS almost always",
+          "applicable": null,
+          "selected_by": null,
+          "reason": null,
+          "challenge": "unanswered -- select applicable or not (`wall compliance soc2 ...`)",
+          "recommended": false,
+          "evidence": [],
+          "scanned_at": null,
+          "disposition": "undecided",
+          "last_audit": null,
+          "counts": {
+            "pass": 0,
+            "fail": 0,
+            "waiver": 0,
+            "unattested": 13
+          },
+          "controls": [
+            {
+              "id": "CC1",
+              "statement": "Control environment: integrity, oversight, accountability are real and assigned",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "CC2",
+              "statement": "Communication and information: policies reach the people they bind",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "CC3",
+              "statement": "Risk assessment: risks identified, analyzed, and responded to on a cadence",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "CC4",
+              "statement": "Monitoring: controls are evaluated and deficiencies reach the right people",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "CC5",
+              "statement": "Control activities: controls exist at the process level, not just on paper",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "CC6",
+              "statement": "Logical and physical access: least privilege, credential lifecycle, boundary protection",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "CC7",
+              "statement": "System operations: anomaly detection, incident response, recovery",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "CC8",
+              "statement": "Change management: changes authorized, tested, approved, tracked",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "CC9",
+              "statement": "Risk mitigation: vendor and business-disruption risk handled",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "A1",
+              "statement": "Availability (optional category): capacity, backup, recovery objectives met",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "PI1",
+              "statement": "Processing integrity (optional): processing is complete, valid, accurate, timely",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "C1",
+              "statement": "Confidentiality (optional): confidential data identified and protected to disposal",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "P1",
+              "statement": "Privacy (optional): personal information handled per the privacy notice",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            }
+          ]
+        },
+        {
+          "id": "hipaa",
+          "name": "HIPAA / PHI (Security, Privacy, Breach Rules)",
+          "doc": "docs/compliance/hipaa.md",
+          "applies_when": "the system creates, receives, maintains or transmits protected health information, or serves one that does (business associate)",
+          "applicable": null,
+          "selected_by": null,
+          "reason": null,
+          "challenge": "unanswered -- select applicable or not (`wall compliance hipaa ...`)",
+          "recommended": false,
+          "evidence": [],
+          "scanned_at": null,
+          "disposition": "undecided",
+          "last_audit": null,
+          "counts": {
+            "pass": 0,
+            "fail": 0,
+            "waiver": 0,
+            "unattested": 7
+          },
+          "controls": [
+            {
+              "id": "SR-ADM",
+              "statement": "Administrative safeguards (164.308): risk analysis, workforce training, access management, contingency plan",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "SR-PHY",
+              "statement": "Physical safeguards (164.310): facility access, workstation and device controls",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "SR-TEC",
+              "statement": "Technical safeguards (164.312): access control, audit controls, integrity, transmission security, encryption",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "SR-ORG",
+              "statement": "Organizational (164.314): BAAs with every business associate -- a hosted LLM included",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "SR-DOC",
+              "statement": "Policies and documentation (164.316): written, retained six years, updated",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "PR-MIN",
+              "statement": "Privacy Rule: minimum necessary uses and disclosures",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "BN-NOT",
+              "statement": "Breach Notification (164.400s): discovery clocks, individual and HHS notice",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            }
+          ]
+        },
+        {
+          "id": "pci",
+          "name": "PCI DSS v4.0.1",
+          "doc": "docs/compliance/pci.md",
+          "applies_when": "cardholder data is stored, processed or transmitted, or the system can affect the security of a payment flow",
+          "applicable": null,
+          "selected_by": null,
+          "reason": null,
+          "challenge": "unanswered -- select applicable or not (`wall compliance pci ...`)",
+          "recommended": false,
+          "evidence": [],
+          "scanned_at": null,
+          "disposition": "undecided",
+          "last_audit": null,
+          "counts": {
+            "pass": 0,
+            "fail": 0,
+            "waiver": 0,
+            "unattested": 12
+          },
+          "controls": [
+            {
+              "id": "R1",
+              "statement": "Network security controls installed and maintained",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "R2",
+              "statement": "Secure configurations applied to all system components",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "R3",
+              "statement": "Stored account data protected (no PAN in logs or fixtures, ever)",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "R4",
+              "statement": "Cardholder data encrypted over open, public networks",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "R5",
+              "statement": "Malicious software protected against",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "R6",
+              "statement": "Secure systems and software developed and maintained",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "R7",
+              "statement": "Access restricted by business need to know",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "R8",
+              "statement": "Users identified and access authenticated (MFA)",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "R9",
+              "statement": "Physical access to cardholder data restricted",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "R10",
+              "statement": "Access to system components and cardholder data logged and monitored",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "R11",
+              "statement": "Security of systems and networks tested regularly",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "R12",
+              "statement": "Information security supported by organizational policies (incl. 12.5.2 scope re-confirmation)",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            }
+          ]
+        },
+        {
+          "id": "privacy",
+          "name": "PII / Privacy (GDPR, CCPA/CPRA, state laws)",
+          "doc": "docs/compliance/privacy.md",
+          "applies_when": "personal information of EU residents (GDPR) or of residents of California and ~20 other US states is collected or processed",
+          "applicable": null,
+          "selected_by": null,
+          "reason": null,
+          "challenge": "unanswered -- select applicable or not (`wall compliance privacy ...`)",
+          "recommended": false,
+          "evidence": [],
+          "scanned_at": null,
+          "disposition": "undecided",
+          "last_audit": null,
+          "counts": {
+            "pass": 0,
+            "fail": 0,
+            "waiver": 0,
+            "unattested": 8
+          },
+          "controls": [
+            {
+              "id": "LB",
+              "statement": "Lawful basis and notice: a named basis (GDPR) or compliant notice + opt-out (CCPA/CPRA) per processing purpose",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "MIN",
+              "statement": "Minimization and purpose limitation: collect what the purpose needs, nothing more",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "RTS",
+              "statement": "Subject rights served: access, deletion, correction, portability, opt-out of sale/share",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "SEC",
+              "statement": "Security of processing (GDPR art. 32): appropriate technical and organizational measures",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "XFR",
+              "statement": "Cross-border transfers: residency and transfer mechanisms per jurisdiction",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "BRK",
+              "statement": "Breach clocks: 72-hour authority notice (GDPR) and state-law equivalents",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "VND",
+              "statement": "Processor contracts: DPAs with every processor -- a hosted LLM included",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "ADM",
+              "statement": "Automated decision-making: risk assessments and opt-outs (CPRA 2026 regulations)",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            }
+          ]
+        },
+        {
+          "id": "government",
+          "name": "Government reach (FedRAMP, CJIS, CLOUD Act, export)",
+          "doc": "docs/compliance/government.md",
+          "applies_when": "US federal agencies are customers (FedRAMP), criminal justice information is touched (CJIS), or data faces law-enforcement reach / export control",
+          "applicable": null,
+          "selected_by": null,
+          "reason": null,
+          "challenge": "unanswered -- select applicable or not (`wall compliance government ...`)",
+          "recommended": false,
+          "evidence": [],
+          "scanned_at": null,
+          "disposition": "undecided",
+          "last_audit": null,
+          "counts": {
+            "pass": 0,
+            "fail": 0,
+            "waiver": 0,
+            "unattested": 4
+          },
+          "controls": [
+            {
+              "id": "FR",
+              "statement": "FedRAMP: authorization path chosen (Rev5 baseline or 20x), boundary defined, continuous monitoring",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "CJ",
+              "statement": "CJIS Security Policy (v6.x, NIST 800-53 aligned): CJI identified and controls mapped",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "RES",
+              "statement": "Residency and reach: provider and region choices evaluated against CLOUD Act / Patriot Act exposure",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "EXP",
+              "statement": "Export control: ITAR/EAR-controlled technical data identified and segregated",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            }
+          ]
+        },
+        {
+          "id": "sector",
+          "name": "Sector rules (SOX, GLBA, FERPA)",
+          "doc": "docs/compliance/sector.md",
+          "applies_when": "public-company financial reporting (SOX), consumer financial data (GLBA), or education records (FERPA) are in scope",
+          "applicable": null,
+          "selected_by": null,
+          "reason": null,
+          "challenge": "unanswered -- select applicable or not (`wall compliance sector ...`)",
+          "recommended": false,
+          "evidence": [],
+          "scanned_at": null,
+          "disposition": "undecided",
+          "last_audit": null,
+          "counts": {
+            "pass": 0,
+            "fail": 0,
+            "waiver": 0,
+            "unattested": 3
+          },
+          "controls": [
+            {
+              "id": "SOX",
+              "statement": "SOX ICFR: change control and access evidence over systems feeding financial reports",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "GLB",
+              "statement": "GLBA Safeguards Rule: written infosec program, risk assessment, MFA, encryption, vendor oversight",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            },
+            {
+              "id": "FER",
+              "statement": "FERPA: education records identified, disclosures consent-gated, directory-info opt-outs honored",
+              "status": null,
+              "note": null,
+              "by": null,
+              "ts": null
+            }
+          ]
+        }
+      ],
+      "decision_log": [],
+      "any_selected": false
+    }
+  }
 }

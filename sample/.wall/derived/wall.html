@@ -4,7 +4,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="refresh" content="30">
+<!-- No meta refresh tag here, ever: the parser schedules that navigation and
+     removing the element later does not reliably cancel it, and the reload it
+     fires goes to the document's ORIGINAL URL — dropping the #tab fragment,
+     so every 30 s the page flashed and dumped the viewer back on MAIN (owner
+     report 2026-09-22). Both delivery modes refresh from script instead,
+     where the timer is ours to own; test_no_meta_refresh_ever pins this. -->
 <title>Wall — Atlas-Core</title>
 <style>
 /* ============================================================================
@@ -274,7 +279,12 @@ code, kbd, samp, .mono { font-family: var(--font-mono); font-size: .92em; }
 
 /* ---- layout -------------------------------------------------------------- */
 
-.app-shell   { max-width: 1320px; margin: 0 auto; padding: 0 var(--space-5) var(--space-7); }
+/* The wide shell has no max-width, so its side padding IS the page gutter on
+   every tab — scale it with the viewport (owner report 2026-09-22: content
+   sat nearly flush left on CREW, FLOW, all pages). clamp keeps a 16px floor
+   on narrow windows and grows toward 48px on wide ones, both sides equal. */
+.app-shell   { max-width: 1320px; margin: 0 auto;
+               padding: 0 clamp(var(--space-4), 3vw, var(--space-7)) var(--space-7); }
 .app-shell--wide { max-width: none; }
 .row { display: flex; align-items: center; gap: var(--space-3); }
 .row > .spacer, .masthead > .spacer { flex: 1 1 auto; }
@@ -520,6 +530,38 @@ body.queue-ok .exec-btn { display: inline-block; }
 .queue-strip .qs-spacer { flex: 1; }
 .queue-strip[hidden] { display: none; }
 
+/* Blocked drill-in: the BLOCKED chip on a board row is a button; clicking it
+   opens a dialog with the recorded reason and, when the host queue answered
+   ok, dispatch actions that enqueue the unblock work for whatever agent
+   consumes the queue (the same port EXECUTE uses). */
+button.chip--why { cursor: pointer; font: inherit; }
+button.chip--why:hover { background: var(--surface-hover); }
+.whyveil { position: fixed; inset: 0; z-index: 40;
+  background: color-mix(in srgb, var(--surface-sunken) 65%, transparent);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--space-5); }
+.whyveil[hidden] { display: none; }
+.why { background: var(--surface-panel); border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md); max-width: 560px; width: 100%;
+  max-height: 80vh; overflow: auto; padding: var(--space-4); }
+  /* No drop shadow — the theme carries depth in hairline rules, and the
+     dimmed veil already separates the dialog from the page. */
+.why header { display: flex; align-items: baseline; gap: var(--space-3);
+  margin-bottom: var(--space-3); }
+.why header h3 { margin: 0; flex: 1; font-size: var(--text-base); }
+.why-x { border: 1px solid var(--line); background: var(--surface-raised);
+  color: var(--text-secondary); font: inherit; border-radius: var(--radius-sm);
+  padding: 0 var(--space-2); cursor: pointer; }
+.why-x:hover { color: var(--text-primary); background: var(--surface-hover); }
+.why-reason { border-left: 3px solid var(--status-alert);
+  background: var(--surface-sunken); padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm); margin: 0 0 var(--space-2);
+  color: var(--text-secondary); }
+.why-actions { display: flex; gap: var(--space-2); align-items: center;
+  margin-top: var(--space-3); }
+.why-note { margin: var(--space-3) 0 0; color: var(--text-muted);
+  font-size: var(--text-xs); }
+
 /* AGENTS port: the optional live wave feed on the CREW tab. */
 .wave-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: var(--space-4); }
@@ -578,7 +620,7 @@ footer {
 }
 
 @media (max-width: 640px) {
-  .app-shell { padding: 0 var(--space-3) var(--space-6); }
+  .app-shell { padding-bottom: var(--space-6); }
   .repo { font-size: var(--text-lg); }
 }
 </style>
@@ -700,12 +742,64 @@ footer {
     </div>
   </section>
 
+  <section role="tabpanel" id="panel-retro" aria-labelledby="tab-retro" hidden>
+    <div class="panel">
+      <h2>Retrospectives<span class="sub">measured signals, landed diffs, re-measured verdicts (RETROSPECTIVES.md)</span></h2>
+      <div id="retroBody"></div>
+    </div>
+  </section>
+
+  <section role="tabpanel" id="panel-posture" aria-labelledby="tab-posture" hidden>
+    <div class="panel">
+      <h2>Security posture<span class="sub">the Warden's rulings by gate — architecture, data use, test data, tech evals, delivery (DATA_PROTECTION.md)</span></h2>
+      <div id="postureBody"></div>
+    </div>
+  </section>
+
+  <section role="tabpanel" id="panel-flow" aria-labelledby="tab-flow" hidden>
+    <div class="panel">
+      <h2>Flow<span class="sub">velocity, sizing accuracy, quality and burndown per iteration — the Foreman measures, the Maestro paces</span></h2>
+      <div id="flowBody"></div>
+    </div>
+  </section>
+
+  <section role="tabpanel" id="panel-docs" aria-labelledby="tab-docs" hidden>
+    <div class="panel">
+      <h2>Documents of record<span class="sub">every SOP and standard, its review state, and the decision log — the Patron's reading list</span></h2>
+      <div id="docsBody"></div>
+    </div>
+  </section>
+
+  <div id="modal" hidden style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:40" role="dialog" aria-modal="true">
+    <div id="modalBox" style="max-width:860px;max-height:82vh;overflow:auto;margin:6vh auto;padding:18px 22px;background:var(--surface-panel,#fff);color:var(--text-strong,inherit);border:1px solid var(--edge-line,#8886);border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.35)">
+      <button id="modalClose" style="float:right" aria-label="close">✕</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
   <footer>
     <span id="fSchema"></span><span id="fEvents"></span><span id="fShards"></span><span id="fSessions"></span>
   </footer>
 </div>
 
-<script id="wall-data" type="application/json">{"schema_version":1,"generated_at":"2026-09-20T18:53:16.557Z","repo":{"name":"Atlas-Core","path":"/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kit/sample","branch":"main"},"courier":{"last_run_ms":1,"events":78,"shards":3},"integrity":{"seq_gaps":[{"session_id":"s_b19e","seq":10}],"seq_duplicates":[{"session_id":"s_c22d","seq":3,"count":2}],"orphan_runs":[{"run_id":"run_015","agent":"Edmund","started":"2026-09-19T13:35:35.000Z","item_id":"ST-104"},{"run_id":"run_orphan_1","agent":"Nadia","started":"2026-09-19T18:54:00.761Z","item_id":"ST-121"},{"run_id":"run_live_bld_a41f09","agent":"Desmond","started":"2026-09-19T21:36:00.761Z","item_id":"ST-106"},{"run_id":"run_live_bld_2fc885","agent":"Theo","started":"2026-09-19T21:48:00.761Z","item_id":"ST-111"},{"run_id":"run_live_res_d470af","agent":"Silas","started":"2026-09-19T21:51:00.761Z","item_id":"BG-021"},{"run_id":"run_live_frm_4a91c2","agent":"Alistair","started":"2026-09-19T21:53:00.761Z","item_id":null}],"duplicates":[["ST-120","ST-112"]],"state_drift":2,"state_drift_checked":true,"state_drift_detail":[{"item_id":"ST-110","kind":"field_mismatch","field":"assignee","expected":"Theo","found":"Hollis"},{"item_id":"ST-110","kind":"field_mismatch","field":"status","expected":"done","found":"active"}],"fold_problems":[],"merged_but_open":[{"item_id":"ST-105","kind":"reopened_after_ship","pr":1654,"status":"in_review","shipped_at":"2026-09-19T15:05:00.000Z","detail":"item_shipped is on the ledger but a later event put the item back to a non-terminal status"}],"escalations":[{"kind":"blocked_without_question","item_id":"BG-025","detail":"item is blocked with no open question -- blocked without asking"},{"kind":"unassigned_past_sla","question_id":"q_0051","item_id":"ST-112","age_min":1304.3,"sla_min":5,"detail":"nobody picked it up"},{"kind":"escalate","question_id":"q_0051","item_id":"ST-112","tier":"researcher","age_min":1304.3,"sla_min":60,"detail":"open 1304 min at tier 'researcher' -- escalate a tier"}],"stale_claims":[{"agent":"Nadia","item_id":"ST-121","since":"2026-09-19T18:54:00.761Z"},{"agent":"Desmond","item_id":"ST-106","since":"2026-09-19T21:36:00.761Z"},{"agent":"Silas","item_id":"BG-021","since":"2026-09-19T21:51:00.761Z"},{"agent":"Alistair","item_id":null,"since":"2026-09-19T21:53:00.761Z"},{"agent":"Theo","item_id":"ST-111","since":"2026-09-19T21:48:00.761Z"}]},"role_limits":{"builder":4,"researcher":6,"reviewer":2},"crew":[{"agent_key":"adj_5c02ea","name":"Coretta","title":"","role":"adjudicator","model_requested":"claude-fable-5-1","model_used":"claude-opus-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:42:42.000Z","runs":2,"cost_usd":1.274,"gh_minutes":4,"tokens":{"in":34952,"out":3564,"cache_read":148362,"cache_write":12827},"last_event":"2026-09-19T13:42:42.000Z"},{"agent_key":"arc_bb1740","name":"Edmund","title":"","role":"architect","model_requested":"claude-fable-5-1","model_used":"claude-fable-5-1","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:54:03.000Z","runs":1,"cost_usd":1.285,"gh_minutes":4,"tokens":{"in":19730,"out":3969,"cache_read":136965,"cache_write":2442},"last_event":"2026-09-19T21:43:00.761Z"},{"agent_key":"bld_a41f09","name":"Desmond","title":"","role":"builder","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"stale","item_id":"ST-106","item_title":"Checkpointed tail reads per shard","since":"2026-09-19T21:36:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:36:00.761Z"},{"agent_key":"bld_7e33d1","name":"Priya","title":"","role":"builder","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"blocked","item_id":"BG-021","item_title":"Duplicate event_id on retry","since":"2026-09-19T21:13:00.761Z","runs":1,"cost_usd":1.42,"gh_minutes":null,"tokens":{"in":29382,"out":7332,"cache_read":175462,"cache_write":11768},"last_event":"2026-09-19T21:16:00.761Z"},{"agent_key":"bld_2fc885","name":"Theo","title":"","role":"builder","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"ST-111","item_title":"Atomic publish + heartbeat","since":"2026-09-19T21:48:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:48:00.761Z"},{"agent_key":"frm_4a91c2","name":"Alistair","title":"","role":"foreman","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":null,"item_title":null,"since":"2026-09-19T21:53:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:53:00.761Z"},{"agent_key":"mst_08de37","name":"Rosalind","title":"","role":"maestro","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T14:00:41.000Z","runs":6,"cost_usd":8.688,"gh_minutes":14,"tokens":{"in":85966,"out":21489,"cache_read":530631,"cache_write":29596},"last_event":"2026-09-19T21:50:00.761Z"},{"agent_key":"res_66c1b3","name":"Nadia","title":"","role":"researcher","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"ST-121","item_title":"No-op status check","since":"2026-09-19T18:54:00.761Z","runs":6,"cost_usd":6.622999999999999,"gh_minutes":14,"tokens":{"in":108391,"out":17330,"cache_read":575775,"cache_write":29736},"last_event":"2026-09-19T18:54:00.761Z"},{"agent_key":"res_d470af","name":"Silas","title":"","role":"researcher","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"BG-021","item_title":"Find prior art on seq-gap recovery","since":"2026-09-19T21:51:00.761Z","runs":1,"cost_usd":0.41,"gh_minutes":null,"tokens":{"in":11012,"out":1672,"cache_read":151271,"cache_write":5998},"last_event":"2026-09-19T21:51:00.761Z"},{"agent_key":"rev_913b6e","name":"Junia","title":"","role":"reviewer","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:40:14.000Z","runs":2,"cost_usd":4.19,"gh_minutes":4,"tokens":{"in":30270,"out":5062,"cache_read":256136,"cache_write":7748},"last_event":"2026-09-19T13:40:14.000Z"}],"board":{"arcs":[{"arc_id":"ARC-01","title":"Event ledger and consolidation","items":[{"item_id":"BG-021","title":"Duplicate event_id on retry","kind":"bug","status":"blocked","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Priya","estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg021","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:17:15.000Z","updated_at":"2026-09-19T12:18:11.000Z","events":2},{"item_id":"ST-104","title":"Append-only shard writer","kind":"story","status":"done","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Desmond","estimate":"M","actual":"M","duplicate_of":null,"trace_id":"tr_st104","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:08:25.000Z","updated_at":"2026-09-19T12:08:54.000Z","events":2},{"item_id":"ST-105","title":"Deterministic merge with dedupe","kind":"story","status":"in_review","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Priya","estimate":"L","actual":"XL","duplicate_of":null,"trace_id":"tr_st105","scope":["backend/ledger/"],"pr":1654,"shipped_at":"2026-09-19T15:05:00.000Z","created_at":"2026-09-19T12:12:56.000Z","updated_at":"2026-09-19T15:09:00.000Z","events":4,"pr_state":"open"},{"item_id":"ST-106","title":"Checkpointed tail reads per shard","kind":"story","status":"active","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Desmond","estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st106","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:14:29.000Z","updated_at":"2026-09-19T12:15:47.000Z","events":2}]},{"arc_id":"ARC-02","title":"Wall renderer and propagation","items":[{"item_id":"ST-110","title":"Self-contained HTML template","kind":"story","status":"done","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":"Theo","estimate":"S","actual":"S","duplicate_of":null,"trace_id":"tr_st110","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:23:49.000Z","updated_at":"2026-09-19T12:24:06.000Z","events":2},{"item_id":"ST-111","title":"Atomic publish + heartbeat","kind":"story","status":"active","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":"Theo","estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st111","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:29:05.000Z","updated_at":"2026-09-19T12:29:42.000Z","events":2},{"item_id":"ST-112","title":"Live-poll upgrade path","kind":"story","status":"ready","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":null,"estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st112","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:30:41.000Z","updated_at":"2026-09-19T12:31:02.000Z","events":2}]},{"arc_id":"ARC-03","title":"Fast-track routing","items":[{"item_id":"BG-024","title":"Mixed changeset takes wrong route","kind":"bug","status":"triage","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg024","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:39:48.000Z","updated_at":"2026-09-19T12:41:08.000Z","events":2},{"item_id":"BG-025","title":"Lease TTL never expires on a crashed agent","kind":"bug","status":"blocked","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":"Theo","estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg025","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:45:25.000Z","updated_at":"2026-09-19T12:45:42.000Z","events":2},{"item_id":"ST-120","title":"Path-based route classifier","kind":"story","status":"ready","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"S","actual":null,"duplicate_of":"ST-112","trace_id":"tr_st120","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:35:24.000Z","updated_at":"2026-09-19T12:36:27.000Z","events":2},{"item_id":"ST-121","title":"No-op status check for protection","kind":"story","status":"ready","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st121","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:37:42.000Z","updated_at":"2026-09-19T12:38:22.000Z","events":2}]}]},"waiting_on_you":[{"ask_id":"ask_0007","question":"Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?","agent":"Priya","item_id":"BG-021","since":"2026-09-19T21:16:00.761Z","trace_id":"tr_bg021"},{"ask_id":"ask_0008","question":"Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?","agent":"Edmund","item_id":"ST-112","since":"2026-09-19T21:43:00.761Z","trace_id":"tr_st112"},{"ask_id":"ask_0009","question":"Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?","agent":"Rosalind","item_id":"ARC-03","since":"2026-09-19T21:50:00.761Z","trace_id":"tr_arc03"}],"questions":[{"question_id":"q_0042","ask_id":null,"item_id":"ST-106","trace_id":"tr_st106","text":"AC-3 says the checkpoint is per shard; AC-4 says per session. Which survives a shard being replaced?","ambiguity_class":"unclear_acceptance","status":"answered","raised_at":"2026-09-19T14:05:00.000Z","raised_by":"Desmond","raised_by_key":"bld_a41f09","assigned_to":"Silas","assigned_to_key":"res_d470af","assigned_at":"2026-09-19T14:08:00.000Z","first_run_at":"2026-09-19T14:14:00.000Z","escalations":[{"at":"2026-09-19T14:39:00.000Z","reason":"researcher pass found prior art but no ruling","tier":"architect"}],"tier":"architect","answered_at":"2026-09-19T14:53:00.000Z","answer_source":"architect","answer":"Checkpoint per shard; a replaced shard resets its own offset and nothing else.","blocks_criteria":["AC-3","AC-4"],"dependent_scope":["backend/ledger/merge.py","backend/tests/test_merge.py"],"independent_scope":["backend/ledger/shard.py"],"outcome_hint":"partial","events":4},{"question_id":"q_0051","ask_id":null,"item_id":"ST-112","trace_id":"tr_st112","text":"Does the live-poll upgrade read wall.json or subscribe to a socket? No interface is specified either way.","ambiguity_class":"undefined_interface","status":"open","raised_at":"2026-09-19T21:09:00.761Z","raised_by":"Theo","raised_by_key":"bld_2fc885","assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"researcher","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":["AC-1"],"dependent_scope":[],"independent_scope":[],"outcome_hint":"blocked","events":1},{"question_id":"ask_0007","ask_id":"ask_0007","item_id":"BG-021","trace_id":"tr_bg021","text":"Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:16:00.761Z","raised_by":"Priya","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1},{"question_id":"ask_0008","ask_id":"ask_0008","item_id":"ST-112","trace_id":"tr_st112","text":"Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:43:00.761Z","raised_by":"Edmund","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1},{"question_id":"ask_0009","ask_id":"ask_0009","item_id":"ARC-03","trace_id":"tr_arc03","text":"Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:50:00.761Z","raised_by":"Rosalind","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1}],"budget":{"period":"week of 14 Sep 2026","advisory":"Advisory only. Nothing here stops work — it tells you when to.","meters":[{"label":"Claude — Opus 5","used":41200000,"limit":60000000,"display":"41.2M","foot":"builders account for 78% of this","measured":null,"used_total":41200000.0,"pct_remaining":31.3,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}},{"label":"Claude — Sonnet 5","used":12800000,"limit":90000000,"display":"12.8M","foot":"researchers and review","measured":null,"used_total":12800000.0,"pct_remaining":85.8,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}},{"label":"Claude — Fable 5.1","used":3100000,"limit":20000000,"display":"3.1M","foot":"adjudicator runs routed to Opus by safeguards","measured":null,"used_total":3100000.0,"pct_remaining":84.5,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}},{"label":"GitHub Actions","used":1412,"limit":3000,"display":"1,412 min","foot":"fast-track saved an estimated 240 min","measured":null,"used_total":1412.0,"pct_remaining":52.9,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}}],"period_start":"2026-09-01T00:00:00+00:00","period_end":"2026-10-01T00:00:00+00:00","pct_period_remaining":34.0},"queue_api":null,"agents_feed":null,"rollup_by_role":[{"role":"adjudicator","model":"claude-opus-5","runs":2,"tokens_in":34952,"tokens_out":3564,"cache_read":148362,"cost_usd":1.274},{"role":"architect","model":"claude-fable-5-1","runs":1,"tokens_in":19730,"tokens_out":3969,"cache_read":136965,"cost_usd":1.285},{"role":"builder","model":"claude-opus-5","runs":1,"tokens_in":29382,"tokens_out":7332,"cache_read":175462,"cost_usd":1.42},{"role":"builder","model":"claude-sonnet-5","runs":0,"tokens_in":0,"tokens_out":0,"cache_read":0,"cost_usd":0.0},{"role":"foreman","model":"claude-sonnet-5","runs":0,"tokens_in":0,"tokens_out":0,"cache_read":0,"cost_usd":0.0},{"role":"maestro","model":"claude-opus-5","runs":6,"tokens_in":85966,"tokens_out":21489,"cache_read":530631,"cost_usd":8.688},{"role":"researcher","model":"claude-sonnet-5","runs":7,"tokens_in":119403,"tokens_out":19002,"cache_read":727046,"cost_usd":7.0329999999999995},{"role":"reviewer","model":"claude-sonnet-5","runs":2,"tokens_in":30270,"tokens_out":5062,"cache_read":256136,"cost_usd":4.19}],"sessions":["s_7f3a","s_b19e","s_c22d"]}</script>
+<!-- Blocked drill-in dialog. Filled and shown by the chip--why handler. -->
+<div class="whyveil" id="whyVeil" hidden>
+  <div class="why" role="dialog" aria-modal="true" aria-labelledby="whyTitle">
+    <header>
+      <h3 id="whyTitle"></h3>
+      <button class="why-x" id="whyClose" type="button" aria-label="Close">&#215;</button>
+    </header>
+    <div id="whyBody"></div>
+    <div class="why-actions" id="whyActions">
+      <button class="exec-btn" type="button" data-why-act="build">BUILD A FIX &#8594;</button>
+      <button class="exec-btn" type="button" data-why-act="research">RESEARCH IT &#8594;</button>
+      <span class="exec-msg" data-role="why-msg"></span>
+    </div>
+    <p class="why-note" id="whyNote"></p>
+  </div>
+</div>
+
+<script id="wall-data" type="application/json">{"schema_version":1,"generated_at":"2026-09-22T18:05:58.764Z","repo":{"name":"Atlas-Core","path":"/tmp/claude-0/-home-user-MAX3/a857c824-ed10-530d-b3b4-c9ea73431aa8/scratchpad/kit/sample","branch":"main"},"courier":{"last_run_ms":1,"events":78,"shards":3},"integrity":{"seq_gaps":[{"session_id":"s_b19e","seq":10}],"seq_duplicates":[{"session_id":"s_c22d","seq":3,"count":2}],"orphan_runs":[{"run_id":"run_015","agent":"Edmund","started":"2026-09-19T13:35:35.000Z","item_id":"ST-104"},{"run_id":"run_orphan_1","agent":"Nadia","started":"2026-09-19T18:54:00.761Z","item_id":"ST-121"},{"run_id":"run_live_bld_a41f09","agent":"Desmond","started":"2026-09-19T21:36:00.761Z","item_id":"ST-106"},{"run_id":"run_live_bld_2fc885","agent":"Theo","started":"2026-09-19T21:48:00.761Z","item_id":"ST-111"},{"run_id":"run_live_res_d470af","agent":"Silas","started":"2026-09-19T21:51:00.761Z","item_id":"BG-021"},{"run_id":"run_live_frm_4a91c2","agent":"Alistair","started":"2026-09-19T21:53:00.761Z","item_id":null}],"duplicates":[["ST-120","ST-112"]],"state_drift":2,"state_drift_checked":true,"state_drift_detail":[{"item_id":"ST-110","kind":"field_mismatch","field":"assignee","expected":"Theo","found":"Hollis"},{"item_id":"ST-110","kind":"field_mismatch","field":"status","expected":"done","found":"active"}],"fold_problems":[],"merged_but_open":[{"item_id":"ST-105","kind":"reopened_after_ship","pr":1654,"status":"in_review","shipped_at":"2026-09-19T15:05:00.000Z","detail":"item_shipped is on the ledger but a later event put the item back to a non-terminal status"}],"escalations":[{"kind":"blocked_without_question","item_id":"BG-025","detail":"item is blocked with no open question -- blocked without asking"},{"kind":"unassigned_past_sla","question_id":"q_0051","item_id":"ST-112","age_min":4137.0,"sla_min":5,"detail":"nobody picked it up"},{"kind":"escalate","question_id":"q_0051","item_id":"ST-112","tier":"researcher","age_min":4137.0,"sla_min":60,"detail":"open 4137 min at tier 'researcher' -- escalate a tier"}],"stale_claims":[{"agent":"Nadia","item_id":"ST-121","since":"2026-09-19T18:54:00.761Z"},{"agent":"Desmond","item_id":"ST-106","since":"2026-09-19T21:36:00.761Z"},{"agent":"Silas","item_id":"BG-021","since":"2026-09-19T21:51:00.761Z"},{"agent":"Alistair","item_id":null,"since":"2026-09-19T21:53:00.761Z"},{"agent":"Theo","item_id":"ST-111","since":"2026-09-19T21:48:00.761Z"}]},"role_limits":{"builder":4,"researcher":6,"reviewer":2},"crew":[{"agent_key":"adj_5c02ea","name":"Coretta","title":"","role":"adjudicator","model_requested":"claude-fable-5-1","model_used":"claude-opus-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:42:42.000Z","runs":2,"cost_usd":1.274,"gh_minutes":4,"tokens":{"in":34952,"out":3564,"cache_read":148362,"cache_write":12827},"last_event":"2026-09-19T13:42:42.000Z"},{"agent_key":"arc_bb1740","name":"Edmund","title":"","role":"architect","model_requested":"claude-fable-5-1","model_used":"claude-fable-5-1","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:54:03.000Z","runs":1,"cost_usd":1.285,"gh_minutes":4,"tokens":{"in":19730,"out":3969,"cache_read":136965,"cache_write":2442},"last_event":"2026-09-19T21:43:00.761Z"},{"agent_key":"bld_a41f09","name":"Desmond","title":"","role":"builder","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"stale","item_id":"ST-106","item_title":"Checkpointed tail reads per shard","since":"2026-09-19T21:36:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:36:00.761Z"},{"agent_key":"bld_7e33d1","name":"Priya","title":"","role":"builder","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"blocked","item_id":"BG-021","item_title":"Duplicate event_id on retry","since":"2026-09-19T21:13:00.761Z","runs":1,"cost_usd":1.42,"gh_minutes":null,"tokens":{"in":29382,"out":7332,"cache_read":175462,"cache_write":11768},"last_event":"2026-09-19T21:16:00.761Z"},{"agent_key":"bld_2fc885","name":"Theo","title":"","role":"builder","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"ST-111","item_title":"Atomic publish + heartbeat","since":"2026-09-19T21:48:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:48:00.761Z"},{"agent_key":"frm_4a91c2","name":"Alistair","title":"","role":"foreman","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":null,"item_title":null,"since":"2026-09-19T21:53:00.761Z","runs":0,"cost_usd":0.0,"gh_minutes":null,"tokens":{"in":0,"out":0,"cache_read":0,"cache_write":0},"last_event":"2026-09-19T21:53:00.761Z"},{"agent_key":"mst_08de37","name":"Rosalind","title":"","role":"maestro","model_requested":"claude-opus-5","model_used":"claude-opus-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T14:00:41.000Z","runs":6,"cost_usd":8.688,"gh_minutes":14,"tokens":{"in":85966,"out":21489,"cache_read":530631,"cache_write":29596},"last_event":"2026-09-19T21:50:00.761Z"},{"agent_key":"res_66c1b3","name":"Nadia","title":"","role":"researcher","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"ST-121","item_title":"No-op status check","since":"2026-09-19T18:54:00.761Z","runs":6,"cost_usd":6.622999999999999,"gh_minutes":14,"tokens":{"in":108391,"out":17330,"cache_read":575775,"cache_write":29736},"last_event":"2026-09-19T18:54:00.761Z"},{"agent_key":"res_d470af","name":"Silas","title":"","role":"researcher","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"stale","item_id":"BG-021","item_title":"Find prior art on seq-gap recovery","since":"2026-09-19T21:51:00.761Z","runs":1,"cost_usd":0.41,"gh_minutes":null,"tokens":{"in":11012,"out":1672,"cache_read":151271,"cache_write":5998},"last_event":"2026-09-19T21:51:00.761Z"},{"agent_key":"rev_913b6e","name":"Junia","title":"","role":"reviewer","model_requested":"claude-sonnet-5","model_used":"claude-sonnet-5","status":"idle","item_id":null,"item_title":null,"since":"2026-09-19T13:40:14.000Z","runs":2,"cost_usd":4.19,"gh_minutes":4,"tokens":{"in":30270,"out":5062,"cache_read":256136,"cache_write":7748},"last_event":"2026-09-19T13:40:14.000Z"}],"board":{"arcs":[{"arc_id":"ARC-01","title":"Event ledger and consolidation","items":[{"item_id":"BG-021","title":"Duplicate event_id on retry","kind":"bug","status":"blocked","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Priya","estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg021","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:17:15.000Z","updated_at":"2026-09-19T12:18:11.000Z","events":2},{"item_id":"ST-104","title":"Append-only shard writer","kind":"story","status":"done","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Desmond","estimate":"M","actual":"M","duplicate_of":null,"trace_id":"tr_st104","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:08:25.000Z","updated_at":"2026-09-19T12:08:54.000Z","events":2},{"item_id":"ST-105","title":"Deterministic merge with dedupe","kind":"story","status":"in_review","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Priya","estimate":"L","actual":"XL","duplicate_of":null,"trace_id":"tr_st105","scope":["backend/ledger/"],"pr":1654,"shipped_at":"2026-09-19T15:05:00.000Z","created_at":"2026-09-19T12:12:56.000Z","updated_at":"2026-09-19T15:09:00.000Z","events":4,"pr_state":"open"},{"item_id":"ST-106","title":"Checkpointed tail reads per shard","kind":"story","status":"active","arc_id":"ARC-01","arc_title":"Event ledger and consolidation","assignee":"Desmond","estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st106","scope":["backend/ledger/"],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:14:29.000Z","updated_at":"2026-09-19T12:15:47.000Z","events":2}]},{"arc_id":"ARC-02","title":"Wall renderer and propagation","items":[{"item_id":"ST-110","title":"Self-contained HTML template","kind":"story","status":"done","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":"Theo","estimate":"S","actual":"S","duplicate_of":null,"trace_id":"tr_st110","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:23:49.000Z","updated_at":"2026-09-19T12:24:06.000Z","events":2},{"item_id":"ST-111","title":"Atomic publish + heartbeat","kind":"story","status":"active","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":"Theo","estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st111","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:29:05.000Z","updated_at":"2026-09-19T12:29:42.000Z","events":2},{"item_id":"ST-112","title":"Live-poll upgrade path","kind":"story","status":"ready","arc_id":"ARC-02","arc_title":"Wall renderer and propagation","assignee":null,"estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st112","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:30:41.000Z","updated_at":"2026-09-19T12:31:02.000Z","events":2}]},{"arc_id":"ARC-03","title":"Fast-track routing","items":[{"item_id":"BG-024","title":"Mixed changeset takes wrong route","kind":"bug","status":"triage","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg024","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:39:48.000Z","updated_at":"2026-09-19T12:41:08.000Z","events":2},{"item_id":"BG-025","title":"Lease TTL never expires on a crashed agent","kind":"bug","status":"blocked","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":"Theo","estimate":"S","actual":null,"duplicate_of":null,"trace_id":"tr_bg025","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:45:25.000Z","updated_at":"2026-09-19T12:45:42.000Z","events":2},{"item_id":"ST-120","title":"Path-based route classifier","kind":"story","status":"ready","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"S","actual":null,"duplicate_of":"ST-112","trace_id":"tr_st120","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:35:24.000Z","updated_at":"2026-09-19T12:36:27.000Z","events":2},{"item_id":"ST-121","title":"No-op status check for protection","kind":"story","status":"ready","arc_id":"ARC-03","arc_title":"Fast-track routing","assignee":null,"estimate":"M","actual":null,"duplicate_of":null,"trace_id":"tr_st121","scope":[],"pr":null,"shipped_at":null,"created_at":"2026-09-19T12:37:42.000Z","updated_at":"2026-09-19T12:38:22.000Z","events":2}]}]},"waiting_on_you":[{"ask_id":"ask_0007","question":"Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?","agent":"Priya","item_id":"BG-021","since":"2026-09-19T21:16:00.761Z","trace_id":"tr_bg021"},{"ask_id":"ask_0008","question":"Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?","agent":"Edmund","item_id":"ST-112","since":"2026-09-19T21:43:00.761Z","trace_id":"tr_st112"},{"ask_id":"ask_0009","question":"Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?","agent":"Rosalind","item_id":"ARC-03","since":"2026-09-19T21:50:00.761Z","trace_id":"tr_arc03"}],"questions":[{"question_id":"q_0042","ask_id":null,"item_id":"ST-106","trace_id":"tr_st106","text":"AC-3 says the checkpoint is per shard; AC-4 says per session. Which survives a shard being replaced?","ambiguity_class":"unclear_acceptance","status":"answered","raised_at":"2026-09-19T14:05:00.000Z","raised_by":"Desmond","raised_by_key":"bld_a41f09","assigned_to":"Silas","assigned_to_key":"res_d470af","assigned_at":"2026-09-19T14:08:00.000Z","first_run_at":"2026-09-19T14:14:00.000Z","escalations":[{"at":"2026-09-19T14:39:00.000Z","reason":"researcher pass found prior art but no ruling","tier":"architect"}],"tier":"architect","answered_at":"2026-09-19T14:53:00.000Z","answer_source":"architect","answer":"Checkpoint per shard; a replaced shard resets its own offset and nothing else.","blocks_criteria":["AC-3","AC-4"],"dependent_scope":["backend/ledger/merge.py","backend/tests/test_merge.py"],"independent_scope":["backend/ledger/shard.py"],"outcome_hint":"partial","events":4},{"question_id":"q_0051","ask_id":null,"item_id":"ST-112","trace_id":"tr_st112","text":"Does the live-poll upgrade read wall.json or subscribe to a socket? No interface is specified either way.","ambiguity_class":"undefined_interface","status":"open","raised_at":"2026-09-19T21:09:00.761Z","raised_by":"Theo","raised_by_key":"bld_2fc885","assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"researcher","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":["AC-1"],"dependent_scope":[],"independent_scope":[],"outcome_hint":"blocked","events":1},{"question_id":"ask_0007","ask_id":"ask_0007","item_id":"BG-021","trace_id":"tr_bg021","text":"Retries reuse the original event_id, so a failed-then-succeeded run collapses to one record. Should a retry be a new event, or should the ledger keep both and mark the first superseded?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:16:00.761Z","raised_by":"Priya","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1},{"question_id":"ask_0008","ask_id":"ask_0008","item_id":"ST-112","trace_id":"tr_st112","text":"Committing derived/ would give a git-native audit trail but conflicts across parallel sessions every two minutes. Confirm derived/ stays gitignored?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:43:00.761Z","raised_by":"Edmund","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1},{"question_id":"ask_0009","ask_id":"ask_0009","item_id":"ARC-03","trace_id":"tr_arc03","text":"Fast-track: push straight to main, or open a PR that auto-merges once the no-op check reports?","ambiguity_class":null,"status":"human_required","raised_at":"2026-09-19T21:50:00.761Z","raised_by":"Rosalind","raised_by_key":null,"assigned_to":null,"assigned_to_key":null,"assigned_at":null,"first_run_at":null,"escalations":[],"tier":"human","answered_at":null,"answer_source":null,"answer":null,"blocks_criteria":[],"dependent_scope":[],"independent_scope":[],"outcome_hint":null,"events":1}],"budget":{"period":"week of 14 Sep 2026","advisory":"Advisory only. Nothing here stops work — it tells you when to.","meters":[{"label":"Claude — Opus 5","used":41200000,"limit":60000000,"display":"41.2M","foot":"builders account for 78% of this","measured":null,"used_total":41200000.0,"pct_remaining":31.3,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}},{"label":"Claude — Sonnet 5","used":12800000,"limit":90000000,"display":"12.8M","foot":"researchers and review","measured":null,"used_total":12800000.0,"pct_remaining":85.8,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}},{"label":"Claude — Fable 5.1","used":3100000,"limit":20000000,"display":"3.1M","foot":"adjudicator runs routed to Opus by safeguards","measured":null,"used_total":3100000.0,"pct_remaining":84.5,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}},{"label":"GitHub Actions","used":1412,"limit":3000,"display":"1,412 min","foot":"fast-track saved an estimated 240 min","measured":null,"used_total":1412.0,"pct_remaining":52.9,"velocity_per_day":null,"projected_exhaustion":null,"pace":{"verdict":"unknown","detail":"no usage source configured (match_model / counts)"}}],"period_start":"2026-09-01T00:00:00+00:00","period_end":"2026-10-01T00:00:00+00:00","pct_period_remaining":27.5},"queue_api":null,"agents_feed":null,"rollup_by_role":[{"role":"adjudicator","model":"claude-opus-5","runs":2,"tokens_in":34952,"tokens_out":3564,"cache_read":148362,"cost_usd":1.274},{"role":"architect","model":"claude-fable-5-1","runs":1,"tokens_in":19730,"tokens_out":3969,"cache_read":136965,"cost_usd":1.285},{"role":"builder","model":"claude-opus-5","runs":1,"tokens_in":29382,"tokens_out":7332,"cache_read":175462,"cost_usd":1.42},{"role":"builder","model":"claude-sonnet-5","runs":0,"tokens_in":0,"tokens_out":0,"cache_read":0,"cost_usd":0.0},{"role":"foreman","model":"claude-sonnet-5","runs":0,"tokens_in":0,"tokens_out":0,"cache_read":0,"cost_usd":0.0},{"role":"maestro","model":"claude-opus-5","runs":6,"tokens_in":85966,"tokens_out":21489,"cache_read":530631,"cost_usd":8.688},{"role":"researcher","model":"claude-sonnet-5","runs":7,"tokens_in":119403,"tokens_out":19002,"cache_read":727046,"cost_usd":7.0329999999999995},{"role":"reviewer","model":"claude-sonnet-5","runs":2,"tokens_in":30270,"tokens_out":5062,"cache_read":256136,"cost_usd":4.19}],"sessions":["s_7f3a","s_b19e","s_c22d"],"oversight":{"posture":{"rulings":[],"tally":{},"blocked":[],"last_delivery_audit":null,"total_rulings":0,"malformed":0},"retro":{"held":0,"latest":null,"trends":[],"pending_inputs":[]},"docs":{"registry":[{"path":"RULES.md","sha":null,"state":"missing","review":null,"feedback":null},{"path":"FAILURE_PATTERNS.md","sha":null,"state":"missing","review":null,"feedback":null},{"path":"SHIP_CHECKLIST.md","sha":null,"state":"missing","review":null,"feedback":null},{"path":"BEST_PRACTICES.md","sha":null,"state":"missing","review":null,"feedback":null},{"path":"OWNER_DECISIONS.md","sha":null,"state":"missing","review":null,"feedback":null},{"path":"REVIEWER_LANES.md","sha":null,"state":"missing","review":null,"feedback":null},{"path":"BUDGETED_DOCS.md","sha":null,"state":"missing","review":null,"feedback":null},{"path":"DOCS_MAP.md","sha":null,"state":"missing","review":null,"feedback":null},{"path":"docs/ENGINEERING_STANDARD.md","sha":null,"state":"missing","review":null,"feedback":null}],"needs_review":0,"decisions":{"count":3,"problems":1,"recent":[{"id":"DEC-0043","status":"active","title":"DEC-0043 -- Merge sorts on (ts, session_id, seq) and nothing else","scope":["backend/ledger/merge.py"]},{"id":"DEC-0042","status":"active","title":"DEC-0042 -- A retry is a new event; the first is marked superseded","scope":["backend/ledger/"]},{"id":"DEC-0018","status":"superseded","title":"DEC-0018 -- Retries reuse the original event_id","scope":["backend/ledger/"]}]}},"flow":{"iterations":[{"iteration":"current","current":true,"shipped":1,"bugs_filed":3,"estimate_points":5,"actual_points":8,"sized_items":1,"open_at_close":8,"closed_at":null,"cost_usd":23.89,"agents":{"adjudicator":1,"architect":1,"builder":3,"foreman":1,"maestro":1,"researcher":2,"reviewer":1,"unknown":3},"duration_min":584.6,"delivered":[{"item_id":"ST-105","title":"Deterministic merge with dedupe","kind":"story"}],"not_delivered":[{"item_id":"BG-021","title":"Duplicate event_id on retry","kind":"bug"},{"item_id":"BG-024","title":"Mixed changeset takes wrong route","kind":"bug"},{"item_id":"BG-025","title":"Lease TTL never expires on a crashed agent","kind":"bug"},{"item_id":"ST-106","title":"Checkpointed tail reads per shard","kind":"story"},{"item_id":"ST-111","title":"Atomic publish + heartbeat","kind":"story"},{"item_id":"ST-112","title":"Live-poll upgrade path","kind":"story"},{"item_id":"ST-120","title":"Path-based route classifier","kind":"story"},{"item_id":"ST-121","title":"No-op status check for protection","kind":"story"}]}],"velocity_series":[],"open_now":8,"measured":true},"compliance":{"regimes":[{"id":"soc2","name":"SOC 2 (2017 TSC, 2022 Points of Focus)","doc":"docs/compliance/soc2.md","applies_when":"customers or partners ask for assurance over the service's security posture; B2B SaaS almost always","applicable":null,"selected_by":null,"reason":null,"challenge":"unanswered -- select applicable or not (`wall compliance soc2 ...`)","recommended":false,"evidence":[],"scanned_at":null,"disposition":"undecided","last_audit":null,"counts":{"pass":0,"fail":0,"waiver":0,"unattested":13},"controls":[{"id":"CC1","statement":"Control environment: integrity, oversight, accountability are real and assigned","status":null,"note":null,"by":null,"ts":null},{"id":"CC2","statement":"Communication and information: policies reach the people they bind","status":null,"note":null,"by":null,"ts":null},{"id":"CC3","statement":"Risk assessment: risks identified, analyzed, and responded to on a cadence","status":null,"note":null,"by":null,"ts":null},{"id":"CC4","statement":"Monitoring: controls are evaluated and deficiencies reach the right people","status":null,"note":null,"by":null,"ts":null},{"id":"CC5","statement":"Control activities: controls exist at the process level, not just on paper","status":null,"note":null,"by":null,"ts":null},{"id":"CC6","statement":"Logical and physical access: least privilege, credential lifecycle, boundary protection","status":null,"note":null,"by":null,"ts":null},{"id":"CC7","statement":"System operations: anomaly detection, incident response, recovery","status":null,"note":null,"by":null,"ts":null},{"id":"CC8","statement":"Change management: changes authorized, tested, approved, tracked","status":null,"note":null,"by":null,"ts":null},{"id":"CC9","statement":"Risk mitigation: vendor and business-disruption risk handled","status":null,"note":null,"by":null,"ts":null},{"id":"A1","statement":"Availability (optional category): capacity, backup, recovery objectives met","status":null,"note":null,"by":null,"ts":null},{"id":"PI1","statement":"Processing integrity (optional): processing is complete, valid, accurate, timely","status":null,"note":null,"by":null,"ts":null},{"id":"C1","statement":"Confidentiality (optional): confidential data identified and protected to disposal","status":null,"note":null,"by":null,"ts":null},{"id":"P1","statement":"Privacy (optional): personal information handled per the privacy notice","status":null,"note":null,"by":null,"ts":null}]},{"id":"hipaa","name":"HIPAA / PHI (Security, Privacy, Breach Rules)","doc":"docs/compliance/hipaa.md","applies_when":"the system creates, receives, maintains or transmits protected health information, or serves one that does (business associate)","applicable":null,"selected_by":null,"reason":null,"challenge":"unanswered -- select applicable or not (`wall compliance hipaa ...`)","recommended":false,"evidence":[],"scanned_at":null,"disposition":"undecided","last_audit":null,"counts":{"pass":0,"fail":0,"waiver":0,"unattested":7},"controls":[{"id":"SR-ADM","statement":"Administrative safeguards (164.308): risk analysis, workforce training, access management, contingency plan","status":null,"note":null,"by":null,"ts":null},{"id":"SR-PHY","statement":"Physical safeguards (164.310): facility access, workstation and device controls","status":null,"note":null,"by":null,"ts":null},{"id":"SR-TEC","statement":"Technical safeguards (164.312): access control, audit controls, integrity, transmission security, encryption","status":null,"note":null,"by":null,"ts":null},{"id":"SR-ORG","statement":"Organizational (164.314): BAAs with every business associate -- a hosted LLM included","status":null,"note":null,"by":null,"ts":null},{"id":"SR-DOC","statement":"Policies and documentation (164.316): written, retained six years, updated","status":null,"note":null,"by":null,"ts":null},{"id":"PR-MIN","statement":"Privacy Rule: minimum necessary uses and disclosures","status":null,"note":null,"by":null,"ts":null},{"id":"BN-NOT","statement":"Breach Notification (164.400s): discovery clocks, individual and HHS notice","status":null,"note":null,"by":null,"ts":null}]},{"id":"pci","name":"PCI DSS v4.0.1","doc":"docs/compliance/pci.md","applies_when":"cardholder data is stored, processed or transmitted, or the system can affect the security of a payment flow","applicable":null,"selected_by":null,"reason":null,"challenge":"unanswered -- select applicable or not (`wall compliance pci ...`)","recommended":false,"evidence":[],"scanned_at":null,"disposition":"undecided","last_audit":null,"counts":{"pass":0,"fail":0,"waiver":0,"unattested":12},"controls":[{"id":"R1","statement":"Network security controls installed and maintained","status":null,"note":null,"by":null,"ts":null},{"id":"R2","statement":"Secure configurations applied to all system components","status":null,"note":null,"by":null,"ts":null},{"id":"R3","statement":"Stored account data protected (no PAN in logs or fixtures, ever)","status":null,"note":null,"by":null,"ts":null},{"id":"R4","statement":"Cardholder data encrypted over open, public networks","status":null,"note":null,"by":null,"ts":null},{"id":"R5","statement":"Malicious software protected against","status":null,"note":null,"by":null,"ts":null},{"id":"R6","statement":"Secure systems and software developed and maintained","status":null,"note":null,"by":null,"ts":null},{"id":"R7","statement":"Access restricted by business need to know","status":null,"note":null,"by":null,"ts":null},{"id":"R8","statement":"Users identified and access authenticated (MFA)","status":null,"note":null,"by":null,"ts":null},{"id":"R9","statement":"Physical access to cardholder data restricted","status":null,"note":null,"by":null,"ts":null},{"id":"R10","statement":"Access to system components and cardholder data logged and monitored","status":null,"note":null,"by":null,"ts":null},{"id":"R11","statement":"Security of systems and networks tested regularly","status":null,"note":null,"by":null,"ts":null},{"id":"R12","statement":"Information security supported by organizational policies (incl. 12.5.2 scope re-confirmation)","status":null,"note":null,"by":null,"ts":null}]},{"id":"privacy","name":"PII / Privacy (GDPR, CCPA/CPRA, state laws)","doc":"docs/compliance/privacy.md","applies_when":"personal information of EU residents (GDPR) or of residents of California and ~20 other US states is collected or processed","applicable":null,"selected_by":null,"reason":null,"challenge":"unanswered -- select applicable or not (`wall compliance privacy ...`)","recommended":false,"evidence":[],"scanned_at":null,"disposition":"undecided","last_audit":null,"counts":{"pass":0,"fail":0,"waiver":0,"unattested":8},"controls":[{"id":"LB","statement":"Lawful basis and notice: a named basis (GDPR) or compliant notice + opt-out (CCPA/CPRA) per processing purpose","status":null,"note":null,"by":null,"ts":null},{"id":"MIN","statement":"Minimization and purpose limitation: collect what the purpose needs, nothing more","status":null,"note":null,"by":null,"ts":null},{"id":"RTS","statement":"Subject rights served: access, deletion, correction, portability, opt-out of sale/share","status":null,"note":null,"by":null,"ts":null},{"id":"SEC","statement":"Security of processing (GDPR art. 32): appropriate technical and organizational measures","status":null,"note":null,"by":null,"ts":null},{"id":"XFR","statement":"Cross-border transfers: residency and transfer mechanisms per jurisdiction","status":null,"note":null,"by":null,"ts":null},{"id":"BRK","statement":"Breach clocks: 72-hour authority notice (GDPR) and state-law equivalents","status":null,"note":null,"by":null,"ts":null},{"id":"VND","statement":"Processor contracts: DPAs with every processor -- a hosted LLM included","status":null,"note":null,"by":null,"ts":null},{"id":"ADM","statement":"Automated decision-making: risk assessments and opt-outs (CPRA 2026 regulations)","status":null,"note":null,"by":null,"ts":null}]},{"id":"government","name":"Government reach (FedRAMP, CJIS, CLOUD Act, export)","doc":"docs/compliance/government.md","applies_when":"US federal agencies are customers (FedRAMP), criminal justice information is touched (CJIS), or data faces law-enforcement reach / export control","applicable":null,"selected_by":null,"reason":null,"challenge":"unanswered -- select applicable or not (`wall compliance government ...`)","recommended":false,"evidence":[],"scanned_at":null,"disposition":"undecided","last_audit":null,"counts":{"pass":0,"fail":0,"waiver":0,"unattested":4},"controls":[{"id":"FR","statement":"FedRAMP: authorization path chosen (Rev5 baseline or 20x), boundary defined, continuous monitoring","status":null,"note":null,"by":null,"ts":null},{"id":"CJ","statement":"CJIS Security Policy (v6.x, NIST 800-53 aligned): CJI identified and controls mapped","status":null,"note":null,"by":null,"ts":null},{"id":"RES","statement":"Residency and reach: provider and region choices evaluated against CLOUD Act / Patriot Act exposure","status":null,"note":null,"by":null,"ts":null},{"id":"EXP","statement":"Export control: ITAR/EAR-controlled technical data identified and segregated","status":null,"note":null,"by":null,"ts":null}]},{"id":"sector","name":"Sector rules (SOX, GLBA, FERPA)","doc":"docs/compliance/sector.md","applies_when":"public-company financial reporting (SOX), consumer financial data (GLBA), or education records (FERPA) are in scope","applicable":null,"selected_by":null,"reason":null,"challenge":"unanswered -- select applicable or not (`wall compliance sector ...`)","recommended":false,"evidence":[],"scanned_at":null,"disposition":"undecided","last_audit":null,"counts":{"pass":0,"fail":0,"waiver":0,"unattested":3},"controls":[{"id":"SOX","statement":"SOX ICFR: change control and access evidence over systems feeding financial reports","status":null,"note":null,"by":null,"ts":null},{"id":"GLB","statement":"GLBA Safeguards Rule: written infosec program, risk assessment, MFA, encryption, vendor oversight","status":null,"note":null,"by":null,"ts":null},{"id":"FER","statement":"FERPA: education records identified, disclosures consent-gated, directory-info opt-outs honored","status":null,"note":null,"by":null,"ts":null}]}],"decision_log":[],"any_selected":false}}}</script>
 <script>
 (function(){
   "use strict";
@@ -766,12 +860,15 @@ footer {
     fail('The wall could not read its data.', 'wall.json did not parse: ' + e.message + '.');
   }
 
-  // Two delivery modes, one file. Opened from file:// the page uses the JSON
-  // inlined at render time and the <meta refresh> keeps it current. Served over
-  // http it polls wall.json instead and repaints in place, so scroll position,
-  // the active tab and focus all survive — and the meta refresh is removed so
-  // the two mechanisms never fight.
+  // Two delivery modes, one file, both refreshed from HERE — never a meta
+  // refresh (see the head comment: the parser's timer outlives the element and
+  // its reload drops the #tab fragment). Served over http the page polls
+  // wall.json and repaints in place, so scroll position, the active tab and
+  // focus all survive. Opened from file:// it cannot fetch, so it reloads the
+  // whole document — location.reload() keeps the full URL, fragment included,
+  // and the tab also survives via sessionStorage below.
   var POLL_MS = 10000;
+  var FILE_RELOAD_MS = 30000;
 
   function live() {
     return fetch('wall.json', {cache: 'no-store'})
@@ -785,8 +882,6 @@ footer {
   }
 
   if (location.protocol === 'http:' || location.protocol === 'https:') {
-    var meta = document.querySelector('meta[http-equiv="refresh"]');
-    if (meta) meta.parentNode.removeChild(meta);
     live();
     setInterval(function () {
       // Don't poll a tab nobody is looking at.
@@ -794,6 +889,18 @@ footer {
     }, POLL_MS);
     document.addEventListener('visibilitychange', function () {
       if (!document.hidden) live();
+    });
+  } else {
+    // Same courtesy as the poll, made true both ways: a tick that lands
+    // while the tab is hidden is REMEMBERED, and the reload fires when the
+    // viewer next looks -- not on every focus (a fresh page needs none).
+    var missedReload = false;
+    setInterval(function () {
+      if (document.hidden) { missedReload = true; return; }
+      location.reload();
+    }, FILE_RELOAD_MS);
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && missedReload) location.reload();
     });
   }
 
@@ -820,10 +927,17 @@ footer {
     if (STATUS_ALIAS[k]) return STATUS_ALIAS[k];
     return null;
   }
-  function statusChip(s){
+  function statusChip(s, it){
     var c = canonStatus(s);
     var raw = String(s == null ? '' : s);
     var label = raw === '' ? 'unset' : raw.replace(/_/g, ' ');
+    // A blocked chip on a board row is a drill-in: click for the reason and
+    // the dispatch actions. Every other status stays a plain chip.
+    if (c === 'blocked' && it && it.item_id) {
+      return '<button type="button" class="chip chip--st-blocked chip--why" ' +
+             'data-why="' + esc(it.item_id) + '" data-status="' + esc(raw) + '" ' +
+             'title="Why is this blocked?">' + esc(label) + '</button>';
+    }
     return '<span class="chip chip--st-' + (c || 'unknown') + '" data-status="' + esc(raw) + '">' +
            esc(label) + '</span>';
   }
@@ -849,9 +963,21 @@ footer {
     {id:'board',   label:'STORIES', count:function(){ return allItems().length; }},
     {id:'crew',    label:'CREW',  count:function(d){ return (d.crew||[]).length; }},
     {id:'ledger',  label:'LEDGER',  count:function(){ return null; }},
-    {id:'waiting', label:'WAITING', count:function(d){ return (d.waiting_on_you||[]).length; }, hot:true}
+    {id:'waiting', label:'WAITING', count:function(d){ return (d.waiting_on_you||[]).length; }, hot:true},
+    {id:'retro',   label:'RETRO',   count:function(d){ return ov(d).retro && ov(d).retro.held || null; }},
+    {id:'posture', label:'POSTURE', count:function(d){ var p=ov(d).posture; return p && p.blocked && p.blocked.length || null; }, hot:true},
+    {id:'docs',    label:'DOCS',    count:function(d){ var x=ov(d).docs; return x && x.needs_review || null; }, hot:true},
+    {id:'flow',    label:'FLOW',    count:function(d){ var f=ov(d).flow; return f && f.open_now || null; }}
   ];
-  var active = location.hash.replace('#','') || 'main';
+  function ov(d){ return (d && d.oversight) || {}; }
+  // The active tab survives ANY reload: the URL fragment is authoritative,
+  // sessionStorage is the fallback for reloads that arrive without one (an
+  // embedding iframe reloading at its bare src, a file:// reload in a browser
+  // that drops the fragment). Storage can throw (private windows, blocked
+  // site data), and a wall that cannot remember a tab must still render one.
+  function storedTab(){ try { return sessionStorage.getItem('wall.tab'); } catch (e) { return null; } }
+  function storeTab(id){ try { sessionStorage.setItem('wall.tab', id); } catch (e) { /* render anyway */ } }
+  var active = location.hash.replace('#','') || storedTab() || 'main';
   if (!TABS.some(function(t){ return t.id === active; })) active = 'main';
 
   function paintTabs(){
@@ -940,6 +1066,137 @@ footer {
     });
   }
 
+  // ---- blocked drill-in ---------------------------------------------------
+  // Click the BLOCKED chip on a board row: a dialog names the recorded reason
+  // (the item's blocked_reason/reason field, plus any open asks against the
+  // item — WORKFLOW §4 says blocked-without-a-question is an escalation, so
+  // an empty reason is reported as exactly that). When the host queue
+  // answered ok, BUILD/RESEARCH enqueue a resolve_blocked directive through
+  // the same port EXECUTE uses; whatever consumes the queue (a Claude Code
+  // session on the wall MCP adapter, an editor agent, anything speaking the
+  // HTTP queue API) picks the work up in this repo.
+  var whyItem = null;
+
+  function itemById(id){
+    return allItems().filter(function(i){ return i.item_id === id; })[0] || null;
+  }
+
+  function openWhy(id){
+    var it = itemById(id);
+    if (!it) return;
+    whyItem = it;
+    $('whyTitle').textContent = it.item_id + ' — blocked';
+    var reasons = [];
+    var rec = it.blocked_reason || it.reason;
+    if (rec && String(rec).trim()) reasons.push(esc(String(rec).trim()));
+    (D.waiting_on_you || []).forEach(function(a){
+      if (a.item_id === it.item_id && a.question) {
+        reasons.push(esc(a.question) +
+          ' <span class="cmd">wall answer ' + esc(a.ask_id || '') + '</span>');
+      }
+    });
+    var h = '<p>' + esc(it.title || '(untitled)') + '</p>';
+    h += reasons.length
+      ? reasons.map(function(r){ return '<p class="why-reason">' + r + '</p>'; }).join('')
+      : '<p class="why-reason">No reason recorded and no open question — ' +
+        'blocked without asking is itself a WORKFLOW &sect;4 escalation. ' +
+        'The trace has the history: <span class="cmd">wall trace ' +
+        esc(it.item_id) + '</span></p>';
+    $('whyBody').innerHTML = h;
+    $('whyNote').textContent = document.body.classList.contains('queue-ok')
+      ? 'Dispatch enqueues the unblock work; the agent consuming this repo’s ' +
+        'queue (Claude Code via the wall MCP adapter, or any HTTP consumer) performs it.'
+      : 'Dispatch needs the host queue API — serve the wall beside it ' +
+        '(config queue_api) and the BUILD / RESEARCH actions light up.';
+    var msg = document.querySelector('[data-role="why-msg"]');
+    if (msg) msg.textContent = '';
+    $('whyActions').removeAttribute('hidden');
+    $('whyVeil').removeAttribute('hidden');
+    $('whyClose').focus();
+  }
+
+  function closeWhy(){
+    whyItem = null;
+    $('whyVeil').setAttribute('hidden', '');
+  }
+
+  document.addEventListener('click', function(e){
+    var chip = e.target && e.target.closest ? e.target.closest('.chip--why') : null;
+    if (chip) { openWhy(chip.getAttribute('data-why')); return; }
+    if (e.target && e.target.id === 'whyClose') { closeWhy(); return; }
+    if (e.target && e.target.id === 'whyVeil') closeWhy();  // backdrop
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && !$('whyVeil').hasAttribute('hidden')) closeWhy();
+  });
+
+  document.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('[data-why-act]') : null;
+    if (!b || b.dataset.busy === '1' || !whyItem) return;
+    var mode = b.getAttribute('data-why-act');
+    var msgEl = document.querySelector('[data-role="why-msg"]');
+    b.dataset.busy = '1'; b.disabled = true;
+    enqueue({
+      directive: 'resolve_blocked',
+      mode: mode,
+      item_id: whyItem.item_id,
+      title: (mode === 'research' ? 'Research the blocker on '
+                                  : 'Build the fix for ') + whyItem.item_id,
+      reason: String(whyItem.blocked_reason || whyItem.reason || ''),
+    }, msgEl).then(function(){
+      setTimeout(function(){ b.dataset.busy = ''; b.disabled = false; }, 1500);
+    });
+  });
+
+  // ---- regime drill-in + dispatch (DEC-0030) ------------------------------
+  // WHY on a recommended regime reuses the why-dialog with the scan's
+  // evidence (item actions hidden -- this popup explains, the row's own
+  // buttons dispatch). ENABLE / DISABLE / REQUEST AUDIT enqueue directives
+  // through the EXECUTE port for the Warden to act on: the wall never flips
+  // a selection itself.
+  function regimeById(id){
+    var c = ov(D).compliance;
+    return ((c && c.regimes) || []).filter(function(r){ return r.id === id; })[0] || null;
+  }
+
+  document.addEventListener('click', function(e){
+    var w = e.target && e.target.closest ? e.target.closest('[data-regime-why]') : null;
+    if (!w) return;
+    var r = regimeById(w.getAttribute('data-regime-why'));
+    if (!r) return;
+    whyItem = null;
+    $('whyTitle').textContent = r.id + ' \u2014 why the scan recommends it';
+    $('whyBody').innerHTML = '<p>' + esc(r.name) + '</p>' +
+      ((r.evidence || []).length
+        ? r.evidence.map(function(ev){ return '<p class="why-reason">' + esc(ev) + '</p>'; }).join('')
+        : '<p class="why-reason">The scan\u2019s evidence list is empty \u2014 re-run <span class="cmd">wall compliance-scan</span>.</p>') +
+      (r.disposition === 'NOT RECOMMENDED FOR DISABLED'
+        ? '<p>This regime is disabled while the code shows the surfaces above \u2014 that is the Patron\u2019s call to keep, but it stays named here until the evidence or the selection changes.</p>'
+        : '');
+    $('whyNote').textContent = r.scanned_at ? 'Scan recorded ' + ago(r.scanned_at) + '.' : '';
+    $('whyActions').setAttribute('hidden', '');
+    $('whyVeil').removeAttribute('hidden');
+    $('whyClose').focus();
+  });
+
+  document.addEventListener('click', function(e){
+    var b = e.target && e.target.closest ? e.target.closest('[data-regime-act]') : null;
+    if (!b || b.dataset.busy === '1') return;
+    var rid = b.getAttribute('data-regime-id');
+    var act = b.getAttribute('data-regime-act');
+    var bar = b.closest('.exec-bar');
+    var msgEl = bar ? bar.querySelector('[data-role="regime-msg"]') : null;
+    var payload = act === 'audit'
+      ? { directive: 'warden_audit', regime: rid,
+          title: 'Audit the ' + rid + ' compliance regime' }
+      : { directive: 'warden_regime', action: act, regime: rid,
+          title: (act === 'enable' ? 'Enable' : 'Disable') + ' the ' + rid + ' compliance regime' };
+    b.dataset.busy = '1'; b.disabled = true;
+    enqueue(payload, msgEl).then(function(){
+      setTimeout(function(){ b.dataset.busy = ''; b.disabled = false; }, 1500);
+    });
+  });
+
   // One EXECUTE click, one directive: a synchronous busy flag blocks a
   // double-fire, and the button stays disabled until the POST settles plus a
   // short cooldown (the reference wall's re-entrancy discipline, kept).
@@ -1010,6 +1267,7 @@ footer {
     var b = e.target.closest('button[data-tab]');
     if (!b) return;
     active = b.dataset.tab;
+    storeTab(active);
     history.replaceState(null,'','#'+active);
     paintTabs();
     paintWave();
@@ -1045,7 +1303,7 @@ footer {
         (hasDetail ? '<button class="dtoggle" type="button" aria-expanded="false">detail</button>' : '') +
       '</td>' +
       '<td>' + kindChip(it.kind) + '</td>' +
-      '<td>' + statusChip(it.status) + '</td>' +
+      '<td>' + statusChip(it.status, it) + '</td>' +
       '<td>' + esc(it.assignee || '—') + '</td>' +
       '<td class="num">' + esc(it.estimate || '—') + '</td>' +
       '<td class="num">' + esc(it.actual || '—') + '</td>' +
@@ -1238,6 +1496,231 @@ footer {
     }).join('');
   }
 
+  // ---- RETRO / POSTURE / DOCS (oversight, DEC-0026) ----------------------
+
+  function spark(series){
+    if (!series || series.length < 2) return '';
+    var bars = '\u2581\u2582\u2583\u2584\u2585\u2586\u2587\u2588';
+    var lo = Math.min.apply(null, series), hi = Math.max.apply(null, series);
+    return series.map(function(v){
+      var i = hi === lo ? 0 : Math.round((v - lo) / (hi - lo) * 7);
+      return bars.charAt(i);
+    }).join('');
+  }
+
+  function paintRetro(){
+    var r = ov(D).retro;
+    if (!r || (!r.held && !(r.pending_inputs||[]).length)){
+      $('retroBody').innerHTML = '<div class="empty">No retrospective recorded yet — the wave close writes a <span class="cmd">retro_held</span> event (RETROSPECTIVES.md, SESSION_LIFECYCLE §3 step 6). A Patron note for it: <span class="cmd">wall retro-note --text "..."</span></div>';
+      return;
+    }
+    if (!r.held){
+      var ph = '<h3>Patron inputs awaiting the first retro</h3>' + (r.pending_inputs||[]).map(function(i){
+        return '<div class="ask"><span class="age">input</span><div class="body"><p class="q">' + esc(i.text) + '</p><span class="from">' + esc(i.by) + '</span></div></div>';
+      }).join('');
+      $('retroBody').innerHTML = ph;
+      return;
+    }
+    var h = '<p class="q">' + r.held + ' retro' + (r.held === 1 ? '' : 's') + ' held';
+    if (r.latest && r.latest.wave) h += ' · latest: ' + esc(r.latest.wave);
+    h += '</p>';
+    if (r.pending_inputs && r.pending_inputs.length){
+      h += '<h3>Patron inputs awaiting the next retro</h3>' + r.pending_inputs.map(function(i){
+        return '<div class="ask"><span class="age">input</span><div class="body"><p class="q">' + esc(i.text) + '</p><span class="from">' + esc(i.by) + (i.ts ? ' · ' + ago(i.ts) : '') + ' · the next retro_held must address this (RETROSPECTIVES.md)</span></div></div>';
+      }).join('');
+    }
+    if (r.latest){
+      if (r.latest.diffs && r.latest.diffs.length){
+        h += '<h3>Diffs landed (latest retro)</h3>' + r.latest.diffs.map(function(d){
+          return '<div class="ask"><div class="body"><p class="q"><span class="cmd">' + esc(d.path||'') + '</span></p><span class="from">' + esc(d.why||'') + (d.horizon ? ' · re-measure: ' + esc(d.horizon) : '') + '</span></div></div>';
+        }).join('');
+      }
+      if (r.latest.remeasured && r.latest.remeasured.length){
+        h += '<h3>Last wave\u2019s diffs, re-measured</h3>' + r.latest.remeasured.map(function(m){
+          return '<div class="ask"><div class="body"><p class="q"><span class="cmd">' + esc(m.path||'') + '</span> — ' + esc(m.verdict||'') + '</p></div></div>';
+        }).join('');
+      }
+    }
+    if (r.trends && r.trends.length){
+      h += '<h3>Signal trends (per role, across waves)</h3>' + r.trends.map(function(t){
+        var last = t.series.length ? t.series[t.series.length-1] : '';
+        return '<div class="ask"><div class="body"><p class="q">' + esc(t.role) + ' · ' + esc(t.name) + ' <span class="cmd">' + spark(t.series) + '</span> ' + esc(String(last)) + '</p></div></div>';
+      }).join('');
+    }
+    $('retroBody').innerHTML = h;
+  }
+
+  var LAST_FOCUS = null;
+  function openModal(html){
+    LAST_FOCUS = document.activeElement;
+    $('modalBody').innerHTML = html;
+    $('modal').hidden = false;
+    $('modalClose').focus();
+  }
+  function closeModal(){
+    $('modal').hidden = true;
+    if (LAST_FOCUS && LAST_FOCUS.focus) LAST_FOCUS.focus();
+    LAST_FOCUS = null;
+  }
+  document.addEventListener('click', function(e){
+    if (e.target.id === 'modal' || e.target.id === 'modalClose'){ closeModal(); }
+    var reg = e.target.closest('[data-regime]');
+    if (reg){ openRegimeAudit(reg.getAttribute('data-regime')); }
+    var itr = e.target.closest('[data-iteration]');
+    if (itr){ openIteration(parseInt(itr.getAttribute('data-iteration'), 10)); }
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && !$('modal').hidden) closeModal();
+  });
+
+  var ATTEST_BADGE = {pass:'\u2705 pass', fail:'\u274c fail', waiver:'\u26a0 waiver'};
+
+  function openRegimeAudit(id){
+    var c = ov(D).compliance; if (!c) return;
+    var r = (c.regimes||[]).filter(function(x){ return x.id === id; })[0];
+    if (!r) return;
+    var h = '<h2>' + esc(r.name) + '<span class="sub" style="display:block">self-attestation audit \u2014 recorded, never silent</span></h2>';
+    h += '<p class="q">blueprint: <span class="cmd">' + esc(r.doc) + '</span> \u00b7 applies when: ' + esc(r.applies_when) + '</p>';
+    if (r.applicable === null) h += '<p class="q"><span class="cmd">applicability UNANSWERED \u2014 wall compliance ' + esc(r.id) + ' --applicable|--not-applicable --reason "..."</span></p>';
+    else h += '<p class="q">' + (r.applicable ? 'APPLICABLE' : 'NOT APPLICABLE') + ' \u2014 ' + esc(r.reason||'') + ' (' + esc(r.selected_by||'?') + ')</p>';
+    if (r.challenge) h += '<div class="ask"><span class="age">?</span><div class="body"><p class="q">' + esc(r.challenge) + '</p></div></div>';
+    h += '<h3>Controls \u2014 ' + r.counts.pass + ' pass \u00b7 ' + r.counts.fail + ' fail \u00b7 ' + r.counts.waiver + ' waiver \u00b7 ' + r.counts.unattested + ' unattested</h3>';
+    h += r.controls.map(function(ct){
+      var badge = ct.status ? (ATTEST_BADGE[ct.status]||esc(ct.status)) : '\u25cb unattested';
+      return '<div class="ask"><span class="age' + (ct.status === 'pass' ? ' calm' : '') + '">' + esc(ct.id) + '</span><div class="body"><p class="q">' + badge + ' \u2014 ' + esc(ct.statement) + '</p><span class="from">' + (ct.note ? '\u201c' + esc(ct.note) + '\u201d \u00b7 ' : '') + (ct.by ? esc(ct.by) + ' \u00b7 ' : '') + '<span class="cmd">wall attest ' + esc(r.id) + ' ' + esc(ct.id) + ' --status pass|fail|waiver</span></span></div></div>';
+    }).join('');
+    openModal(h);
+  }
+
+  function openIteration(idx){
+    var f = ov(D).flow; if (!f || !f.iterations || !f.iterations[idx]) return;
+    var i = f.iterations[idx];
+    var h = '<h2>Iteration: ' + esc(i.iteration) + (i.current ? ' (open)' : '') + '<span class="sub" style="display:block">what it cost, who ran it, what landed \u2014 and what did not</span></h2>';
+    h += '<p class="q">shipped ' + i.shipped + ' \u00b7 bugs filed ' + i.bugs_filed +
+      ' \u00b7 cost ' + (i.cost_usd === null ? '<span class="cmd">none recorded</span>' : '$' + i.cost_usd) +
+      ' \u00b7 duration ' + (i.duration_min === null ? '<span class="cmd">none recorded</span>' : i.duration_min + ' min') + '</p>';
+    var roles = Object.keys(i.agents||{});
+    h += '<p class="q">agents: ' + (roles.length ? roles.map(function(r){ return esc(r) + ' \u00d7 ' + i.agents[r]; }).join(' \u00b7 ') : '<span class="cmd">none recorded</span>') + '</p>';
+    h += '<h3>Delivered (' + (i.delivered||[]).length + ')</h3>' + ((i.delivered||[]).map(function(d){
+      return '<div class="ask"><span class="age calm">' + esc(d.kind||'item') + '</span><div class="body"><p class="q">' + esc(d.item_id) + (d.title ? ' \u2014 ' + esc(d.title) : '') + '</p></div></div>';
+    }).join('') || '<div class="empty">nothing shipped this iteration</div>');
+    h += '<h3>Worked but NOT delivered (' + (i.not_delivered||[]).length + ') \u2014 still open at close</h3>' + ((i.not_delivered||[]).map(function(d){
+      return '<div class="ask"><span class="age">open</span><div class="body"><p class="q">' + esc(d.item_id) + (d.title ? ' \u2014 ' + esc(d.title) : '') + '</p><span class="from">why it matters rides the item title and kind \u2014 the STORIES tab carries the full record</span></div></div>';
+    }).join('') || '<div class="empty">everything touched this iteration shipped</div>');
+    openModal(h);
+  }
+
+  function paintPosture(){
+    var p = ov(D).posture;
+    if (!p || !p.total_rulings){
+      $('postureBody').innerHTML = '<div class="empty">No Warden rulings recorded yet — gates write <span class="cmd">warden_ruling</span> events (warden.md, DATA_PROTECTION.md §4). An empty posture tab on a repo with in-scope arcs is itself a finding.</div>' + complianceHtml();
+      return;
+    }
+    var h = '';
+    if (p.blocked && p.blocked.length){
+      h += '<h3>Blocked / refused — work is parked on these</h3>' + p.blocked.map(function(r){
+        return '<div class="ask"><span class="age">' + esc(r.gate) + '</span><div class="body"><p class="q">' + esc(r.subject) + ' — ' + esc(r.verdict) + '</p><span class="from">' + esc(r.obligation || 'obligation not recorded') + '</span></div></div>';
+      }).join('');
+    }
+    h += '<h3>Verdict tally (latest ruling per subject)</h3><p class="q">' +
+      Object.keys(p.tally).sort().map(function(k){ return esc(k) + ': ' + p.tally[k]; }).join(' · ') +
+      (p.malformed ? ' · <span class="cmd">' + p.malformed + ' malformed ruling(s) — fix the emitter</span>' : '') + '</p>';
+    h += '<h3>Rulings</h3>' + (p.rulings||[]).map(function(r){
+      return '<div class="ask"><span class="age' + (r.verdict === 'blocked' || r.verdict === 'refused' ? '' : ' calm') + '">' + esc(r.gate) + '</span><div class="body"><p class="q">' + esc(r.subject) + ' — ' + esc(r.verdict) + (r.tier ? ' <span class="cmd">' + esc(r.tier) + '</span>' : '') + '</p>' + (r.obligation ? '<span class="from">' + esc(r.obligation) + '</span>' : '') + '</div></div>';
+    }).join('');
+    if (p.last_delivery_audit){
+      h += '<h3>Last delivery audit</h3><p class="q">' + esc(p.last_delivery_audit.subject) + ' — ' + esc(p.last_delivery_audit.verdict) + '</p>';
+    }
+    $('postureBody').innerHTML = h + complianceHtml();
+  }
+
+  function complianceHtml(){
+    var c = ov(D).compliance;
+    if (!c) return '';
+    var h = '<h3>Compliance regimes — the scan recommends, the Patron selects, the audit attests (DEC-0028/0030)</h3>';
+    h += (c.regimes||[]).map(function(r){
+      var sel = r.applicable === null ? '<span class="cmd">unanswered</span>' : (r.applicable ? 'APPLICABLE' : 'not applicable');
+      var counts = r.counts.pass + '\u2705 ' + r.counts.fail + '\u274c ' + r.counts.waiver + '\u26a0 ' + r.counts.unattested + '\u25cb';
+      // The disposition names the scan-vs-selection tension (DEC-0030);
+      // disabling a RECOMMENDED regime shows loud, with WHY carrying the
+      // scan's evidence verbatim.
+      var alarmed = r.disposition === 'NOT RECOMMENDED FOR DISABLED';
+      var disp = r.disposition
+        ? ' \u00b7 <span class="chip' + (alarmed ? ' chip--st-blocked' : '') + '">' + esc(r.disposition) + '</span>' +
+          (r.recommended ? ' <button class="why-x" type="button" data-regime-why="' + esc(r.id) + '">why?</button>' : '')
+        : '';
+      var audit = r.last_audit
+        ? ' \u00b7 audited ' + ago(r.last_audit.ts) + (r.last_audit.by ? ' by ' + esc(r.last_audit.by) : '')
+        : '';
+      var acts = '<span class="exec-bar" style="display:inline-flex;margin:0">' +
+        (r.applicable
+          ? '<button class="exec-btn" type="button" data-regime-act="disable" data-regime-id="' + esc(r.id) + '">DISABLE</button>' +
+            '<button class="exec-btn" type="button" data-regime-act="audit" data-regime-id="' + esc(r.id) + '">REQUEST AUDIT \u2192</button>'
+          : '<button class="exec-btn" type="button" data-regime-act="enable" data-regime-id="' + esc(r.id) + '">ENABLE \u2192</button>') +
+        '<span class="exec-msg" data-role="regime-msg"></span></span>';
+      return '<div class="ask"><span class="age' + (r.challenge || alarmed ? '' : ' calm') + '">' + esc(r.id) + '</span><div class="body">' +
+        '<p class="q">' + esc(r.name) + ' — ' + sel + disp + ' \u00b7 ' + counts + audit +
+        ' \u00b7 <button data-regime="' + esc(r.id) + '">open audit</button> ' + acts + '</p>' +
+        '<span class="from">' + esc(r.doc) + (r.challenge ? ' \u00b7 <b>' + esc(r.challenge) + '</b>' : '') + '</span></div></div>';
+    }).join('');
+    var log = c.decision_log || [];
+    if (log.length){
+      h += '<h3>Selection decision log</h3>' + log.map(function(s){
+        return '<div class="ask"><span class="age calm">' + (s.applicable ? 'yes' : 'no') + '</span><div class="body"><p class="q">' + esc(s.regime) + ' — ' + esc(s.reason||'') + '</p><span class="from">' + esc(s.by||'?') + (s.ts ? ' \u00b7 ' + ago(s.ts) : '') + '</span></div></div>';
+      }).join('');
+    }
+    return h;
+  }
+
+  var DOC_STATE_LABEL = {
+    'current': 'current — reviewed at this sha',
+    'changed-since-review': 'CHANGED since last review',
+    'never-reviewed': 'never reviewed',
+    'feedback-open': 'FEEDBACK OPEN — the Patron spoke; a newer ack clears it',
+    'missing': 'missing from the tree'
+  };
+
+  function paintDocs(){
+    var x = ov(D).docs;
+    if (!x){
+      $('docsBody').innerHTML = '<div class="empty">No registry in this snapshot — re-run the courier.</div>';
+      return;
+    }
+    var h = '<h3>Documents of record' + (x.needs_review ? ' — <span class="cmd">' + x.needs_review + ' need(s) review</span>' : ' — all reviewed at their current sha') + '</h3>';
+    h += (x.registry||[]).map(function(r){
+      var calm = r.state === 'current';
+      var rev = r.feedback ? ('feedback from ' + (r.feedback.by||'?') + ': “' + (r.feedback.text||'') + '” — address it, then re-ack') :
+        r.review ? ('reviewed by ' + (r.review.by||'?') + (r.review.ts ? ' · ' + ago(r.review.ts) : '')) : 'sign off with `wall ack-doc <path>`, or object with `--feedback "..."`';
+      return '<div class="ask"><span class="age' + (calm ? ' calm' : '') + '">' + esc(r.state === 'current' ? 'ok' : r.state === 'missing' ? 'gone' : r.state === 'feedback-open' ? 'talk' : 'review') + '</span><div class="body"><p class="q"><span class="cmd">' + esc(r.path) + '</span> — ' + esc(DOC_STATE_LABEL[r.state]||r.state) + (r.sha ? ' <span class="cmd">' + esc(r.sha) + '</span>' : '') + '</p><span class="from">' + esc(rev) + '</span></div></div>';
+    }).join('');
+    var dec = x.decisions || {};
+    h += '<h3>Decision log — ' + (dec.count||0) + ' ruling(s)' + (dec.problems ? ' · <span class="cmd">' + dec.problems + ' parse problem(s)</span>' : '') + '</h3>';
+    h += (dec.recent||[]).map(function(d){
+      return '<div class="ask"><span class="age calm">' + esc(d.status||'') + '</span><div class="body"><p class="q"><span class="cmd">' + esc(d.id) + '</span> ' + esc(d.title||'') + '</p><span class="from">' + esc(d.scope||'') + '</span></div></div>';
+    }).join('');
+    $('docsBody').innerHTML = h;
+  }
+
+  // ---- FLOW (DEC-0027) ----------------------------------------------------
+
+  function paintFlow(){
+    var f = ov(D).flow;
+    if (!f || !f.measured){
+      $('flowBody').innerHTML = '<div class="empty">Nothing to measure yet — FLOW reads the existing item stream (<span class="cmd">item_created</span> / <span class="cmd">item_state</span> with estimate+actual / <span class="cmd">item_shipped</span>) segmented by <span class="cmd">retro_held</span> boundaries. It fills as work flows.</div>';
+      return;
+    }
+    var h = '<p class="q">open now: ' + f.open_now + (f.velocity_series && f.velocity_series.length > 1 ? ' · velocity ' + spark(f.velocity_series) : '') + '</p>';
+    h += '<h3>Iterations (oldest → newest)</h3>';
+    h += '<div style="overflow-x:auto"><table class="data"><tr><th>iteration</th><th>shipped</th><th>est pts</th><th>act pts</th><th>sized</th><th>bugs filed</th><th>open at close</th></tr>' +
+      f.iterations.map(function(i){
+        var est = i.estimate_points === null ? '<span class="cmd">none recorded</span>' : i.estimate_points;
+        var act = i.actual_points === null ? '<span class="cmd">none recorded</span>' : i.actual_points;
+        return '<tr' + (i.current ? ' style="font-weight:bold"' : '') + '><td><button data-iteration="' + f.iterations.indexOf(i) + '">' + esc(i.iteration) + (i.current ? ' (open)' : '') + '</button></td><td>' + i.shipped + '</td><td>' + est + '</td><td>' + act + '</td><td>' + i.sized_items + '</td><td>' + i.bugs_filed + '</td><td>' + i.open_at_close + '</td></tr>';
+      }).join('') + '</table></div>';
+    h += '<p class="q"><span class="cmd">burndown = open-at-close per iteration; sizing needs estimate at assignment + actual at close on item_state (EVENT_SCHEMA §8) — none recorded means none recorded</span></p>';
+    $('flowBody').innerHTML = h;
+  }
+
   // ---- MAIN (summary) -------------------------------------------------------
 
   var IN_FLIGHT = {in_progress:1, review:1, active:1, blocked:1, triage:1};
@@ -1328,7 +1811,7 @@ footer {
       $('fShards').textContent = num(c.shards) + ' shards';
       $('fSessions').textContent = (D.sessions || []).length + ' sessions';
       paintTabs(); paintSweep(); paintMain(); paintStories(); paintCrew(); paintIntegrity();
-      paintWaiting(); paintLedger();
+      paintWaiting(); paintLedger(); paintRetro(); paintPosture(); paintDocs(); paintFlow();
       clearFail();
     } catch (e) {
       fail('The wall could not render this snapshot.', String(e && e.message || e));

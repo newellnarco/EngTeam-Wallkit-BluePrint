@@ -110,6 +110,17 @@ the **Warden reviews the register at every checkpoint and wave close**
 (warden.md) — selections vs what the wave touched, attestation freshness,
 waiver lifting conditions.
 
+## 4b-bis. The regime lifecycle joins the compliance loop (DEC-0030)
+
+The §4b loop gained a front half: the Warden's periodic `wall
+compliance-scan` records which regimes the code suggests (with evidence),
+the fold names scan-vs-selection tensions as **dispositions** (a regime
+disabled against the evidence reads `NOT RECOMMENDED FOR DISABLED`, with a
+WHY popout), and the POSTURE rows dispatch ENABLE / DISABLE / REQUEST AUDIT
+through the EXECUTE port for the Warden to act on. Audits are
+complete-or-refused, every verdict with its proof or reason. Full record:
+`docs/decisions/DEC-0030.md`; authoring contract: `COMPLIANCE_POSTURE.md`.
+
 ## 4c. The blocked drill-in (Patron direction 2026-09-22)
 
 A `blocked` status chip on any board row is a **button**. Clicking it opens a

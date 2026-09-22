@@ -274,3 +274,14 @@ nobody recorded.
 - .claude/agents/architect.md, researcher.md — the role sheets
 - docs/SESSION_LIFECYCLE.md — when a question leaves the crew entirely and
   goes to the driving engineer
+
+
+## Blocking an item carries its reason
+
+Whoever flips an item to `blocked` writes the why in the same event —
+snapshot shape `{"status": "blocked", "blocked_reason": "…"}` or a
+`{field: "blocked_reason", after: "…"}` delta. The fold carries any
+non-envelope key onto the item, so no schema change is involved; the wall's
+blocked drill-in (WALL_DASHBOARDS §4c) reads exactly what discipline wrote,
+alongside the open question WORKFLOW §4 already requires. (`reason` alone is
+an ENVELOPE key and does not fold onto items — use `blocked_reason`.)

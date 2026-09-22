@@ -77,6 +77,7 @@ flowchart TB
     MCP --> Editors
     Editors --> Human
     Human -->|answer / enqueue| MCP
+    Wall -.->|"dispatch: enqueue directives<br/>(probe-gated, DEC-0030)"| Maestro
     Derived --> Foreman
     Foreman --> Maestro
 ```
@@ -84,9 +85,13 @@ flowchart TB
 Two edges are load-bearing by their absence. No agent writes `Derived` - not
 even the Foreman, which **reads** consolidated state and reports judgment back
 to Maestro; if an agent could write it, the ledger would stop being
-reproducible. And nothing in `Presentation` reaches back into `Cognition`: the
-wall is a mirror, so a broken wall cannot stop work, and a stalled crew cannot
-fake a healthy wall.
+reproducible. And `Presentation` reaches back into `Cognition` through exactly
+one narrow door: the wall's dispatch buttons (EXECUTE, the blocked drill-in,
+the POSTURE regime controls) ENQUEUE directives onto the host queue for the
+crew to consume — the human's existing verbs carried over http, gated on the
+same-origin health probe, so a wall served without its host stays read-only.
+The wall still writes no state of its own and can stop nothing: a broken
+wall cannot stop work, and a stalled crew cannot fake a healthy wall.
 
 The three presentation surfaces are one fold worn three ways (DEC-0018):
 `wall.html`, `wall summary` and the MCP server's `wall_status` all derive

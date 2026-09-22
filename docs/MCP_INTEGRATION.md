@@ -106,3 +106,24 @@ sessions, which run this server locally like any other client.
 the host's wall server, whose own exact-path allowlist (its DEC-0004)
 governs the write. No `origin` configured means the tool answers
 "not reachable from here, honestly" instead of guessing a port.
+
+
+## Directive vocabulary — what a queue consumer must handle
+
+`wall_enqueue`, the wall's EXECUTE buttons, the blocked drill-in and the
+POSTURE regime controls all converge on the host queue with a typed
+`directive` field. A consumer (a Maestro session, an editor agent, anything
+polling the HTTP queue API) routes on it:
+
+| `directive` | Enqueued by | Payload beyond `title` | Consumer's job |
+|---|---|---|---|
+| `execute_item` | wall detail EXECUTE THIS | `target_key` | Work that one item end-to-end |
+| `execute_arc` | wall EXECUTE ARC | `arc_id` (+ selected phases) | Work the arc in order |
+| `resolve_blocked` | the blocked chip's dialog | `mode: build\|research`, `item_id`, `reason` | Build the fix, or research the blocker and answer the open ask |
+| `warden_regime` | POSTURE ENABLE / DISABLE | `action: enable\|disable`, `regime` | **Warden only**: evaluate, then record the selection with its reason — a request judged wrong is answered with a ruling, never silently dropped |
+| `warden_audit` | POSTURE REQUEST AUDIT | `regime` | **Warden only**: evaluate every control and record `wall audit` — pass/fail/waiver each with proof or reason |
+
+An unknown directive is parked, not guessed at: file it as a question. The
+wall itself never mutates state — every button above only ENQUEUES, behind
+the same-origin health probe, so a wall served without its host stays
+read-only (DEC-0030).

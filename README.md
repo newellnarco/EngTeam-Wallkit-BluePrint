@@ -118,7 +118,7 @@ flight, agents working, waiting on you, integrity flags) and `In progress`
 | | |
 |---|---|
 | ![The STORIES tab — Arcs with nested stories and bugs](docs/screenshots/wall-stories.png) | ![The CREW tab — the Crew roster, Budget gauges, Integrity](docs/screenshots/wall-crew.png) |
-| **STORIES** — page sections `Arcs`, `Stories`, `Bugs`: arc bands with story/bug nesting, literal status chips | **CREW** — page sections `Crew`, `Budget`, `Integrity`: names + keys, models (`requested -> routed`), tokens/cost, budget trajectory, integrity flags |
+| **STORIES** — page sections `Arcs`, `Stories`, `Bugs`: arc bands with story/bug nesting, literal status chips; a **`blocked` chip is a drill-in** — the dialog names the recorded reason and open asks, and (queue-gated) dispatches BUILD A FIX / RESEARCH IT to whatever agent consumes the host queue | **CREW** — page sections `Crew`, `Budget`, `Integrity`: names + keys, models (`requested -> routed`), tokens/cost, budget trajectory, integrity flags |
 | ![The LEDGER tab — budget gauges, advisory, per-role rollup](docs/screenshots/wall-ledger.png) | ![The WAITING tab — asks parked on the human](docs/screenshots/wall-waiting.png) |
 | **LEDGER** — see below | **WAITING** — page section `Waiting on you`: every `human_required` ask with its `wall answer` command |
 
@@ -138,13 +138,15 @@ The four oversight tabs (`WALL_DASHBOARDS.md`, DEC-0026/0027/0028):
 | | |
 |---|---|
 | ![The RETRO tab — retrospective trends, landed diffs, pending Patron inputs](docs/screenshots/wall-retro.png) | ![The POSTURE tab — Warden rulings by gate plus the compliance regimes with their challenges](docs/screenshots/wall-posture.png) |
-| **RETRO** — signal trends across waves, diffs landed + re-measured, and pending `wall retro-note` inputs the next retro must address | **POSTURE** — the Warden's latest ruling per subject; blocked/refused front and center; the **compliance regimes** (SOC 2 · HIPAA/PHI · PCI · PII/privacy · government · sector · NIST · FDA) with the Patron's selections, both-direction challenges and the selection decision log |
+| **RETRO** — signal trends across waves, diffs landed + re-measured, and pending `wall retro-note` inputs the next retro must address | **POSTURE** — the Warden's latest ruling per subject; blocked/refused front and center; the **compliance regimes** (SOC 2 · HIPAA/PHI · PCI · PII/privacy · government · sector · NIST · FDA) with the Patron's selections, the Warden scan's recommendations folded into **dispositions** (a regime disabled against the evidence reads `NOT RECOMMENDED FOR DISABLED`, with a WHY popout carrying the evidence), ENABLE / DISABLE / REQUEST AUDIT dispatch through the queue port, both-direction challenges and the selection decision log (DEC-0028/0030/0031) |
 | ![The DOCS tab — documents of record with review states and the decision log](docs/screenshots/wall-docs.png) | ![The FLOW tab — velocity, sizing, bugs and burndown per iteration](docs/screenshots/wall-flow.png) |
 | **DOCS** — every SOP/standard at its sha: current / CHANGED / never-reviewed / feedback-open / missing; sign off with `wall ack-doc`, object with `--feedback` | **FLOW** — per-iteration shipped, estimate-vs-actual points, bugs filed, open-at-close burndown; each row opens the drill-in |
 | ![The compliance self-attestation popout — controls with pass/fail/waiver and their attest verbs](docs/screenshots/wall-audit.png) | ![The iteration drill-in popout — cost, agents, duration, delivered vs not delivered](docs/screenshots/wall-iteration.png) |
-| **The audit popout** — per regime: applicability + reason, the challenge if one is open, and every control's pass ✅ / fail ❌ / waiver ⚠ with its note and `wall attest` verb | **The iteration popout** — what the iteration cost (`cost_usd` summed), agents by role, duration, what was delivered, and what was worked but NOT delivered |
+| **The audit popout** — per regime: applicability + reason, the challenge if one is open, and every control's pass ✅ / fail ❌ / waiver ⚠ with its note (mandatory on every verdict since DEC-0030 — pass carries its proof, fail and waiver their reason) and the `wall attest` / `wall audit` verbs | **The iteration popout** — what the iteration cost (`cost_usd` summed), agents by role, duration, what was delivered, and what was worked but NOT delivered |
 
-Also in `docs/screenshots/`: the reference deployment's real 1143-item board
+Also in `docs/screenshots/`: the blocked drill-in dialog
+(`wall-blocked.png` — the recorded reason and open ask, read-only without a
+host queue), the reference deployment's real 1143-item board
 through `adapters/board_import.py` (`wall-overlay-reference.png`), the
 honest-degrade banner for a malformed snapshot (`wall-degrade.png`), light
 mode, and the status-vocabulary fixture.
