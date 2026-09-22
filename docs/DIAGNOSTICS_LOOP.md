@@ -234,7 +234,10 @@ open for a human.
 ## 9. Cross-references
 
 - INSTALL.md — the timer, the shipper, `doctor.json`
-- WALL_STANDARDS.md §2 — the isolated-branch transport
+- WALL_STANDARDS.md §2 — the isolated-branch transport; §4 — the
+  three-tense record split this loop's intake writes into
+- templates/FAILURE_PATTERNS.md.template — where a three-member family
+  graduates to
 - SESSION_LIFECYCLE.md §4 — the grant's ceiling
 - ITEM_AUTHORING.md — the story path findings enter
 - docs/TECH_EVALUATION.md — when a finding proposes replacing something

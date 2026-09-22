@@ -248,6 +248,13 @@ This role exists because the original design had builders writing their own
 tests and declaring them passing, with sign-off from two parties who do not read
 code. An agent that can both write the test and declare it green has no adversary.
 
+**The corpus is re-read immediately before each review, never from a cached
+copy** — the failure registry, the shared criteria, the standing rules. The
+corpus freshness is the capability (`templates/REVIEWER_LANES.md.template`
+§3): the strongest measured catch in the field was a reviewer citing a
+failure class by id to stop a recurrence of a class registered that same
+hour.
+
 ---
 
 ## Researcher — Sonnet 5

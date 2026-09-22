@@ -206,7 +206,7 @@ as a method, not a questionnaire about one product:
   via its knowledge base, another via its own instruction files — with the
   measured directory-scoping trap written down so a rule is verified to
   actually reach each grader.)*
-- Q5.3 The project-specific honesty rules beyond the six seeded ones — take
+- Q5.3 The project-specific honesty rules beyond the seeded ones — take
   them from RULES Q2.3's answer so the two documents agree by construction.
 
 **LLM probes:**

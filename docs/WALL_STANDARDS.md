@@ -145,7 +145,7 @@ drifting apart.
 }
 ```
 
-Deny beats allow, always. Three entries are worth defending:
+Deny beats allow, always. Four entries are worth defending:
 
 - `.github/workflows/**` - a builder editing CI to turn its own tests green is
   the classic escape hatch. It is code.
@@ -153,6 +153,9 @@ Deny beats allow, always. Three entries are worth defending:
   the behaviour of every future agent. It is code, and it gets full review.
 - `tools/**` - wall tooling can corrupt the ledger, and in this deployment it is
   shipped. Not a doc.
+- Every document a generator or prompt-builder consumes - an edit there
+  changes a generated artifact and can fail the build (FAST_TRACK.md; every
+  generator-source row of the budget register belongs here).
 
 Mixed changesets split rather than get an exception.
 

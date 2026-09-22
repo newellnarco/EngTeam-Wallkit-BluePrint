@@ -612,21 +612,21 @@ authority on which commands are in that state today.
 | `PRODUCT_INTAKE.md` | The product-definition Q&A: derive from the repo first, ask second |
 | `TEMPLATE_INTAKE.md` | Per-template question sets: required + LLM probes, worked examples |
 | `CAPACITY_REBALANCING.md` | The measured knobs: builder/researcher split, PR pacing, CI sharding |
-| `DIAGNOSTICS_LOOP.md` | Running system → shipped evidence → automated review → story with design |
-| `TECH_EVALUATION.md` | Measure-before-flip: bench, flag protocol, decision record, re-eval triggers |
+| `DIAGNOSTICS_LOOP.md` | Running system → shipped evidence → automated review → story with design; findings recorded on arrival, liveness proven from execution |
+| `TECH_EVALUATION.md` | Measure-before-flip: bench, flag protocol, decision record, re-eval triggers; metered-service economics and live-lane comparison controls |
 | `UPGRADE_DISCIPLINE.md` | The routine bump nobody evaluated: semver classes, the transitive native-wheel class, the cold soak, pins that lift |
 | `GIT_HOOKS.md` | The free local gate: hooks as step 0, named escape hatches instead of `--no-verify`, line-ending pinning, baseline ratchets |
 | `LLM_BOOTSTRAP.md` | The day-zero procedure an LLM session follows to stand all of this up |
 | `DEPLOYMENT_TARGETS.md` | Docker, VMs, Kubernetes — who runs the timer, serves, ships |
 | `COMPLIANCE_POSTURE.md` | The mechanisms in auditor language: SoD, change control, traceability |
-| `TESTING_STANDARDS.md` | Tiers, mutation protocol, SAST lane, sharding + rebalance |
+| `TESTING_STANDARDS.md` | Tiers, mutation protocol, SAST lane, sharding + rebalance, derived and published surfaces |
 | `RETROSPECTIVES.md` | The measured retro at wave close: per-role signals, five-whys on the process, diffs not sentiment |
 | `UX_STANDARDS.md` | Usability as a requirement axis: interaction budgets, named trajectories, the four ditch prohibitions, user docs move with code |
 | `DATA_PROTECTION.md` | The Warden's data charter: exposure map, regime table, rest/motion/in-use, six lifecycle checkpoints, ways forward over full stops |
 | `WALL_DASHBOARDS.md` | The wall's tab charter: the nine tabs, the oversight folds (RETRO / POSTURE / DOCS / FLOW), the sha-carrying review + feedback loop, the DESIGN slice-2 contract |
 | `compliance/` (six blueprints) | SOC 2 · HIPAA/PHI · PCI DSS v4.0.1 · PII/privacy · government reach · sector rules — source-cited, self-attestation checklists synced to `tools/wall/compliance.py` by a pin |
 | `LOGGING_AND_AUDIT.md` | Three planes, per-run artifacts, trace commands |
-| `FAST_TRACK.md` | Doc-only routing, and the CI meter economics that go with it |
+| `FAST_TRACK.md` | Doc-only routing (generator sources are code), and the CI meter economics that go with it |
 | `MCP_INTEGRATION.md` | The wall as an MCP server: one integration point for every editor and agent, role-gated |
 | `CAPABILITY_TRUST.md` | Discovery is never trust: the default-deny adoption gate for tools, servers and skills; fetched content is data; the output-relay gate |
 | `FLEET.md` | More than one adopting repository: exit-code verdicts, the spin-off exchange, one byte-identical artifact, dispositions |

@@ -129,6 +129,8 @@ named in the same ruling.
 - `.claude/agents/warden.md` — the authority, gates and verdict table
 - PRODUCT_INTAKE.md — the data-security domain this charter deepens
 - TECH_EVALUATION.md — checkpoint 2's home; the Warden line on every record
+- CAPABILITY_TRUST.md — checkpoint 2's sibling question for anything
+  discovered: who published it, and what pins it
 - TESTING_STANDARDS.md — the SAST/secrets lane; checkpoint 4's test-data rule
 - ITEM_AUTHORING.md §3.6–3.7 — risk tier and declared data uses on every arc
 - DIAGNOSTICS_LOOP.md — the redaction audit; COMPLIANCE_POSTURE.md — auditor language

@@ -169,6 +169,10 @@ unmeasured.
 - docs/decisions/ — where the verdict lives, with `Revisit if`
 - CAPACITY_REBALANCING.md — the same measure-before-flip discipline applied
   to the crew's own knobs
+- CAPABILITY_TRUST.md — the adoption gate every discovered candidate passes
+  before this document's evaluation even starts
+- templates/REVIEWER_LANES.md.template — where §3b/§3c's answers live on,
+  per lane
 - DIAGNOSTICS_LOOP.md — where an experiential trigger usually arrives from
 - .claude/skills/reviewer-integration/SKILL.md — reviewer lanes follow this
   discipline through their own add/baseline procedure
