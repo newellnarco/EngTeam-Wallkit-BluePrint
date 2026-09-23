@@ -168,7 +168,13 @@ Three rules make the discipline real:
 1. **Any sentence of the form "run this on the machine" must name the
    channel that cannot carry it** — or the sentence is a defect in the plan,
    not a task for the owner. The one legitimate owner ask is *verification
-   by looking* (section 5), because seeing is the point.
+   by looking* (section 5), because seeing is the point. The single
+   exception (DEC-0034): **while no closed loop ships telemetry and logs
+   from the environment back to the repository**, one hand-run diagnostic
+   may be asked -- it names the missing loop, and building that loop is
+   filed as a P1 item in the same breath. Once the loop exists, a
+   diagnostic question is answered from it or the loop is extended; it is
+   never handed to the owner.
 2. **Automate the result back, not just the work.** A channel that applies
    a fix but does not ship the outcome to the diagnostics branch has only
    changed the question from "please run this" to "did it work?". One-time

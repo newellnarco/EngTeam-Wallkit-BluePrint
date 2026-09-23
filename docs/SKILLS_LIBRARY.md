@@ -497,15 +497,22 @@ and a bandaid flag, and the runner refuses bandaid-only entries in a test.
 (Extends `docs/DIAGNOSTICS_LOOP.md` section 3 and
 `templates/FAILURE_PATTERNS.md.template` F-OPS-003.)
 
-**1.22 A diagnostic question that has to be answered by hand a second time
-becomes a collector.** The second time the same question comes up, the probe
-becomes a system-run collector that writes to the normal telemetry snapshot.
-It has to be reachable while the service under investigation is down.
+**1.22 Ask the owner for a hand-run diagnostic only while no closed loop
+exists, and never twice.** When telemetry and logs already flow from the
+environment back to the repository, answer the question from that channel or
+extend the channel; do not hand it to the owner. While no such loop exists,
+one hand-run diagnostic may be asked: it names the missing loop, and building
+the loop is filed as a P1 item in the same breath. The second time the same
+question comes up, the probe becomes a system-run collector that writes to the
+normal telemetry snapshot, reachable while the service under investigation is
+down.
 *Why:* A diagnosis was put together from the owner running eight commands by
 hand and pasting their output into chat. The system could have scheduled every
 one of them and written the results to a file.
-*Check:* Grep the owner-ask log for repeated questions. A repeat with no
-collector filed is a process finding.
+*Check:* Every hand-run ask cites the missing loop and the filed item that
+builds it; an ask made while a loop exists is a process finding. Grep the
+owner-ask log for repeated questions; a repeat with no collector filed is a
+process finding.
 *Roles:* maestro, builder, foreman
 (Extends `docs/DIAGNOSTICS_LOOP.md` section 6.)
 

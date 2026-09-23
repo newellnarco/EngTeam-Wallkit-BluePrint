@@ -200,7 +200,11 @@ automation channel that cannot carry it, or it is a defect in the plan.** A
 crew with access to a machine automates the work AND ships the result back; a
 plan that hands the owner a command has either found a genuine gap - which is
 then stated, with the channel that is missing - or has skipped the design step.
-The owner is asked to LOOK at a result, not to produce one. *Check:* grep plans,
+The owner is asked to LOOK at a result, not to produce one. The one exception
+is a hand-run diagnostic while no closed loop yet ships telemetry and logs from
+the environment back to the repository: it is asked once, names the missing
+loop, and files the loop as a P1 item; once the loop exists it is never asked.
+*Check:* grep plans,
 runbooks and guard messages for "please run", "on the box", "you will need to",
 and for each hit either name the channel and the reason it cannot carry the
 work, or automate it.
