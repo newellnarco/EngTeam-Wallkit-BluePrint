@@ -2714,39 +2714,6 @@ invalid:
 > confirming the new one authenticates, locking the automation out of the
 > system it was rotating.
 
-### F-SEC-010 - a low-entropy secret stored under a fast, unsalted hash
-
-- **Discovered:** inherited, not yet observed here
-- **Paid for:** resident app (1)
-- **Symptom:** A PIN guarding sensitive operations is stored as a bare SHA-256
-  digest with a lockout of a few attempts per minute held in process memory. A
-  compliance write-up cites "hashed, never plaintext" as the access-control
-  safeguard. Anyone who can read the file recovers a 4-6 digit PIN in
-  milliseconds, and a restart clears the lockout.
-- **Root cause:** "Hashed" was treated as a property that protects any secret,
-  when a fast hash protects only high-entropy input. The online rate limit was
-  taken to cover the offline path too. In the opposite direction, a reflexive
-  algorithm upgrade on a digest that authenticates nothing orphans every
-  stored id, so the question "does this digest authenticate anything?" was
-  never asked in either direction.
-- **Check:** A secret a human chooses or remembers (PIN, passphrase, password)
-  is stored with a salted, slow KDF at current cost, and its lockout state
-  persists across restarts. A digest used only for content addressing or
-  idempotency declares non-security use in code and keeps its algorithm. A
-  lint flags fast hashes applied to fields named pin, password or passphrase.
-- **Command:** `grep -rniE 'md5|sha-?(1|224|256|384|512)|createHash|hashlib\.new|MessageDigest|subtle\.digest'
-  <SRC> | grep -E '(^|[^a-zA-Z])(pin|passcode|password|passphrase)|Pin|PIN|Pass(code|word|phrase)|PASS(CODE|WORD|PHRASE)'`
-  -- every spelling of the algorithm; the field name in lower case only at
-  a non-letter boundary, and capitalised or upper case anywhere, so
-  `userPin`, `USER_PIN` and `hashedPassword` are caught while `pipeline`,
-  `mapping` and `spinner` stay out (F-CHECK-009, F-SUBSTR-001).
-
-> class-guard: <lint that fails on any fast-hash call whose input or target
-> name matches pin/password/passphrase, plus a test that the stored record
-> carries salt and KDF parameters and that the lockout survives a restart>
-> VARIANT: an API token or recovery code stored as an unsalted fast hash and
-> compared with `==`, open to both offline guessing and a timing oracle.
-
 ### F-SEC-011 - third-party text reaches an agent's instruction channel through an internal feed
 
 - **Discovered:** inherited, not yet observed here

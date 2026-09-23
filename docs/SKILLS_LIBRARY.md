@@ -2142,22 +2142,16 @@ quorum (7.6).
 ### 11.C Secrets and credentials
 
 **11.11 Decide whether a digest authenticates anything before choosing its
-hash.** A PIN or short passphrase at rest needs a salted, slow KDF (scrypt,
-argon2 or PBKDF2 at current cost) and a lockout that survives a restart; a
-rate limit protects only the online path, and anyone who reads the file
-brute-forces a short numeric space in milliseconds. A digest that
-authenticates nothing (a content address, an idempotency key) declares its
-non-security use in code instead of being "upgraded", because switching
+hash.** A secret a person chooses or remembers needs a salted, slow KDF at
+current cost, because a fast hash protects only high-entropy input. A digest
+that authenticates nothing (a content address, an idempotency key) declares
+its non-security use in code instead of being "upgraded", because switching
 algorithms orphans every stored id.
-*Why:* A sensitive-operation PIN was stored as unsalted SHA-256 with a lockout
-held in memory, and a compliance study then cited "SHA-256 hashed, never
-plaintext" as an access-control safeguard. Elsewhere, a reflexive SHA-1 to
-SHA-256 switch on identity slugs would have remapped every persisted record
-id.
-*Check:* A lint flags fast hashes applied to fields named pin, password or
-passphrase, and requires the non-security flag on the remaining weak-hash call
-sites. A test asserts the stored record carries a salt and KDF parameters and
-that the lockout survives a restart.
+*Why:* A reflexive SHA-1 to SHA-256 switch on identity slugs would have
+remapped every persisted record id, for a digest that authenticated nothing.
+*Check:* Every hash call site is labelled security or non-security in code; a
+security-labelled one on a human-chosen secret uses a salted, slow KDF, and a
+non-security one is never migrated without a data plan.
 *Roles:* builder, warden, reviewer
 
 **11.12 A long-lived broad token recommended for convenience is a finding.**
@@ -2432,9 +2426,9 @@ architecture intent is labelled intent-only. "Eliminated", "satisfied
 trivially" and "aligned across all criteria" are claims an assessor will test,
 and the warden audits them like any other claim.
 *Why:* A self-study mapped a codebase to several health, financial and
-service-organization frameworks. It cited a fast-hashed PIN as an
-access-control safeguard (see 11.11) and asserted vendor-bound telemetry "is
-designed not to be" regulated data with no redaction audit behind it.
+service-organization frameworks. It asserted vendor-bound telemetry "is
+designed not to be" regulated data with no redaction audit behind it, and
+listed controls that no check had exercised.
 *Check:* A docs lint over compliance mappings requires a `verified-by:`
 reference or an explicit `intent-only` label on every row.
 *Roles:* warden, reviewer
