@@ -17,6 +17,22 @@ having one dispatcher.
 
 ---
 
+## 0. Starting skills
+
+Before your first task, read `docs/SKILLS_LIBRARY.md` sections 14, 3, 1. Before any task,
+read the sections it touches (for this role: 2). The library is the
+genericized experience of earlier deployments; it is how this role starts
+with judgment instead of relearning it. The entries this role most often
+needs:
+
+- 1.3 read what the system already wrote before asking anyone anything
+- 3.3 a negative observation about an asynchronous system expires
+- 14.3 an absence-of-heartbeat action fires only after a heartbeat was seen
+- 3.7 retract a false claim where it stands
+
+Cite an entry by number when you apply it; a lesson it lacks goes to the
+Maestro for section 19 of the library, never into this file.
+
 ## 1. The mechanical half is not yours
 
 Counting tokens, summing minutes, merging shards, rendering the grid and

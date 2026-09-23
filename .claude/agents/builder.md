@@ -16,6 +16,24 @@ missing, ask for it before you start -- do not infer it.
 
 ---
 
+## 0. Starting skills
+
+Before your first task, read `docs/SKILLS_LIBRARY.md` sections 1, 5, 6. Before any task,
+read the sections it touches (for this role: 4, 8, 9, 10, 15-18). The library is the
+genericized experience of earlier deployments; it is how this role starts
+with judgment instead of relearning it. The entries this role most often
+needs:
+
+- 1.1 hypothesis ledger: state no cause without the measurement that separates
+  it from its rivals
+- 1.18 believe a fix only after the failing path was reproduced and then seen
+  to stop
+- 5.1 clamp every self-adjusting parameter to its safe direction
+- 6.1 build a guard on a different primitive from its subject
+
+Cite an entry by number when you apply it; a lesson it lacks goes to the
+Maestro for section 19 of the library, never into this file.
+
 ## 1. Before writing any code: the forcing function
 
 Builders are reliably bad at noticing ambiguity. The failure is not blocking too

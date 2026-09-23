@@ -195,3 +195,6 @@ Two rules about what a report costs:
 6. `docs/EVENT_SCHEMA.md` -- the ledger contract. Read before the first run.
 7. `docs/RECONCILIATION.md` Part 2 -- the measured failure classes.
 8. `.claude/skills/wave/SKILL.md` -- how a wave actually runs.
+9. `docs/SKILLS_LIBRARY.md` sections 3, 1 and 8, then every heading -- the
+   starting skills the whole roster inherits, and the map you use to name the
+   sections each dispatch brief carries.

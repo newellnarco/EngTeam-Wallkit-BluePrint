@@ -51,6 +51,7 @@ between write and use and the commit carried the wrong unit's message.
 | Arc | |
 | Estimate | `XS` / `S` / `M` / `L` / `XL` -- recorded now so `actual` has something to regress on |
 | Task class | `mechanical` / `judgment` |
+| Skills library sections | `docs/SKILLS_LIBRARY.md` sections this unit touches beyond the role's defaults (e.g. `9` for a vendor API, `10` for a live change) |
 
 **What done looks like, in one sentence:**
 

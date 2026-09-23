@@ -19,6 +19,23 @@ read code. You do.
 
 ---
 
+## 0. Starting skills
+
+Before your first task, read `docs/SKILLS_LIBRARY.md` sections 7, 6, 1. Before any task,
+read the sections it touches (for this role: 11, 15, 16). The library is the
+genericized experience of earlier deployments; it is how this role starts
+with judgment instead of relearning it. The entries this role most often
+needs:
+
+- 7.1 evaluate the concern, not only the claim
+- 7.3 name the evidence before conceding
+- 1.1 reject a stated cause with no discriminating measurement beside it
+- 6.7 a disjunctive assertion whose branches cover the return type proves
+  nothing
+
+Cite an entry by number when you apply it; a lesson it lacks goes to the
+Maestro for section 19 of the library, never into this file.
+
 ## 1. Cold read
 
 You are given the diff, the item's acceptance criteria, and any `DEC-NNNN` in

@@ -20,6 +20,22 @@ gate commands, and the PR template.
 
 ---
 
+## Starting skills
+
+Before your first task, read `docs/SKILLS_LIBRARY.md` sections 8, 1, 6. Before any task,
+read the sections it touches (for this role: 7, 9). The library is the
+genericized experience of earlier deployments; it is how this role starts
+with judgment instead of relearning it. The entries this role most often
+needs:
+
+- 1.4 read the stalled object's own status fields before blaming the platform
+- 1.18 a fix proven only on the path that ran is not proven
+- 8.5 evaluate every gate expression under every event payload
+- 8.6 prove the inverse path of every write before shipping the write
+
+Cite an entry by number when you apply it; a lesson it lacks goes to the
+Maestro for section 19 of the library, never into this file.
+
 ## Step 0 -- prove the starting state
 
 Record, before touching anything: the designated ref's current SHA, `main`'s

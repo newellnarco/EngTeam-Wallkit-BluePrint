@@ -485,9 +485,9 @@ time. An entry with no check is a story, not a defence.
 
 The entries above are the seeded set: classes that shipped and failed, in the
 format every new entry follows. The ones below are the **library**: classes
-paid for in three production deployments -- a resident desktop app, a network
-appliance, and a research-publishing repository -- genericized so that only the
-class remains. They have **not** happened in this repository yet, which is why
+paid for in production deployments -- a resident desktop app, a network
+appliance, a research-publishing repository and a browser extension --
+genericized so that only the class remains. They have **not** happened in this repository yet, which is why
 they sit apart rather than being filed as history that never occurred. They
 carry the same fields and the same obligations, plus a `Paid for` line naming
 the deployment shapes and how many instances each paid.
@@ -1411,7 +1411,55 @@ invalid:
 > VARIANT: a scanner upgraded to a new major that silently drops a rule
 > family; the finding count falls and is celebrated.
 
+### F-CHECK-011 - a guard that locates its subject with the subject's own primitive
 
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** resident app (4), appliance (1)
+- **Symptom:** A guard written to catch a defect stays green while the defect
+  ships. The guard and its subject both miss the same section, record or call
+  site. The pattern repeats in the guard written to fix the previous guard,
+  often on the same day.
+- **Root cause:** The guard found or judged its input with the helper, anchor
+  or section finder that the code under test uses. Whatever that primitive
+  cannot see, neither the subject nor the guard can see, so they agree while
+  both are wrong. This is not F-CHECK-008: reading input with the deciding
+  parser is correct. The defect is computing the verdict along the same code
+  path as the thing being judged.
+- **Check:** For each new guard, list the helpers it calls to locate or judge
+  its input and intersect that list with the helpers the subject calls. A
+  non-empty intersection is rewritten on an independent primitive (another
+  representation, another source of truth), or the guard declares the shared
+  assumption and adds a second check that does not share it.
+- **Command:** `<INTERSECT_CALLEES_OF_GUARD_WITH_CALLEES_OF_SUBJECT>`
+
+> class-guard: <for each guard, a planted defect that the subject's own
+> locator cannot see still turns the guard red>
+> VARIANT: a test that parametrises its cases from the production module's
+> own list, so an entry the module forgets is also missing from the test.
+
+### F-TEST-014 - each fixture dimension covered alone, and the defect lives in their combination
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** resident app (1)
+- **Symptom:** A stateful parser or loop passes a suite that has a case for
+  every condition, such as a deletion, several files and an empty input. In
+  production it misattributes a record, because two conditions occurred in
+  sequence and no fixture ever put them together.
+- **Root cause:** Fixtures were enumerated one dimension at a time, each from
+  the case in front of the author. A state machine's defects sit on the
+  transitions between states, and those only occur when dimensions are
+  combined, which per-dimension coverage never does.
+- **Check:** For every stateful parser or loop, list the fixture dimensions
+  and add at least one fixture per pair of dimensions the state crosses (a
+  record of kind A missing its optional field, following a record of kind B).
+  The review asks which pair is still untested.
+- **Command:** `<LIST_FIXTURE_DIMENSIONS_AND_REPORT_UNCOVERED_PAIRS>`
+
+> class-guard: <each stateful parser's fixture set contains at least one
+> fixture combining every pair of dimensions its state machine transitions
+> between>
+> VARIANT: a retry loop tested for "times out" and for "partial response"
+> separately, never for a partial response followed by a timeout.
 
 **Review lanes**
 
@@ -2358,7 +2406,34 @@ invalid:
 > VARIANT: an import script that sets `created_by = "system"` on every
 > migrated row, later used for permission checks.
 
+### F-LOOP-001 - a learning loop that counts its own actions as evidence
 
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** browser extension (2)
+- **Symptom:** A self-tuning filter grows steadily more aggressive with no
+  change in its input: the same few items yield 95 positive labels against
+  17 negative, and it ends up hiding the items it had already acted on.
+  Careful users who correct its mistakes make it worse.
+- **Root cause:** The loop's evidence is shaped by its own decisions. Items
+  are re-observed on every render and counted once per sighting, so whatever
+  the model acted on is over-represented. Corrections can be sent in only one
+  direction, because the "you missed one" control does not exist and the
+  "wrong to hide" control lives only on hidden items, while the evidence a
+  correction needs is stored only for items the model acted on.
+- **Check:** Observations and labels are deduped by item identity. List every
+  label the loop learns from and name the reachable surface for each one; a
+  label with no surface is a bias. Evidence is stored for every item judged,
+  not only the ones acted on. A realised-rate record (flagged fraction) is
+  compared with its target on every cycle.
+- **Command:**
+  `<TEST_SHOW_ONE_ITEM_N_TIMES_ASSERT_ONE_OBSERVATION_AND_ENUMERATE_LABELS_ASSERT_EACH_HAS_A_RENDERED_CONTROL>`
+
+> class-guard: <showing one item N times records one observation, every label
+> in the learner's label set has a reachable control on a rendered fixture,
+> and the realised action rate stays within tolerance of its target on a
+> drifted model>
+> VARIANT: a recommender trained on clicks from its own ranked list, so items
+> it never shows can never earn the clicks that would get them shown.
 
 **Security**
 
@@ -2605,7 +2680,98 @@ invalid:
 > (`pull_request_target`) that checks out and builds the fork's code with the
 > base repository's token.
 
+### F-SEC-009 - an automated change cuts the control path needed to undo it
 
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** appliance (1)
+- **Symptom:** An approved or auto-taken block lands on the management host,
+  the gateway, the appliance or the host the automation runs on, and the whole
+  network goes dark. The tool then re-applies the rule on reconnect. Its own
+  host is now cut off, so it cannot reach the appliance to remove the rule,
+  and a verifier that cannot read the rule list reports nothing wrong.
+- **Root cause:** The guard asked whether the target was acceptable to the
+  recommender, not whether the change could sever the path every later
+  correction depends on. Reversibility was assumed to mean "an undo exists",
+  when an undo that must travel over the severed path does not exist in
+  practice. The protected set, where one existed, was resolved from a live API
+  and shrank to empty when that call failed.
+- **Check:** A protected set (management host, automation host, gateway,
+  appliance) is refused as source and destination by every mutating verb,
+  along with universal and subnet targets. The set has a derived floor, and an
+  unresolvable set refuses everything. Changes that can sever access (filter
+  rules, routing, DNS, interface config, credential rotation) run as a
+  dead-man's-switch transaction: snapshot, apply, verify reachability of the
+  control path and an external canary within N seconds, then commit, or roll
+  back automatically. A live verifier reports unknown, never confirmed, when
+  it cannot read the rule list.
+- **Command:**
+  `<PARAMETRIZED_TEST_EVERY_MUTATING_VERB_X_EVERY_PROTECTED_MEMBER_ASSERTS_REFUSAL_AND_FAKE_APPLIER_THAT_BREAKS_REACHABILITY_ASSERTS_ROLLBACK>`
+
+> class-guard: <assertion that every mutating verb refuses each protected
+> member and an unresolvable protected set, and that an applier which breaks
+> control-path reachability is rolled back within the deadline>
+> VARIANT: a credential-rotation job that revokes the old key before
+> confirming the new one authenticates, locking the automation out of the
+> system it was rotating.
+
+### F-SEC-010 - a low-entropy secret stored under a fast, unsalted hash
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** resident app (1)
+- **Symptom:** A PIN guarding sensitive operations is stored as a bare SHA-256
+  digest with a lockout of a few attempts per minute held in process memory. A
+  compliance write-up cites "hashed, never plaintext" as the access-control
+  safeguard. Anyone who can read the file recovers a 4-6 digit PIN in
+  milliseconds, and a restart clears the lockout.
+- **Root cause:** "Hashed" was treated as a property that protects any secret,
+  when a fast hash protects only high-entropy input. The online rate limit was
+  taken to cover the offline path too. In the opposite direction, a reflexive
+  algorithm upgrade on a digest that authenticates nothing orphans every
+  stored id, so the question "does this digest authenticate anything?" was
+  never asked in either direction.
+- **Check:** A secret a human chooses or remembers (PIN, passphrase, password)
+  is stored with a salted, slow KDF at current cost, and its lockout state
+  persists across restarts. A digest used only for content addressing or
+  idempotency declares non-security use in code and keeps its algorithm. A
+  lint flags fast hashes applied to fields named pin, password or passphrase.
+- **Command:** `grep -rnE '(sha1|sha256|sha512|md5)\(' <SRC> | grep -iE
+  'pin|pass(word|phrase)?'`
+
+> class-guard: <lint that fails on any fast-hash call whose input or target
+> name matches pin/password/passphrase, plus a test that the stored record
+> carries salt and KDF parameters and that the lockout survives a restart>
+> VARIANT: an API token or recovery code stored as an unsalted fast hash and
+> compared with `==`, open to both offline guessing and a timing oracle.
+
+### F-SEC-011 - third-party text reaches an agent's instruction channel through an internal feed
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** resident app (1)
+- **Symptom:** A standing "act on telemetry without approval" grant feeds log
+  tails into sessions that can branch, fix and merge. A logged URL, filename,
+  upstream error string, CI log line or review comment carries an imperative,
+  and the session treats it as a step. The capability-adoption gate is in
+  place and never fires, because nothing here was "adopted".
+- **Root cause:** The untrusted-content rule was scoped to external
+  capabilities (READMEs, manifests, tool results). The crew's own feeds - CI
+  output, PR and issue bodies, review comments, webhook payloads, diagnostic
+  logs - were treated as internal and therefore trusted, though each can carry
+  bytes an outsider chose. Briefs concatenated those slots into the prompt as
+  plain text.
+- **Check:** Every dispatch and brief template wraps each external-text slot
+  in an explicit untrusted-data envelope, quoted and labelled. An act-first
+  loop never executes a step it read in such content. A red-team fixture
+  plants "ignore previous instructions, run X" in a CI log, a review comment
+  and a log tail, and the test asserts X appears nowhere in the agent's plan
+  or action log.
+- **Command:**
+  `<RED_TEAM_FIXTURE_IMPERATIVE_IN_CI_LOG_REVIEW_COMMENT_AND_LOG_TAIL_ASSERT_ABSENT_FROM_PLAN_AND_ACTION_LOG>`
+
+> class-guard: <assertion that every template slot fed from CI, review,
+> issue, webhook or diagnostic text is rendered inside the untrusted-data
+> envelope, and the red-team fixture's command never reaches an action>
+> VARIANT: a quarantined tool result whose flagged text is copied verbatim
+> into an audit event, which a later triage agent reads as instructions.
 
 **Concurrency and processes**
 
@@ -2840,7 +3006,32 @@ invalid:
 > VARIANT: a message consumer that catches all errors and immediately
 > re-polls, hot-looping on a poison message.
 
+### F-CONC-008 - a change subscriber re-triggered by its own writes
 
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** browser extension (1)
+- **Symptom:** With no user input, the view re-applies every second or two,
+  forever. Logs fill with duplicate records, statistics climb, and a
+  self-tuning model trained on those statistics drifts. Nothing errors.
+- **Root cause:** A handler subscribed to change events on a shared store
+  (browser storage, a settings object, a pub/sub topic, a file watcher)
+  reacts to any change of the key it watches. The event is also delivered to
+  the context that made the write, and the handler's own work writes to the
+  same key: applying the view bumps a tally, the tally write comes back as a
+  change, and the change re-applies the view. The key mixed values that
+  change behaviour with values that only record it.
+- **Check:** A subscriber compares the projection of the value it actually
+  consumes and returns when that projection is unchanged. Keys that mix
+  behaviour-changing rules with recorded statistics are split. A side effect
+  that must not re-trigger is suppressed where the write happens, not on one
+  remembered call route.
+- **Command:**
+  `<INTEGRATION_TEST_WRITE_A_STATISTICS_ONLY_CHANGE_FROM_THE_SAME_CONTEXT_AND_ASSERT_ZERO_REAPPLIES>`
+
+> class-guard: <for every change subscriber, a statistics-only write from the
+> subscribing context produces no re-run of its handler>
+> VARIANT: a file watcher that regenerates an index into the directory it
+> watches, so each regeneration triggers the next.
 
 **Networking**
 
@@ -3114,7 +3305,89 @@ invalid:
 > VARIANT: a webhook-only cache invalidation where one dropped webhook leaves
 > the cache stale until the next unrelated change.
 
+### F-OPS-010 - a persisted, self-adjusting parameter that a stored value can push past its safe bound
 
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** resident app (1)
+- **Symptom:** A source goes silent for an absurd length of time, or a
+  threshold drifts to where the feature acts on everything or on nothing.
+  Reading the state file shows one extreme value, whether corrupt, hand-edited
+  or hostile, that nothing rejected.
+- **Root cause:** The tuning loop was clamped on the path that computes new
+  values, but not on the path that loads stored values. A secondary floor (a
+  retained retry-after, a minimum wait) bypassed the multiplier's cap
+  altogether. An unreadable state file loaded as "no learning" and nobody
+  could tell.
+- **Check:** Clamp at load and at use, not only at update, toward the safe
+  direction only (slower, stricter). Give every floor that bypasses the main
+  clamp its own ceiling. Report persistence health as ok, unwired or unknown.
+- **Command:**
+  `<PROPERTY_TEST_EXTREME_NEGATIVE_AND_NONNUMERIC_VALUES_FROM_STATE_FILE_AND_LIVE_INPUT>`
+
+> class-guard: <for every persisted tuned parameter, a property test over
+> hostile stored and live values keeps the effective value inside
+> [configured, maximum]>
+> VARIANT: a trust score read from a cache that a crashed writer left at its
+> sentinel maximum, granting full trust on the next start.
+
+### F-OPS-009 - an undo that has never been exercised against the real system
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** appliance (3)
+- **Symptom:** A write verb can add a rule and can never list or remove it,
+  and the defect surfaces months later as a "cannot see all of it" banner. A
+  "remove device" returns an undo whose button only dismisses the toast. An
+  undo handle is offered beside a failed write, for an entry that was never
+  created. A documented "unblock everywhere" undo exists that nothing calls.
+- **Root cause:** Undo was specified as an artifact (a handle, a hint string,
+  a doc line) rather than a behaviour. Tests checked that the handle was
+  returned or that the hint matched a string the same author wrote, so the
+  inverse path - list, then remove, then list again against the real contract
+  - was never run. The forward write's success was verified; its inverse was
+  assumed.
+- **Check:** A write verb ships only with a system test that runs apply, list
+  shows it, remove, list no longer shows it, against a fake built from the
+  recorded vendor surface or a lab device. An undo handle is returned only for
+  a write that landed. Every emitted undo hint is parsed through the real CLI
+  parser or route table. A registry lists each verb's inverse or marks it
+  irreversible and not offerable.
+- **Command:**
+  `<FOR_EACH_WRITE_VERB_RUN_APPLY_LIST_REMOVE_LIST_AGAINST_STRICT_FAKE_AND_ROUND_TRIP_EACH_UNDO_HINT_THROUGH_REAL_PARSER>`
+
+> class-guard: <assertion that every registered write verb has an inverse
+> whose apply-list-remove-list test passes, that a failed write returns no
+> undo handle, and that every undo hint parses through the real router>
+> VARIANT: a database migration shipped with a down-migration that has never
+> been run, discovered broken during the incident that needed it.
+
+### F-OPS-008 - a failing destructive call relied on as a no-op, then armed by a credential fix
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** browser extension (1)
+- **Symptom:** A privileged cleanup or cancel step has failed on every run
+  for several releases (403, wrong id, expired token), and the pipeline stays
+  green because the failure is tolerated. Someone fixes the credential, and on
+  the next run the step does what its name says, to whatever is in that state
+  at the time: here it would have withdrawn a submission in the middle of
+  store review.
+- **Root cause:** The call was written blind and unconditional, relying on
+  the error when there was nothing to act on. While broken it was a
+  guaranteed no-op, and the pipeline came to depend on that. The repair was
+  treated as a credential change, not as enabling a destructive action.
+- **Check:** Before repairing the credential or id of a call that has been
+  failing, state what the call will now do and to what, and check whether
+  anything is currently in the state it would destroy. Every destructive
+  pipeline call is preceded by a query of the state it intends to change and
+  runs only when that state is present.
+- **Command:**
+  `<GREP_PIPELINE_FOR_DELETE_CANCEL_WITHDRAW_CALLS_AND_ASSERT_A_STATE_QUERY_PRECEDES_EACH>`
+
+> class-guard: <each destructive pipeline call, extracted and run against a
+> stub in every state, acts only in the state it names and never on a
+> state it did not query>
+> VARIANT: a retention purge that has been failing on a permissions error,
+> fixed during an incident, which then deletes the very logs the incident
+> needs.
 
 **Observability and diagnosis**
 
@@ -3241,7 +3514,121 @@ invalid:
 > VARIANT: an alert email that is itself sent through the failing mail path,
 > so the only notice of the failure cannot arrive.
 
+### F-DIAG-001 - a cause asserted from plausibility, not selected by a discriminating measurement
 
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** resident app (7), browser extension (2)
+- **Symptom:** A cause is stated to the owner, written into a report or acted
+  on
+  by a fix, and then a single measurement kills it. The next cause is stated
+  just as confidently and dies the same way. Work gets queued against a
+  subsystem the symptom never touched. A component is blamed "by elimination"
+  once its rivals are ruled out, and the blame is filed as the root cause.
+- **Root cause:** Every candidate explained the symptom, and explaining it was
+  treated as evidence. Nobody named the observation on which the candidates
+  predict different values, so nothing separated them. Elimination was read as
+  attribution. The system's own record of the answer went unread.
+- **Check:** A stated cause cites its discriminating measurement: the
+  observation that would have come out differently under each rival, and its
+  value. An incident record carries a hypothesis ledger (hypothesis /
+  discriminating observation / value / verdict). A cause justified only by
+  ruling out others is reported as inconclusive, with the unread evidence named.
+- **Command:**
+  `<LINT_INCIDENT_RECORDS_EVERY_ROOT_CAUSE_ROW_CITES_A_MEASUREMENT_AND_NO_ROW_SAYS_BY_ELIMINATION>`
+
+> class-guard: <incident-record lint that fails any root-cause field with no
+> linked measurement, and any cause whose only evidence is refutation of its
+> rivals>
+> VARIANT: a performance regression blamed on the newest dependency bump
+> because it is the most recent change, when two runs on the old lockfile show
+> the same regression.
+
+### F-OBS-005 - a negative read from an instrument or view that structurally cannot see the subject
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** resident app (4), browser extension (1)
+- **Symptom:** "No crash recorded" after a death that bypasses the crash
+  handler. "The process is not running" read off a process list sorted by
+  memory and cut off above the idle process. A crash probe comes back empty
+  because routine noise pushed the record out of its fixed-size tail. A
+  "last N hours" report is blank exactly when the important record is older
+  than the window. A mail search that skipped trash records "never sent".
+- **Root cause:** The instrument answered correctly within what it can see,
+  and
+  its silence was read as a statement about everything. Each source has a blind
+  set (failure modes it cannot capture by design, members a top-N or windowed
+  view omits, records its retention loses to noise), and nobody wrote that set
+  down or checked the ruled-out failure against it.
+- **Check:** Each evidence source is documented with a "cannot see" line. A
+  negative finding cites a source whose blind set excludes the failure being
+  ruled out, and quotes a query filtered for the subject, never a truncated
+  listing. Retention outlasts routine noise. A windowed report with nothing in
+  its window shows the last known state with its age.
+- **Command:**
+  `<FLOOD_THE_LOG_WITH_NOISE_AND_AGE_ALL_RECORDS_PAST_THE_WINDOW_THEN_ASSERT_THE_SUBJECT_RECORD_IS_STILL_REPORTED>`
+
+> class-guard: <per diagnostic source, a test that the subject's record
+> survives a noise flood and renders with an age label when older than the
+> window, plus a doc lint that every evidence source lists what it cannot see>
+> VARIANT: "no errors in the last deploy" read off a log view paginated to its
+> first 100 lines, or off a metrics panel whose query downsamples short spikes
+> away.
+
+### F-HEAL-001 - a correct automatic remedy hides the failure it heals
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** resident app (2)
+- **Symptom:** A supervisor relaunches a crashing service eight times in 27
+  minutes on unchanged code, correctly each time, and nothing surfaces it. Hours
+  later someone reads the log. A raised memory ceiling or a widened pool makes
+  an out-of-memory failure go away while the real side effect keeps firing on
+  every tick. An auto-repair runner keeps choosing "restart" because restarting
+  always "works".
+- **Root cause:** The remedy was judged by whether service came back, not by
+  whether the condition cleared. The heal count was never a surfaced signal, and
+  the remedies were never ranked by whether their fixes held. A bandaid-only
+  remedy was eligible to run unattended.
+- **Check:** N automatic remedies in a window becomes a named, surfaced
+  condition in the diagnostics snapshot. Every automatic remedy writes an audit
+  record and runs a follow-up check ("did the condition clear?"). Playbook
+  entries carry held/recurred counters and a bandaid flag, and the runner
+  refuses bandaid-only entries. Changes made under a diagnosis later proven
+  wrong are listed and reverted unless a measurement justifies them.
+- **Command:**
+  `<RESTART_STORM_TEST_ASSERTS_NAMED_CONDITION_IN_SNAPSHOT_AND_RUNNER_REFUSES_BANDAID_ONLY_PLAYBOOK>`
+
+> class-guard: <restart-storm test asserting that the named condition fires
+> and
+> appears in the snapshot, and a runner test asserting that a bandaid-flagged
+> playbook is never applied automatically>
+> VARIANT: an orchestrator's liveness probe restarts a container on every
+> memory spike, the restart count climbs on a panel nobody alerts on, and the
+> leak ships in three releases.
+
+### F-DIAG-002 - a stall blamed on the platform before the subject's own status was read
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** resident app (1), appliance (1)
+- **Symptom:** A change request shows no CI runs. It is polled for runs
+  repeatedly (17 times in one case) with the same empty result, and the CI
+  provider is blamed, once publicly. All along, a field in the response being
+  polled said "conflicted", and the platform does not run CI without a merge
+  commit.
+- **Root cause:** An observation ("there is no run") was promoted to a claim
+  about someone else's infrastructure ("the system is not creating runs")
+  without the query that could falsify it. The subject's own state fields were
+  in hand and were not read. Asking the same uninformative question again was
+  treated as investigating.
+- **Check:** Before any "the platform is broken" claim, the report quotes the
+  subject's own state fields. Poll loops cap identical-result repeats and then
+  switch to reading state.
+- **Command:**
+  `<POLLER_TEST_THIRD_IDENTICAL_RESULT_TRIGGERS_A_STATE_FIELD_READ_AND_REPORT>`
+
+> class-guard: <poller test asserting that after N identical empty results the
+> loop reads and reports the subject's state fields instead of querying again>
+> VARIANT: a deployment "stuck in pending" blamed on the scheduler while the
+> pod's own events say its image pull secret is missing.
 
 **Error handling**
 
@@ -3682,7 +4069,31 @@ invalid:
 > VARIANT: a status badge whose alt text is parsed by a release script to
 > decide whether to publish.
 
+### F-CI-008 - a decision re-implemented in a language the test suite does not run
 
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** resident app (2)
+- **Symptom:** The tested validator says one thing and the pipeline does
+  another. A destructive step's guard in a workflow or a shell script accepts
+  an input the tested policy rejects, or a `jq` filter discards a record the
+  validator keeps. Every test is green.
+- **Root cause:** A policy was copied into a workflow expression, a shell
+  script, a `jq` filter or a Makefile rule for convenience. The copy runs
+  where the suite cannot execute it, so it diverges in the ways only that
+  language has (quoting, truthiness, globbing, empty-string handling), and
+  nothing compares the two.
+- **Check:** Scripts do the I/O and call the tested decision, then act on its
+  exit code. A scan rule flags policy keywords in workflow and script files
+  that carry no call into the tested module. Where a copy is unavoidable, a
+  differential test runs both over the same corpus.
+- **Command:**
+  `<GREP_WORKFLOWS_AND_SCRIPTS_FOR_POLICY_KEYWORDS_WITHOUT_A_CALL_TO_THE_TESTED_ENTRYPOINT>`
+
+> class-guard: <no workflow or script file both contains a policy keyword
+> and lacks a call to the tested decision module>
+> VARIANT: an `if:` expression in a deployment workflow that re-derives "is
+> this a release tag" with a string test, while the tested release module
+> uses a stricter pattern.
 
 **Version control**
 
@@ -4162,7 +4573,33 @@ invalid:
 > VARIANT: a migration runner keyed on filenames meets a hotfix migration
 > numbered below the last applied one, and skips it forever.
 
+### F-DEPLOY-003 - a long-lived cache on a name that does not change when the content does
 
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** research repo (2)
+- **Symptom:** After the first stylesheet change, returning visitors see an
+  unstyled site until they hard-refresh: the new HTML pins the new integrity
+  hash, the browser holds the old file under the same URL, and the integrity
+  check correctly refuses it. An image replaced in place keeps showing its old
+  bytes for a year, and nothing fails anywhere.
+- **Root cause:** `immutable` or a long max-age was granted to a URL that
+  does not move when its bytes do. An integrity hash was taken for versioning,
+  but it pins content inside the referencing document and leaves the URL
+  alone. Caching was decided per path pattern, and nobody asked what happens
+  to a client that already holds the old bytes.
+- **Check:** Long-lived caching is allowed only on references that carry a
+  content token (a hash in the path or query) computed from the current
+  bytes. Every reference to a long-cached path carries the token, and the
+  token changes whenever the bytes do. This covers media as well as code.
+- **Command:**
+  `<LIST_CACHE_RULES_WITH_MAXAGE_OVER_A_DAY_AND_GREP_EVERY_REFERENCE_TO_THOSE_PATHS_FOR_A_CONTENT_TOKEN>`
+
+> class-guard: <site-health test fails when a path served immutable or with a
+> max-age over a day is referenced anywhere without the content token of its
+> current bytes>
+> VARIANT: a package mirror or CDN that caches a mutable tag (`latest`, a
+> moving version alias) for as long as it caches an immutable release, so a
+> re-pointed tag serves the old artifact.
 
 **Configuration**
 

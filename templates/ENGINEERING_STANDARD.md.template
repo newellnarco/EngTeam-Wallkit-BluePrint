@@ -188,6 +188,11 @@ below it is correct about the wrong thing.
   answer is earlier than the question, the question is too far right.
 - **A problem met while fixing another is a separate chain.** Finish the first.
   The newer problem is more vivid, not more important.
+- **Choosing each question is a method, not a hunch.** The failure is the
+  answer; a question is an evidence check that separates one candidate cause
+  from its rivals, and every refuted candidate stays on the record.
+  `docs/SKILLS_LIBRARY.md` section 1 is that method; the chaining below starts
+  once a cause is proven.
 
 ## 3. Five whys on the defect itself
 

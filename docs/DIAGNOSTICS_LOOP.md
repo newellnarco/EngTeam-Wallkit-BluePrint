@@ -109,6 +109,7 @@ path (ITEM_AUTHORING.md), and the story is not "look into X". It carries:
 | Field | Content |
 |---|---|
 | **Evidence** | The normalized signature, the snapshot excerpt, its age, the occurrence count |
+| **Hypotheses** | Every candidate cause considered, the measurement that separates it from the others, and the verdict -- refuted ones stay on the record (`SKILLS_LIBRARY.md` section 1) |
 | **Root cause** | The chained five-whys read (a level naming a person or a moment of inattention is not a cause) |
 | **Solution design** | The Researcher's output, routed the normal way: findings → research → design written to the wall — never code from the researcher |
 | **Prevention** | The rule + regression test + checklist line that retires the class, authored in the same arc |

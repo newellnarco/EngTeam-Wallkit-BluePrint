@@ -381,7 +381,10 @@ difference checkable rather than a matter of how thorough somebody felt.
   to cannot be right or wrong, only quoted.
 
 *Check:* read the chain bottom-up. If the last level does not name something
-that could be changed in the codebase, the analysis stopped early.
+that could be changed in the codebase, the analysis stopped early. How each
+level's cause is chosen and proven before it is chained -- the hypothesis
+ledger, the discriminating measurement, elimination is not attribution -- is
+`docs/SKILLS_LIBRARY.md` section 1.
 
 ---
 

@@ -16,7 +16,8 @@ human stops it -- not between units. Do not ask permission per unit.
 
 ## Phase 1 -- Ground
 
-1. Read `.claude/MAESTRO.md`, `docs/WORKFLOW.md`, `docs/AGENT_ROSTER_SPEC.md`.
+1. Read `.claude/MAESTRO.md`, `docs/WORKFLOW.md`, `docs/AGENT_ROSTER_SPEC.md`,
+   and the headings of `docs/SKILLS_LIBRARY.md`.
 2. Run Courier once and read the snapshot. If the heartbeat is stale or Courier
    fails, **say so before reporting any number from the wall.**
 3. Invoke the **Foreman** (SessionStart pass). Take its integrity flags as the
@@ -59,7 +60,9 @@ written and registered in `.wall/registry/open_runs.json`, then the brief.
 wave, one of them mis-stating a file location (G13). The fields that proved
 load-bearing: agent key, commit identity (G1), temp-file key (G2), file surface,
 the out-of-scope ban, gates-last (G6), interpreter path (G4), and the report
-shape.
+shape. The brief also names the `docs/SKILLS_LIBRARY.md` sections the unit
+touches, beyond the ones the role reads by default -- a unit that calls a
+vendor API gets section 9, one that acts on a live system gets section 10.
 
 ## Phase 4 -- Collect
 
@@ -133,6 +136,9 @@ trigger.
   hook writes these, but `wall doctor` is what proves it).
 - Final report in the same three sections, plus what the next wave should start
   with.
+- Every lesson the wave paid for that the skills library lacks is written up,
+  generic and product-free, for `docs/SKILLS_LIBRARY.md` (its section 19), so
+  the next project starts with it.
 
 ---
 

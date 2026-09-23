@@ -608,6 +608,7 @@ authority on which commands are in that state today.
 | `RECONCILIATION.md` | **BINDING** — the 16 questions answered, the wave's measured lessons |
 | `WALL_STANDARDS.md` | Folder layout, git boundaries, reference-deployment mapping |
 | `AGENT_ROSTER_SPEC.md` | The roles, models, caps, authority |
+| `SKILLS_LIBRARY.md` | The starting skills every role inherits: the genericized experience of earlier deployments -- diagnosis from the answer back to the question, research, review, CI, live actuation, security, compliance, web, classifiers -- mapped to roles, product-free by test |
 | `EVENT_SCHEMA.md` | The ledger contract — read before the first real run |
 | `WORKFLOW.md` | Execution model, dispatch, ambiguity, escalation, integration |
 | `ITEM_AUTHORING.md` | Arcs, stories, bugs — how the Architect writes them, how research enriches them |
