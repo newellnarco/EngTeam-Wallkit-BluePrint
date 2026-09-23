@@ -2735,10 +2735,11 @@ invalid:
   idempotency declares non-security use in code and keeps its algorithm. A
   lint flags fast hashes applied to fields named pin, password or passphrase.
 - **Command:** `grep -rniE 'md5|sha-?(1|224|256|384|512)|createHash|hashlib\.new|MessageDigest|subtle\.digest'
-  <SRC> | grep -iE '(^|[^a-z])(pin|passcode|password|passphrase)'` -- every
-  spelling of the algorithm, and the field name at a leading identifier
-  boundary so `pipeline`, `mapping` and `spinner` stay out (F-CHECK-009,
-  F-SUBSTR-001).
+  <SRC> | grep -E '(^|[^a-zA-Z])(pin|passcode|password|passphrase)|Pin|PIN|Pass(code|word|phrase)|PASS(CODE|WORD|PHRASE)'`
+  -- every spelling of the algorithm; the field name in lower case only at
+  a non-letter boundary, and capitalised or upper case anywhere, so
+  `userPin`, `USER_PIN` and `hashedPassword` are caught while `pipeline`,
+  `mapping` and `spinner` stay out (F-CHECK-009, F-SUBSTR-001).
 
 > class-guard: <lint that fails on any fast-hash call whose input or target
 > name matches pin/password/passphrase, plus a test that the stored record
