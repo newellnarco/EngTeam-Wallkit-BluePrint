@@ -176,6 +176,15 @@ def test_each_default_branch_run_has_its_own_group():
     assert evaluate(pull_request("main", run_id=3), group) not in (first, second)
 
 
+def test_no_branch_name_can_spell_a_default_branch_run_group():
+    """The run-id suffix uses a character git refuses in branch names, so a
+    working branch named like '<default>-<id>' never joins -- and never
+    cancels -- a default-branch run."""
+    group, _ = _recipe()
+    assert evaluate(push("main", 1), group) != evaluate(push("main-1"), group)
+    assert evaluate(push("main", 1), group) != evaluate(pull_request("main-1"), group)
+
+
 def test_working_branch_groups_carry_no_run_id():
     """Only the default branch is unique per run; a working branch must still
     collapse across runs, or superseded pushes are never cancelled."""
