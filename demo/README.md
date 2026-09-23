@@ -48,9 +48,11 @@ project for the screen-to-source map. The editable source is
 
 **That source is not in this repository, and this file says so rather than
 pretending otherwise.** `Wallkit Demo.dc.html` has never been committed here
-(`git log --all --diff-filter=A` finds no `.dc.html`), and no bundler ships
-with the kit, so the re-bundle instruction above cannot currently be followed
-by anyone working from a clone. Until the source and its bundler are committed,
+(`git log --all --diff-filter=A --name-only --pretty=format: -- '*.dc.html'`
+returns nothing -- the pathspec matters, because without it the command lists
+every commit that added any file and proves nothing about this one), and no
+bundler ships with the kit, so the re-bundle instruction above cannot
+currently be followed by anyone working from a clone. Until the source and its bundler are committed,
 `wallkit-demo.html` is a **vendored artefact**: the layout fixes recorded under
 "Embed in a page" were applied to the bundle directly, by editing the inline
 styles the page carries in plain text, and verified by rendering rather than by
