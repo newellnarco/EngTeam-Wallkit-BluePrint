@@ -27,7 +27,7 @@ as a method, not a questionnaire about one product:
 
 ---
 
-## 1. CLAUDE.md.template — the entry point
+## 1. AGENTS.md.template — the entry point
 
 **Required:**
 
@@ -57,6 +57,11 @@ as a method, not a questionnaire about one product:
 - Session-start ritual beyond reading? *(Resident app: verify platform identity,
   run the fleet exchange; probe: "what must a session do before its first
   edit that a README would not say?")*
+- Which agent tools does the team run, and which directories carry truths of
+  their own? The first sets `context.targets` (default: a generated
+  `CLAUDE.md`); the second names the nested `AGENTS.md` files
+  (docs/CONTEXT_FILES.md). Probe: "which rule here is only true under one
+  directory?"
 - Shape contrasts: an appliance's entry point names the capture boundary and
   the lab-vs-live distinction first; a research repo names the citation rule
   first; a feed product names the upstreams and their terms first.

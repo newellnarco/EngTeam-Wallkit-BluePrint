@@ -140,7 +140,8 @@ drifting apart.
   "fast_track": {
     "allow": ["**/*.md", "docs/**/*.docx", "MANIFEST.sha256"],
     "deny":  ["frontend/src/**", "backend/**/*.py", "**/*.bat", "**/*.ps1",
-              ".github/workflows/**", "tools/**", ".wall/config/**", "**/CLAUDE.md"]
+              ".github/workflows/**", "tools/**", ".wall/config/**",
+              "**/AGENTS.md", "**/CLAUDE.md"]
   }
 }
 ```
@@ -149,8 +150,10 @@ Deny beats allow, always. Four entries are worth defending:
 
 - `.github/workflows/**` - a builder editing CI to turn its own tests green is
   the classic escape hatch. It is code.
-- `**/CLAUDE.md` - it is `.md`, so the glob would fast-track it, but it changes
-  the behaviour of every future agent. It is code, and it gets full review.
+- `**/AGENTS.md`, `**/CLAUDE.md` - they are `.md`, so the glob would fast-track
+  them, but they change the behaviour of every future agent. `AGENTS.md` is the
+  master and `CLAUDE.md` its generated copy (docs/CONTEXT_FILES.md); both are
+  code, and both get full review.
 - `tools/**` - wall tooling can corrupt the ledger, and in this deployment it is
   shipped. Not a doc.
 - Every document a generator or prompt-builder consumes - an edit there

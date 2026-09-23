@@ -451,7 +451,7 @@ ADOPT_SKILL = KIT / ".claude" / "skills" / "adopt" / "SKILL.md"
 
 def test_template_intake_covers_every_template_with_both_layers():
     t = _text(TEMPLATE_INTAKE)
-    for name in ("CLAUDE.md.template", "RULES.md.template",
+    for name in ("AGENTS.md.template", "RULES.md.template",
                  "FAILURE_PATTERNS.md.template", "SHIP_CHECKLIST.md.template",
                  "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template",
                  "DOCS_MAP.md.template", "OWNER_DECISIONS.md.template",
@@ -482,7 +482,7 @@ def test_template_intake_graduates_its_own_probes():
 
 
 def test_every_template_points_at_its_question_set():
-    for name in ("CLAUDE.md.template", "RULES.md.template",
+    for name in ("AGENTS.md.template", "RULES.md.template",
                  "FAILURE_PATTERNS.md.template", "SHIP_CHECKLIST.md.template",
                  "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template",
                  "DOCS_MAP.md.template", "OWNER_DECISIONS.md.template",

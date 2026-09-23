@@ -19,7 +19,7 @@ QUESTIONS      Required questions + LLM probes to fill this well:
 
 > Append-only registry of bug classes that shipped and failed. Every entry is a
 > contract: check your change against this list before declaring it ready.
-> Referenced by `CLAUDE.md`; reading it is mandatory before a ship.
+> Referenced by `AGENTS.md`; reading it is mandatory before a ship.
 
 ## Recurring classes - watch these hardest
 

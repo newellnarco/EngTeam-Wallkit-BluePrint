@@ -19,7 +19,7 @@ QUESTIONS      Required questions + LLM probes to fill this well:
 
 > Found, not yet worked. Every issue is recorded here **the moment it is
 > found**, whoever found it: an agent, CI, a hosted reviewer, a scanner, or
-> the owner. Referenced by `CLAUDE.md`. Reading it comes before choosing a
+> the owner. Referenced by `AGENTS.md`. Reading it comes before choosing a
 > CI path.
 
 **Three records, three tenses** (`docs/WALL_STANDARDS.md` section 4). The

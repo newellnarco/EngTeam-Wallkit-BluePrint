@@ -23,7 +23,7 @@ README = KIT / "README.md"
 OPEN_QUESTIONS = KIT / "docs" / "OPEN_QUESTIONS.md"
 
 EXPECTED_TEMPLATES = [
-    "CLAUDE.md.template",
+    "AGENTS.md.template",
     "RULES.md.template",
     "FAILURE_PATTERNS.md.template",
     "KNOWN_ISSUES.md.template",

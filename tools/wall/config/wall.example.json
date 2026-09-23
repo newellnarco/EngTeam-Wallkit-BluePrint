@@ -32,6 +32,7 @@
       ".github/workflows/**",
       "tools/**",
       ".wall/config/**",
+      "**/AGENTS.md",
       "**/CLAUDE.md"
     ],
     "significant": [
@@ -66,6 +67,10 @@
   "_integrations": "Optional host seams; absent or null means the wall stays a purely read-only static page. queue_api = {health, queue, add}: same-origin paths to the host's work-queue REST surface. The page shows EXECUTE buttons (per item detail + per arc) ONLY after GET health answers {ok:true}; EXECUTE POSTs add with {source:'wall_click', priority:'P2', directive: execute_item|execute_arc, target_key|target_arch, title}. agents_feed: a same-origin path to a live wave-status JSON ({updated, headcount:{developers,researchers,cap}, completed, in_progress, new}) rendered on the CREW tab, polled every 5s while that tab is open.",
   "queue_api": null,
   "agents_feed": null,
+  "context": {
+    "targets": ["CLAUDE.md"],
+    "_comment": "Tool copies generated from every AGENTS.md by tools/wall/context_sync.py (docs/CONTEXT_FILES.md). CLAUDE.md and GEMINI.md are written beside every AGENTS.md; .github/copilot-instructions.md and .cursor/rules/agents.mdc at the root only. Absent means [\"CLAUDE.md\"]."
+  },
   "research": {
     "network": "none",
     "_comment": "none | allowlist | session-default. Local-only by default; researchers state the mode in every finding. See .claude/agents/researcher.md section 2.",

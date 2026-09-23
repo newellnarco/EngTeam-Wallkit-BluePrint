@@ -1,11 +1,16 @@
 <!--
-TEMPLATE: CLAUDE.md
-WHAT THIS IS  The entry point every agent session reads first: what the project
-              is, where it stands today, and where the binding rules live.
+TEMPLATE: AGENTS.md
+WHAT THIS IS  The tool-agnostic entry point every agent session reads first:
+              what the project is, where it stands today, and where the
+              binding rules live. It is the MASTER; CLAUDE.md and the other
+              tool files are generated copies of it.
 WHY IT EXISTS The wall kit assumes a session can orient itself in one file
-              without reading the tree (docs/WORKFLOW.md, "Dispatch").
-HOW TO USE    Copy to the repo root as CLAUDE.md, replace every <PLACEHOLDER>,
-              delete this comment block and any section that does not apply.
+              without reading the tree (docs/WORKFLOW.md, "Dispatch"), and
+              every agent tool should read the same one (docs/CONTEXT_FILES.md).
+HOW TO USE    Copy to the repo root as AGENTS.md, replace every <PLACEHOLDER>,
+              delete this comment block and any section that does not apply,
+              then run `python tools/wall/context_sync.py sync` to generate
+              CLAUDE.md (and any tool copies configured). Never edit a copy.
               Keep it SHORT. This file is loaded into agent context on every
               run and into some hosted reviewers' prompts - see
               BUDGETED_DOCS.md before letting it grow.
@@ -13,7 +18,7 @@ QUESTIONS      Required questions + LLM probes to fill this well:
               docs/TEMPLATE_INTAKE.md section 1.
 -->
 
-# CLAUDE.md - instructions for AI assistants working on <PROJECT_NAME>
+# AGENTS.md - instructions for AI agents working on <PROJECT_NAME>
 
 > If you are an agent writing or modifying code in this repository, read this
 > file before writing anything, then read [`RULES.md`](RULES.md) in full.
@@ -54,23 +59,13 @@ this file disagree, this file is wrong; flag it.
 |---|---|
 | <SUBSYSTEM_1> | <lit / partial / stub / planned> - <one line> |
 | <SUBSYSTEM_2> | <lit / partial / stub / planned> - <one line> |
-| <SUBSYSTEM_3> | <lit / partial / stub / planned> - <one line> |
 
 Test counts: <N> <unit>, <N> <integration>, <N> <system>. Refreshed by
 <WHICH_COMMAND_OR_JOB>.
 
-### Shipped recently
-
-- **<ITEM_KEY>** - <one line: what landed, and the PR number>.
-- **<ITEM_KEY>** - <one line>.
-
-### In flight
-
-- **<ITEM_KEY>** - <what is open, who owns it, what unblocks it>.
-
-### Known issues, currently open
-
-- **<SYMPTOM>** - <cause if known; the workaround; the item key tracking it>.
+- **Shipped recently:** **<ITEM_KEY>** - <what landed, and the PR number>.
+- **In flight:** **<ITEM_KEY>** - <what is open, who owns it, what unblocks it>.
+- **Known issues:** **<SYMPTOM>** - <cause if known; workaround; item key>.
 
 ---
 
@@ -103,13 +98,40 @@ you add a doc; a doc with no row here is a doc nobody will read.
 
 ---
 
-## Conventions
+## Where directory-specific rules live
+
+This file holds only what is true everywhere. A directory with its own
+technical truths (a backend's migration rules, a frontend's component
+conventions) carries its own `AGENTS.md` beside the code; an agent working
+there reads that file after this one, and the nested file wins on its own
+subtree. Nested files: <LIST_OF_NESTED_AGENTS_MD_OR_NONE>.
+
+---
+
+## Preferred
+
+- <PREFERRED_PRACTICE: one line, e.g. "extend the existing X helper">.
+- <PREFERRED_PRACTICE>.
+
+## Avoid
+
+- <AVOIDED_PRACTICE: one line and the reason, e.g. "new dependencies - RULES.md
+  hard rule N">.
+- <AVOIDED_PRACTICE>.
+
+---
+
+## Commands
+
+```
+<TEST_COMMAND>
+<LINT_AND_STATIC_GATE_COMMANDS>
+python tools/wall/context_sync.py check
+```
 
 - **Branches:** <BRANCH_CONVENTION>. Every change rides a pull request.
 - **Commits:** <COMMIT_CONVENTION>.
 - **Item keys:** <KEY_CONVENTION, e.g. ARC-01 / ST-104 / BG-021>.
-- **Tests:** <WHERE_TESTS_LIVE> - <HOW_TO_RUN_THEM>.
-- **Lint and static gates:** <COMMANDS>.
 
 ---
 

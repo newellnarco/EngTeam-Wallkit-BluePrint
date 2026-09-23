@@ -19,7 +19,7 @@ the kit is dropped into.
 
 | Function | Filename hints | Content signatures that outrank filenames |
 |---|---|---|
-| Entry point | `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, README | "read this first", current-state section, a doc index, pointers to rules |
+| Entry point | `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, README | "read this first", current-state section, a doc index, pointers to rules |
 | Standing rules | `RULES.md`, `STANDING_RULES.md`, conventions docs | imperative "never/always" lists, an owner-only change rule, numbered hard rules |
 | Failure registry | `KNOWN_FAILURE_PATTERNS.md`, postmortem folders | symptom/root-cause/check triples, incident ids (F-XXX-NNN style), "resolved" sections |
 | Ship checklist | `SHIP_CHECKLIST.md`, release runbooks, PR templates | checkbox lists gating a release/merge, "before you ship" |
@@ -75,6 +75,12 @@ For each function, by inventory verdict:
   **to the host's document**, never as a second rulebook.
 - **missing** -> copy the kit template and fill it via its question set
   (`docs/TEMPLATE_INTAKE.md` -- required questions first, then the probes).
+- **entry point held only in a tool-specific file** (a hand-written
+  `CLAUDE.md`, `GEMINI.md` or Copilot instruction file, no `AGENTS.md`) ->
+  propose `python tools/wall/context_sync.py sync --adopt`: the content
+  becomes the tool-agnostic `AGENTS.md` master and the tool file a
+  generated copy (`docs/CONTEXT_FILES.md`). The engineer says go. With an
+  `AGENTS.md` already present it refuses; the two go to `consolidate`.
 - **split / duplicated / conflicting** -> queue for `consolidate`; map picks
   the **document of record** provisionally (the one other files already
   point at, else the most-recently-maintained) and says so in the report.

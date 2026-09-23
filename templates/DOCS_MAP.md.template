@@ -73,6 +73,7 @@ column is a list of files, not a sentiment.
 | Component re-architected or replaced | The architecture doc section, the entry point's current-state block, the plan or roadmap item it closes |
 | Component retired | Every document that names it (search, do not recall), plus a superseding note on the doc that replaces it |
 | Bug class discovered | `FAILURE_PATTERNS.md` entry **and** the paired `SHIP_CHECKLIST.md` item, in the same change |
+| Agent context changed (`AGENTS.md`, root or nested) | The master only - never a generated copy - then `python tools/wall/context_sync.py sync`, committing the regenerated copies in the same change |
 | Rule or standing directive issued | `RULES.md` (or the host's equivalent) in the same working chunk it was issued - a directive that exists only in a conversation is a bug |
 | Decision made | One decision record, and the superseding marks in both directions |
 | <CHANGE_KIND> | <DOC_SURFACES> |

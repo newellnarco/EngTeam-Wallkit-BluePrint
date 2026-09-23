@@ -279,7 +279,7 @@ script deliberately leaves to you.
 
 | Template | Becomes | What it is |
 |---|---|---|
-| `templates/CLAUDE.md.template` | `CLAUDE.md` | Entry point: what the project is, current state, doc index, pointer to the rules. |
+| `templates/AGENTS.md.template` | `AGENTS.md` | Entry point, tool-agnostic: what the project is, current state, doc index, pointer to the rules. `CLAUDE.md` and other tool copies are generated from it (`docs/CONTEXT_FILES.md`). |
 | `templates/RULES.md.template` | `RULES.md` | The binding rules. Part 1 is yours to write; Part 2 ships as-is. |
 | `templates/FAILURE_PATTERNS.md.template` | `FAILURE_PATTERNS.md` | Append-only registry of bug classes: seventeen seeded general ones, plus a library of inherited classes genericized from three production deployments (a resident desktop app, a network appliance and a research-publishing repo) that await their first occurrence here. |
 | `templates/KNOWN_ISSUES.md.template` | `KNOWN_ISSUES.md` | The intake: every finding recorded on arrival, before it is worked, grouped into families by shared mechanism; it leaves only as guarded (a registry class) or declined with a reason. |
@@ -393,7 +393,7 @@ repository has grown some of these under names of its own. Find them:
 
 | Function | Common names | What the kit expects it to do |
 |---|---|---|
-| Entry point | `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, the README | Orient a session: what this is, where it stands, where the rules are |
+| Entry point | `AGENTS.md`, `CLAUDE.md`, `CONTRIBUTING.md`, the README | Orient a session: what this is, where it stands, where the rules are |
 | Standing rules | `RULES.md`, `STANDING_RULES.md`, a "conventions" doc | Bind behaviour; change only by the owner, in writing |
 | Failure registry | `KNOWN_FAILURE_PATTERNS.md`, a postmortem folder | Name bug classes already paid for, each with a check |
 | Ship checklist | `SHIP_CHECKLIST.md`, a release runbook, a PR template | Gate a change before it ships |
@@ -619,6 +619,7 @@ authority on which commands are in that state today.
 | `DIAGNOSTICS_LOOP.md` | Running system → shipped evidence → automated review → story with design; findings recorded on arrival, liveness proven from execution |
 | `TECH_EVALUATION.md` | Measure-before-flip: bench, flag protocol, decision record, re-eval triggers; metered-service economics and live-lane comparison controls |
 | `UPGRADE_DISCIPLINE.md` | The routine bump nobody evaluated: semver classes, the transitive native-wheel class, the cold soak, pins that lift |
+| `CONTEXT_FILES.md` | Agent context files: one `AGENTS.md` master per directory, generated tool copies (`CLAUDE.md`, ...) with a do-not-edit banner, nested files for directory-specific truths, `context_sync.py sync` / `check` |
 | `GIT_HOOKS.md` | The free local gate: hooks as step 0, named escape hatches instead of `--no-verify`, line-ending pinning, baseline ratchets |
 | `LLM_BOOTSTRAP.md` | The day-zero procedure an LLM session follows to stand all of this up |
 | `DEPLOYMENT_TARGETS.md` | Docker, VMs, Kubernetes — who runs the timer, serves, ships |

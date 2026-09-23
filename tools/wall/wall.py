@@ -4,7 +4,8 @@
 Local-only: no network calls anywhere in this file.
 
 Ledger and workflow, owned here: run-once, doctor, classify, agents, rebuild,
-diff-state, trace, why, answer, fast-track.
+diff-state, trace, why, answer, fast-track. `context` dispatches to
+`context_sync.py` (AGENTS.md masters and their generated tool copies).
 
 Plumbing, dispatched: install / register / unregister / verify / uninstall /
 serve go to `service.py`; ship / fetch-events go to `shipper.py`. Both imports
@@ -1220,6 +1221,19 @@ _INSTALL_NEEDS = ("a platform adapter in install/. See INSTALL.md — "
 _REGISTRY_NEEDS = "the machine-wide registry at %USERPROFILE%\\.wall\\registry.json"
 
 
+def cmd_context(a):
+    """`wall context sync|check`: the context-file sync (context_sync.py),
+    lazy like the other dispatched commands."""
+    try:
+        import context_sync  # noqa: PLC0415  (deliberately lazy)
+    except ImportError:
+        stub("context", "tools/wall/context_sync.py: AGENTS.md masters "
+                        "and their generated tool copies")
+        return 2
+    return context_sync.run(Path(a.repo), a.action, adopt=a.adopt,
+                            symlink=a.symlink, dry_run=a.dry_run)
+
+
 def cmd_install(a):
     return via_service("install", a, _INSTALL_NEEDS)
 
@@ -1391,6 +1405,17 @@ def main() -> int:
     s.add_argument("--trace", help="trace_id for the ledger event")
     s.add_argument("--session", default="s_human")
     s.set_defaults(fn=cmd_fast_track)
+
+    s = sub.add_parser("context", help="AGENTS.md masters -> generated "
+                                       "CLAUDE.md and other tool copies")
+    s.add_argument("action", choices=["sync", "check"])
+    s.add_argument("--adopt", action="store_true",
+                   help="sync: move a hand-written copy into a NEW AGENTS.md")
+    s.add_argument("--symlink", action="store_true",
+                   help="sync: relative symlinks instead of copies")
+    s.add_argument("--dry-run", action="store_true",
+                   help="sync: report only, write nothing")
+    s.set_defaults(fn=cmd_context)
 
     # ---- plumbing, dispatched to service.py / shipper.py -----------------
     s = sub.add_parser("install", help="create the machine-wide timer")

@@ -17,8 +17,8 @@ run is indistinguishable from a run that never started.
 
 In order. Each step exists because skipping it produced a measured failure.
 
-1. **Read the root context documents.** The host's `CLAUDE.md` (or equivalent
-   entry point), `RULES.md`, `FAILURE_PATTERNS.md`, `SHIP_CHECKLIST.md`,
+1. **Read the root context documents.** The host's `AGENTS.md` (or its generated
+   `CLAUDE.md`, or equivalent entry point), `RULES.md`, `FAILURE_PATTERNS.md`, `SHIP_CHECKLIST.md`,
    `BEST_PRACTICES.md` — whatever the adoption mapped them to (README adoption
    runbook). These are the standing rules; a session that has not read them
    will re-learn one the expensive way.

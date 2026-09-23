@@ -15,7 +15,8 @@ carries in prose:
            tools/wall/ + the process corpus + frontend theme into the
            product repo, materialize .wall/{config,registry}, copy the
            context-document templates that are MISSING (never over an
-           existing file), stamp the kit source for later upgrades, and
+           existing file), generate CLAUDE.md from the AGENTS.md master
+           (context_sync.py), stamp the kit source for later upgrades, and
            emit the engineer's MCP client configs.
   adopt    the existing-repo runbook's INVENTORY, automated: detect
            what already serves each adoption function (entry point,
@@ -71,7 +72,7 @@ KIT_OWNED_PREFIXES = ("tools/wall", "frontend/theme")
 #: Context documents `fresh` materializes at the product root — only
 #: where the target does not already exist.
 TEMPLATE_TARGETS = {
-    "CLAUDE.md.template": "CLAUDE.md",
+    "AGENTS.md.template": "AGENTS.md",
     "RULES.md.template": "RULES.md",
     "FAILURE_PATTERNS.md.template": "FAILURE_PATTERNS.md",
     "KNOWN_ISSUES.md.template": "KNOWN_ISSUES.md",
@@ -88,7 +89,7 @@ TEMPLATE_TARGETS = {
 #: Used by `adopt` to answer "what already serves this?" per the README's
 #: existing-repo runbook — detection is a report, never a judgment.
 ADOPTION_FUNCTIONS: dict[str, tuple[str, ...]] = {
-    "entry point": ("CLAUDE.md", "AGENTS.md", "README.md"),
+    "entry point": ("AGENTS.md", "CLAUDE.md", "README.md"),
     "standing rules": ("RULES.md", "STANDING_RULES.md", "CONTRIBUTING.md"),
     "failure registry": ("FAILURE_PATTERNS.md", "KNOWN_FAILURE_PATTERNS.md"),
     "known-issues intake": ("KNOWN_ISSUES.md", "docs/KNOWN_ISSUES.md"),
@@ -229,6 +230,46 @@ def _next_steps(repo: Path, mode: str) -> None:
          "queue_api in .wall/config/wall.json (docs/MCP_INTEGRATION.md).")
 
 
+def _context():
+    """The context-file sync (context_sync.py), imported lazily: it
+    imports this module for KIT_OWNED_PREFIXES, so a top-level import
+    here would be circular."""
+    sys.path.insert(0, str(Path(__file__).parent))
+    import context_sync
+    return context_sync
+
+
+def _unmastered(repo: Path) -> list[str]:
+    """Hand-written tool files (a CLAUDE.md nobody generated) with no
+    AGENTS.md beside them: the entry point exists, under a tool's name."""
+    cs = _context()
+    try:
+        entries = cs.scan(repo)
+    except cs.ConfigError:
+        return []
+    return [e.target for e in entries if e.status == "handwritten"
+            and not (repo / e.master).exists()]
+
+
+def _context_copies(repo: Path, apply: bool, pending: bool = False) -> int:
+    """Generate the tool copies from every AGENTS.md (context_sync).
+    Hand-written files are reported, never overwritten. `pending` is a
+    dry run's AGENTS.md that --apply would write. Returns files written."""
+    cs = _context()
+    if pending and not apply:
+        for target in cs.DEFAULT_TARGETS:
+            _say(f"  write   {target}  <- {cs.MASTER}  (generated)")
+        return 0
+    try:
+        res = cs.sync(repo, apply=apply)
+    except cs.ConfigError as e:
+        _say(f"  skip    context copies: {e}")
+        return 0
+    for line in res.lines:
+        _say(line)
+    return res.written
+
+
 def preflight() -> list[str]:
     """Verify the dependencies the kit actually has (DEC-0022): the kit
     bundles nothing on purpose (DEC-0017 — stdlib only), so 'dependencies
@@ -275,7 +316,13 @@ def cmd_fresh(a) -> int:
     for prefix in VENDORED:
         _copy_tree(KIT_ROOT / prefix, repo / prefix, apply)
     _say("\ncontext documents (missing ones only):")
+    unmastered = [t for t in _unmastered(repo) if "/" not in t]
     for template, target in TEMPLATE_TARGETS.items():
+        if target == "AGENTS.md" and unmastered:
+            _say(f"  skip   AGENTS.md  ({', '.join(unmastered)} is "
+                 f"hand-written here; make it the master with: python "
+                 f"tools/wall/context_sync.py sync --adopt)")
+            continue
         src = KIT_ROOT / "templates" / template
         _write(repo / target, src.read_text(encoding="utf-8"), apply, target)
     _say("\nwall state:")
@@ -287,6 +334,10 @@ def cmd_fresh(a) -> int:
     _write(repo / ".wall" / "registry" / "agents.md",
            "# Agent roster\n\n(claim with `wall agents claim`)\n", apply,
            ".wall/registry/agents.md")
+    _say("\nagent context copies (generated from AGENTS.md, "
+         "docs/CONTEXT_FILES.md):")
+    _context_copies(repo, apply, pending=not unmastered
+                    and not (repo / "AGENTS.md").exists())
     _stamp(repo, apply)
     if a.mcp:
         _say("\nengineer interface configs (--role engineer, DEC-0019):")
@@ -310,6 +361,10 @@ def cmd_adopt(a) -> int:
             gaps.append(function)
             _say(f"  GAP     {function:<18} -> none found "
                  f"(looked for: {', '.join(names)})")
+    for target in _unmastered(repo):
+        _say(f"  NOTE    {target} is hand-written with no AGENTS.md master "
+             f"beside it; to make it one (tool-agnostic, generated copies): "
+             f"python tools/wall/context_sync.py sync --adopt")
     _say("\nvendor the machine only (tools/wall + process docs + theme; "
          "your documents stay the documents of record, and your decision "
          "log stays YOURS — the kit's own rulings are read upstream):")
@@ -382,6 +437,9 @@ def cmd_upgrade(a) -> int:
                 changed += 1
                 if apply:
                     f.unlink()
+    _say("\nagent context copies (regenerable; hand-written files are "
+         "never touched):")
+    changed += _context_copies(repo, apply)
     if changed == 0:
         _say("  nothing to change — already at this kit")
     _stamp(repo, apply)
@@ -460,6 +518,16 @@ def cmd_remove(a) -> int:
                 shutil.rmtree(tdir)
     _say("  keep    docs/  (process corpus may be cited by YOUR documents; "
          "delete deliberately, not by script)")
+    # ValueError covers context_sync.ConfigError: a bad wall.json must
+    # not stop an uninstall, and the copies stay either way.
+    with contextlib.suppress(ValueError, OSError):
+        for e in _context().scan(repo):
+            if e.status in ("ok", "stale", "edited", "orphan") and not (
+                    repo / e.target).is_symlink():
+                _say(f"  keep    {e.target}  (generated from {e.master}; its "
+                     f"banner names tools/wall/context_sync.py, which this "
+                     f"remove deletes -- keep, edit or delete it "
+                     f"deliberately)")
     _say("\nengineer interface entries (only the wall's own):")
     for _client, (rel, key) in MCP_CONFIGS.items():
         path = repo / rel
@@ -500,7 +568,7 @@ def cmd_remove(a) -> int:
     _say("  - the machine timer: `wall uninstall` BEFORE removing "
          "tools/wall (it needs the adapter code), or your platform's "
          "scheduler UI after")
-    _say("  - context documents (CLAUDE.md, RULES.md, ...) and docs/: "
+    _say("  - context documents (AGENTS.md, RULES.md, ...) and docs/: "
          "they are your documents now — keep, edit or delete them "
          "deliberately")
     return 0

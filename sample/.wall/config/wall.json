@@ -61,6 +61,7 @@
       ".github/workflows/**",
       "tools/**",
       ".wall/config/**",
+      "**/AGENTS.md",
       "**/CLAUDE.md"
     ],
     "significant": [
