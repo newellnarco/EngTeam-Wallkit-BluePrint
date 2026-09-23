@@ -1525,8 +1525,8 @@ configuration and fails if any matches a criteria file.
 Gates, pipelines, release selection and the seams with external services. The
 Integrator reads 8.A before editing a workflow or a pre-push gate. A Builder
 wiring a new external source reads 8.B. Trigger and concurrency design is
-already covered by the failure library (F-CI-001, F-CI-002); nothing here
-overrides it.
+in the failure library (F-CI-001, F-CI-002); 8.14 is the one trade-off the
+library leaves to the project.
 
 ### 8.A Gates and pipelines
 
@@ -1717,6 +1717,26 @@ password flags, and that running it twice is a no-op.
 *Roles:* integrator, builder
 
 ---
+
+**8.14 Keep a second trigger path for a merge gate only with one collapsing
+concurrency group.** A pipeline that runs only on pull-request events has one
+point of failure: if the platform stops creating those runs, a change merges
+with no CI. A project may add `push` on working branches as a second path. It
+must then key one concurrency group on the branch name for both events
+(`head_ref || ref_name`), cancel the superseded run, and pin the group in a
+test that evaluates it under both payloads. On a pull-request event the tested
+commit is the merge commit, not the head, so the two paths test different
+trees; say which one the required check reads.
+*Why:* The platform stopped creating pull-request runs for a day, and a release
+merged with no CI. The opposite failure is the costliest in the corpus: push on
+every branch with no collapsing group billed the whole pipeline twice per push.
+*Check:* A test loads the workflow, evaluates the concurrency group under a
+push payload and a pull-request payload for the same branch, and asserts they
+are equal and cancelling. Branches with no pull request are a known cost,
+recorded as accepted.
+*Roles:* integrator, architect, maestro
+(Extends `templates/FAILURE_PATTERNS.md.template` F-CI-001 and F-CI-002, and
+`docs/FAST_TRACK.md`; DEC-0035.)
 
 ## 9. Integrating with systems you don't own
 

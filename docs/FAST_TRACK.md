@@ -152,7 +152,11 @@ decision about *what* to run:
   commit bills the whole pyramid for commits nobody has looked at yet — the
   single biggest blowout in the corpus this kit was mined from. The work-in-
   progress signal is the local gate; the hosted one is for a head somebody is
-  asking about.
+  asking about. A project may deliberately keep `push` on working branches as
+  a second trigger path, so a dropped pull-request event cannot merge a change
+  with no CI (DEC-0035) -- but only together with the next lever, one group
+  covering both events, and knowing that branches with no pull request then
+  bill runs too. This kit's own CI keeps the default-branch scope.
 - **One concurrency group per branch, cancelling in progress.** Rapid pushes
   then collapse to one run of the latest head instead of N runs of N heads,
   most of which are already superseded. This is the setting that makes "never

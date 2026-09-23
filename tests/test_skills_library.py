@@ -113,7 +113,7 @@ def test_sections_run_without_gaps():
 #: ("Stated once, as ...") counts: it keeps its number. Retiring or adding an
 #: entry is deliberate, and this table is where that is recorded.
 ENTRIES_PER_SECTION = {
-    1: 22, 2: 10, 3: 9, 4: 9, 5: 12, 6: 15, 7: 10, 8: 13, 9: 5,
+    1: 22, 2: 10, 3: 9, 4: 9, 5: 12, 6: 15, 7: 10, 8: 14, 9: 5,
     10: 8, 11: 17, 12: 5, 13: 8, 14: 8, 15: 26, 16: 15, 17: 12, 18: 6,
 }
 

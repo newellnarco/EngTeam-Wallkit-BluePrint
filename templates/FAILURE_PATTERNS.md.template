@@ -3921,12 +3921,19 @@ invalid:
   ready_for_review, synchronize, merged, push to default branch) and assert
   each lane's intended action per transition, parsed from the workflow's `on:`
   mapping (note: a lenient YAML loader reads a bare `on:` key as boolean true).
-  `push` is scoped to the default branch when `pull_request` gates merges.
-  Sibling lanes implementing one policy are asserted to share it.
+  `push` is scoped to the default branch when `pull_request` gates merges,
+  unless the project deliberately keeps `push` on working branches as a
+  second trigger path, so that a dropped pull-request event cannot let a
+  change merge with no CI (DEC-0035). Then push and pull_request for one
+  branch share ONE concurrency group keyed on the branch name that cancels
+  the superseded run (F-CI-002), and a test evaluates the group under both
+  payloads and asserts they are equal. Sibling lanes implementing one policy
+  are asserted to share it.
 - **Command:** `<PARSE_ON_FROM_EVERY_WORKFLOW_AND_DIFF_TRANSITION_X_LANE_MATRIX>`
 
 > class-guard: <test that fails on push-to-all-branches alongside
-> pull_request, and on sibling review lanes whose draft policy differs>
+> pull_request unless both events resolve to one cancelling concurrency
+> group, and on sibling review lanes whose draft policy differs>
 > VARIANT: a `paths:` filter on one trigger event and not the other, so the
 > same change runs a lane on push and skips it on the pull request.
 
@@ -3944,7 +3951,8 @@ invalid:
   a comment supersedes nothing. Cancellation was set by event type, not by
   what the event means.
 - **Check:** Key the concurrency group on the branch name for every event
-  that should collapse. Gate `cancel-in-progress` on the superseding event
+  that should collapse (`github.head_ref || github.ref_name` is the branch
+  under both pull_request and push, where `github.ref` is not). Gate `cancel-in-progress` on the superseding event
   only (a new push). For each trigger, write down its cost and who reads its
   result. Read an intermittent `cancelled` with no error from the run list
   (several runs in one second), not from the run log.
