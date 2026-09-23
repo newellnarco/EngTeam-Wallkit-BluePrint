@@ -8,12 +8,22 @@ no external assets. Open it directly or serve it from any static host.
 ```html
 <iframe src="/demos/wallkit-demo.html"
         title="EngTeam Wallkit interactive demo"
-        style="width:100%;height:1100px;border:0"
+        style="width:100%;height:850px;border:0"
         loading="lazy"></iframe>
 ```
 
-Give it at least 1100px of height and 1000px of width for the side-by-side
+Give it at least 850px of height and 1000px of width for the side-by-side
 layout. Below roughly 1000px the guided tour wraps under the wall on its own.
+
+**The height figure is measured, not believed.** Rendered in headless Chromium
+at four frame sizes, the document floor is **812px** (846px with the tallest
+tab open), and at 1920x904 it fits with no scroll at all. It was 1152px until
+three things were fixed: the wall pane's frame was a hard 860px over a board
+that already scrolls internally, the guided-tour column grew to its content
+with no cap, and -- the one that guaranteed a scrollbar on every screen
+regardless of content -- the page root combined `min-height:100%` with 68px of
+vertical padding under `content-box`, so the document was always viewport
+height plus 68px. The root is `border-box` now.
 
 ## What it does
 
@@ -35,3 +45,14 @@ Dark is the default theme. Theme tokens are embedded verbatim from
 Built from `newellnarco/EngTeam-Wallkit-BluePrint@main`. See `github.md` in the
 project for the screen-to-source map. The editable source is
 `Wallkit Demo.dc.html`; re-bundle after any change.
+
+**That source is not in this repository, and this file says so rather than
+pretending otherwise.** `Wallkit Demo.dc.html` has never been committed here
+(`git log --all --diff-filter=A` finds no `.dc.html`), and no bundler ships
+with the kit, so the re-bundle instruction above cannot currently be followed
+by anyone working from a clone. Until the source and its bundler are committed,
+`wallkit-demo.html` is a **vendored artefact**: the layout fixes recorded under
+"Embed in a page" were applied to the bundle directly, by editing the inline
+styles the page carries in plain text, and verified by rendering rather than by
+rebuilding. A future re-bundle from the real source will silently discard them
+unless the same three changes are made there too.
