@@ -159,10 +159,12 @@ Directories never searched: dot-directories, dependency and cache trees
 
 ## 5. Where the check runs
 
-- **Hooks** (docs/GIT_HOOKS.md): the pre-commit runs `sync` and re-stages
-  the copies, warning on a refusal; the pre-push runs `check`, which blocks
-  on a definite finding only.
-- **CI**: the same command, as one step of the static gates.
+- **Host hooks** (docs/GIT_HOOKS.md): the kit installs no hook for this.
+  A host's pre-commit should run `sync` and re-stage the copies, warning on
+  a refusal; a host's pre-push should run `check`, which blocks on a
+  definite finding only.
+- **Host CI**: a host's static gates should run `check`. The kit's own CI
+  does not, because the kit carries no `AGENTS.md` of its own.
 - **Ship checklist**: one line in section D, derived files.
 - **Bootstrap**: `fresh` materializes `AGENTS.md` and generates `CLAUDE.md`;
   `adopt` reports a hand-written `CLAUDE.md` and the `sync --adopt` command

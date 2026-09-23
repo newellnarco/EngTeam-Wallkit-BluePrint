@@ -37,6 +37,7 @@ Stdlib only (DEC-0017).
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -179,7 +180,7 @@ def find_dirs(repo: Path, targets: list[str]) -> list[Path]:
 @dataclass
 class Entry:
     """One target's verdict. `status` is one of: ok, missing, stale,
-    edited, handwritten, foreign, orphan."""
+    edited, handwritten, foreign, orphan, badmaster."""
     target: str          # repo-relative POSIX path of the copy
     master: str          # repo-relative POSIX path of its master
     status: str
@@ -199,6 +200,13 @@ def classify(repo: Path, d: Path, target: str) -> Entry | None:
     master_rel = _rel(d / MASTER)
     trel = _rel(d / target)
     has_master = master_path.is_file()
+    if has_master:
+        try:
+            read(master_path)
+        except UnicodeDecodeError:
+            return Entry(trel, master_rel, "badmaster",
+                         f"{master_rel} is not UTF-8 text -- re-save it as "
+                         f"UTF-8; no copy is written from it")
     if tpath.is_symlink():
         if has_master and os.path.realpath(tpath) == os.path.realpath(
                 master_path) and target != CURSOR_TARGET:
@@ -262,12 +270,18 @@ def _link(repo: Path, e: Entry) -> str | None:
         return "a Cursor rule needs frontmatter, so it is always a copy"
     if os.name == "nt":
         return "symlinks are unreliable on Windows checkouts"
+    # Link at a temporary name, then move it over the target: a failure
+    # anywhere leaves the existing copy exactly where it was.
+    tmp = tpath.with_name(tpath.name + ".context-sync-tmp")
     try:
         tpath.parent.mkdir(parents=True, exist_ok=True)
-        if tpath.is_symlink() or tpath.exists():
-            tpath.unlink()
-        os.symlink(os.path.relpath(repo / e.master, tpath.parent), tpath)
+        if tmp.is_symlink() or tmp.exists():
+            tmp.unlink()
+        os.symlink(os.path.relpath(repo / e.master, tpath.parent), tmp)
+        os.replace(tmp, tpath)
     except OSError as exc:
+        with contextlib.suppress(OSError):
+            tmp.unlink()
         return f"symlink failed ({exc.strerror or exc})"
     return None
 
@@ -340,6 +354,9 @@ def sync(repo: Path, *, adopt: bool = False, symlink: bool = False,
                 if reason is None:
                     written += 1
                     lines.append(f"  link    {e.target}  -> {e.master}")
+                else:
+                    lines.append(f"  note    {e.target}: kept the copy, not "
+                                 f"linking -- {reason}")
             continue
         if e.status in ("missing", "stale"):
             verb = "write" if e.status == "missing" else "refresh"
@@ -372,6 +389,7 @@ def sync(repo: Path, *, adopt: bool = False, symlink: bool = False,
             "edited": f"a generated copy was edited ({e.detail}). Move the "
                       f"edit into {e.master}, delete the copy, re-run sync",
             "foreign": f"{e.detail}; not ours to replace",
+            "badmaster": e.detail,
         }[e.status]
         lines.append(f"  REFUSE  {e.target}  {advice}")
     return Result(lines, problems, written)

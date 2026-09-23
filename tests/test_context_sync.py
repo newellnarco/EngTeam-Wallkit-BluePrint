@@ -306,6 +306,35 @@ def test_symlink_failure_falls_back_to_copy(tmp_path, monkeypatch):
     assert cs.check(repo).code == 0
 
 
+def test_failed_link_keeps_an_existing_good_copy(tmp_path, monkeypatch):
+    """A link that fails must not delete the copy it was replacing."""
+    repo = _repo(tmp_path)
+    assert cs.sync(repo).code == 0
+    before = (repo / "CLAUDE.md").read_bytes()
+
+    def boom(*_a, **_k):
+        raise OSError(1, "not permitted")
+    monkeypatch.setattr(cs.os, "symlink", boom)
+    res = cs.sync(repo, symlink=True)
+    assert (repo / "CLAUDE.md").read_bytes() == before
+    assert not list(repo.rglob("*.context-sync-tmp"))
+    assert any("kept the copy, not linking -- symlink failed" in ln
+               for ln in res.lines)
+    assert cs.check(repo).code == 0
+
+
+def test_non_utf8_master_is_a_finding_not_a_crash(tmp_path):
+    repo = _repo(tmp_path)
+    (repo / "AGENTS.md").write_bytes("# r\u00e9gles\n".encode("cp1252"))
+    res = cs.sync(repo)
+    assert res.code == 1
+    assert not (repo / "CLAUDE.md").exists(), "no copy from an unreadable master"
+    assert any("not UTF-8" in ln for ln in res.lines)
+    assert _statuses(repo)["CLAUDE.md"] == "badmaster"
+    assert cs.check(repo).code == 1
+    assert (repo / "backend" / "CLAUDE.md").exists(), "other masters still sync"
+
+
 # ------------------------------------------------------ the contract
 
 def test_banner_render_and_parse_contract():

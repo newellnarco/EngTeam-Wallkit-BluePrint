@@ -55,7 +55,23 @@ def tracked_text_files(root: Path = KIT) -> list[str]:
             for f in filenames:
                 paths.append(Path(dirpath, f).relative_to(root).as_posix())
     return sorted(p for p in paths
-                  if Path(p).suffix in TEXT_SUFFIXES and not p.startswith(".git/"))
+                  if not p.startswith(".git/") and _is_text(root, p))
+
+
+def _is_text(root: Path, rel: str) -> bool:
+    """A known text suffix, or -- for a file with no suffix or a dotfile
+    (Dockerfile, Makefile, .gitignore) -- content with no NUL byte. A guard
+    that skips those files reports clean on files it never read."""
+    p = Path(rel)
+    if p.suffix in TEXT_SUFFIXES:
+        return True
+    if p.suffix and not p.name.startswith("."):
+        return False
+    try:
+        with open(root / rel, "rb") as fh:
+            return b"\0" not in fh.read(8192)
+    except OSError:
+        return False
 
 
 def name_hits(root: Path = KIT) -> list[str]:
@@ -101,8 +117,13 @@ def test_the_scan_catches_a_planted_name(tmp_path: Path):
     for i, name in enumerate(names):
         (tmp_path / "docs" / ("n%d.md" % i)).write_text("ok\nsee %s here\n" % name,
                                                          encoding="utf-8")
+    # Files with no suffix and dotfiles are text too; a binary one is skipped.
+    (tmp_path / "Dockerfile").write_text("FROM x\n# %s\n" % names[0], encoding="utf-8")
+    (tmp_path / ".gitignore").write_text("*.pyc\n%s/\n" % names[2], encoding="utf-8")
+    (tmp_path / "blob").write_bytes(b"\0\1" + names[0].encode())
     hits = name_hits(tmp_path)          # no git here: exercises the walk fallback
-    assert sorted(h.split(":")[0] for h in hits) == ["docs/n0.md", "docs/n1.md", "docs/n2.md"]
+    assert sorted(h.split(":")[0] for h in hits) == [
+        ".gitignore", "Dockerfile", "docs/n0.md", "docs/n1.md", "docs/n2.md"]
     assert all(":2: " in h for h in hits), hits
 
 

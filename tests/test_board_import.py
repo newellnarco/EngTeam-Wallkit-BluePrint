@@ -292,9 +292,15 @@ def test_slug_keyed_real_board_imports_and_folds(tmp_path: Path) -> None:
     assert all(i["status"] in bi.WALL_STATUSES for i in folded.values())
     assert all(i["title"] for i in folded.values())
 
-    arcs = {i["arc_id"] for i in folded.values()}
-    assert bi.UNASSIGNED_ARC_ID in arcs, "the real board has items with no arch family"
-    assert len(arcs) > 10, "the arch families should produce many arcs"
+    # Arcs are derived from THIS board, not from one known fixture: every
+    # distinct non-blank `arch` becomes an arc, and a blank one lands in the
+    # unassigned arc -- whatever board WALL_REAL_BOARD names.
+    field = bi.PROFILE_SLUG_KEYED["arc_id_field"]
+    raw = [row.get(field) for row in source["items"]]
+    expected = {a.strip() for a in raw if isinstance(a, str) and a.strip()}
+    if any(not (isinstance(a, str) and a.strip()) for a in raw):
+        expected.add(bi.UNASSIGNED_ARC_ID)
+    assert {i["arc_id"] for i in folded.values()} == expected
 
 
 # ------------------------------------------------------------------- 5. CLI

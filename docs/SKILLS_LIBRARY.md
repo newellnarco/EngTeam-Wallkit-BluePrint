@@ -1722,8 +1722,9 @@ password flags, and that running it twice is a no-op.
 concurrency group.** A pipeline that runs only on pull-request events has one
 point of failure: if the platform stops creating those runs, a change merges
 with no CI. A project may add `push` on working branches as a second path. It
-must then key one concurrency group on the branch name for both events
-(`head_ref || ref_name`), cancel the superseded run, and pin the group in a
+must then key one concurrency group on the head repository and branch name
+for both events (the recipe is in DEC-0035, so a fork's same-named branch
+never cancels a run here), cancel the superseded run, and pin the group in a
 test that evaluates it under both payloads. On a pull-request event the tested
 commit is the merge commit, not the head, so the two paths test different
 trees; say which one the required check reads.

@@ -3919,7 +3919,9 @@ invalid:
   what the event means.
 - **Check:** Key the concurrency group on the branch name for every event
   that should collapse (`github.head_ref || github.ref_name` is the branch
-  under both pull_request and push, where `github.ref` is not). Gate `cancel-in-progress` on the superseding event
+  under both pull_request and push, where `github.ref` is not), qualified by
+  the head repository so a fork's same-named branch stays apart (the recipe
+  is in DEC-0035). Gate `cancel-in-progress` on the superseding event
   only (a new push). For each trigger, write down its cost and who reads its
   result. Read an intermittent `cancelled` with no error from the run list
   (several runs in one second), not from the run log.
