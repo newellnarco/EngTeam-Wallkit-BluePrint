@@ -14,6 +14,10 @@ that was proven:
 - a run on the default branch is never cancelled or replaced: each gets its
   own group, so neither a later push nor a pull request headed from the
   default branch can drop it.
+
+Actions compares strings, and matches concurrency group names, without regard
+to case. The evaluator does the same, and groups are compared with
+`same_group`, so a collision that differs only in case is not missed.
 """
 
 from __future__ import annotations
@@ -98,7 +102,8 @@ def _expr(ctx: dict, expr: str):
         left = atom()
         while peek() in ("==", "!="):
             op, right = take(), atom()
-            left = (left == right) if op == "==" else (left != right)
+            equal = _fold(left) == _fold(right)
+            left = equal if op == "==" else not equal
         return left
 
     def and_():
@@ -122,6 +127,16 @@ def _expr(ctx: dict, expr: str):
     return value
 
 
+def _fold(value):
+    """Actions ignores case when it compares strings."""
+    return value.casefold() if isinstance(value, str) else value
+
+
+def same_group(a: str, b: str) -> bool:
+    """Actions matches concurrency group names without regard to case."""
+    return a.casefold() == b.casefold()
+
+
 def evaluate(ctx: dict, template: str):
     """Evaluate a `${{ }}` template; a template that is one expression
     returns that expression's own type (as Actions does for booleans)."""
@@ -131,11 +146,11 @@ def evaluate(ctx: dict, template: str):
     return "".join(str(_expr(ctx, p)) if i % 2 else p for i, p in enumerate(parts))
 
 
-def push(branch: str, run_id: int = 100) -> dict:
+def push(branch: str, run_id: int = 100, default: str = "main") -> dict:
     return {"github": {"workflow": "CI", "repository": REPO, "event_name": "push",
                        "run_id": run_id,
                        "ref": "refs/heads/" + branch, "ref_name": branch, "head_ref": "",
-                       "event": {"repository": {"default_branch": "main"}}}}
+                       "event": {"repository": {"default_branch": default}}}}
 
 
 def pull_request(branch: str, head_repo: str = REPO, number: int = 7,
@@ -150,21 +165,22 @@ def pull_request(branch: str, head_repo: str = REPO, number: int = 7,
 
 def test_push_and_pull_request_from_one_branch_collapse():
     group, _ = _recipe()
-    assert evaluate(push("feature/x"), group) == evaluate(pull_request("feature/x"), group)
+    assert same_group(evaluate(push("feature/x"), group), evaluate(pull_request("feature/x"), group))
 
 
 def test_a_forks_same_named_branch_gets_its_own_group():
     group, _ = _recipe()
     ours = evaluate(pull_request("patch-1"), group)
     fork = evaluate(pull_request("patch-1", head_repo="someone/kit", number=8), group)
-    assert ours != fork
-    assert evaluate(push("patch-1"), group) != fork
+    assert not same_group(ours, fork)
+    assert not same_group(evaluate(push("patch-1"), group), fork)
 
 
 def test_different_branches_never_share_a_group():
     group, _ = _recipe()
-    assert evaluate(push("a"), group) != evaluate(push("b"), group)
-    assert evaluate(pull_request("a"), group) != evaluate(pull_request("b", number=9), group)
+    assert not same_group(evaluate(push("a"), group), evaluate(push("b"), group))
+    assert not same_group(evaluate(pull_request("a"), group),
+                          evaluate(pull_request("b", number=9), group))
 
 
 def test_each_default_branch_run_has_its_own_group():
@@ -172,8 +188,9 @@ def test_each_default_branch_run_has_its_own_group():
     let a burst of merges replace the middle one's pending run."""
     group, _ = _recipe()
     first, second = evaluate(push("main", 1), group), evaluate(push("main", 2), group)
-    assert first != second
-    assert evaluate(pull_request("main", run_id=3), group) not in (first, second)
+    assert not same_group(first, second)
+    pr = evaluate(pull_request("main", run_id=3), group)
+    assert not same_group(pr, first) and not same_group(pr, second)
 
 
 def test_no_branch_name_can_spell_a_default_branch_run_group():
@@ -181,15 +198,15 @@ def test_no_branch_name_can_spell_a_default_branch_run_group():
     working branch named like '<default>-<id>' never joins -- and never
     cancels -- a default-branch run."""
     group, _ = _recipe()
-    assert evaluate(push("main", 1), group) != evaluate(push("main-1"), group)
-    assert evaluate(push("main", 1), group) != evaluate(pull_request("main-1"), group)
+    assert not same_group(evaluate(push("main", 1), group), evaluate(push("main-1"), group))
+    assert not same_group(evaluate(push("main", 1), group), evaluate(pull_request("main-1"), group))
 
 
 def test_working_branch_groups_carry_no_run_id():
     """Only the default branch is unique per run; a working branch must still
     collapse across runs, or superseded pushes are never cancelled."""
     group, _ = _recipe()
-    assert evaluate(push("feature/x", 1), group) == evaluate(push("feature/x", 2), group)
+    assert same_group(evaluate(push("feature/x", 1), group), evaluate(push("feature/x", 2), group))
 
 
 @pytest.mark.parametrize("ctx,expected", [
@@ -202,9 +219,36 @@ def test_only_the_default_branch_is_never_cancelled(ctx, expected):
     assert evaluate(ctx, cancel) is expected
 
 
+def test_branches_differing_only_in_case_share_a_group():
+    """The limit DEC-0035 records: git allows feature/A beside feature/a, but
+    Actions matches their groups as one, so their runs cancel each other.
+    No recipe can prevent it; the project keeps branch names unique without
+    regard to case. Pinned so the recorded limit stays the true one."""
+    group, _ = _recipe()
+    assert same_group(evaluate(push("feature/A"), group), evaluate(push("feature/a"), group))
+    assert same_group(evaluate(push("feature/A"), group),
+                      evaluate(pull_request("feature/a"), group))
+
+
+def test_a_branch_differing_from_the_default_only_in_case_is_kept_like_it():
+    """`==` ignores case, so a 'Main' beside default 'main' is read as the
+    default branch: its own group per run, never cancelled. That errs toward
+    keeping runs, the safe direction, and is recorded rather than hidden."""
+    group, cancel = _recipe()
+    assert evaluate(push("Main", 1), cancel) is False
+    assert not same_group(evaluate(push("Main", 1), group), evaluate(push("Main", 2), group))
+    assert not same_group(evaluate(push("Main", 1), group), evaluate(push("main", 2), group))
+
+
+def test_the_evaluator_compares_strings_as_actions_does():
+    assert evaluate(push("x"), "${{ 'Main' == 'main' }}") is True
+    assert evaluate(push("x"), "${{ 'Main' != 'main' }}") is False
+    assert evaluate(push("x"), "${{ 'main' == 'trunk' }}") is False
+
+
 def test_the_evaluator_reads_the_old_key_as_the_flaw_it_was():
     """Mutation, in miniature: the branch-name-only key the review found
     unsafe really does put a fork's pull request in our group."""
     old = "${{ github.workflow }}-${{ github.head_ref || github.ref_name }}"
-    assert evaluate(pull_request("patch-1"), old) == evaluate(
-        pull_request("patch-1", head_repo="someone/kit", number=8), old)
+    assert same_group(evaluate(pull_request("patch-1"), old), evaluate(
+        pull_request("patch-1", head_repo="someone/kit", number=8), old))
