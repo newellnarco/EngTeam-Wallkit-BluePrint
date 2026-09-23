@@ -7,7 +7,8 @@
 
 **Two registries, on purpose.** This file records what the kit itself has paid
 for. The **library** -- the seeded classes and the inherited corpus
-genericized from three production deployments (MAX3, REEF, MRC) -- lives in
+genericized from three production deployments (a resident desktop app, a
+network appliance and a research-publishing repo) -- lives in
 `templates/FAILURE_PATTERNS.md.template`, because that is the file `bootstrap`
 copies into an adopting repository. When an inherited class first happens
 here, it is **promoted** into this file with its real `Discovered` line, exactly

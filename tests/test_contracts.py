@@ -137,7 +137,7 @@ def test_template_reads_exactly_the_wave_keys():
 # ------------------------------------------------------------ doc maps
 
 def test_doc_maps_are_complete():
-    """MAX's type-design discipline: every enum member carries its doc.
+    """The reference deployment's type-design discipline: every enum member carries its doc.
     Mutation: add a Directive or kind without documenting it."""
     assert set(c.DIRECTIVE_DOCS) == set(c.Directive)
     assert set(c.KIND_DOCS) == set(c.RelayFailureKind)

@@ -1,6 +1,6 @@
 """EXECUTE + AGENTS port (host integration seams), pinned.
 
-The host (MAX3, 2026-09-20) directed porting its legacy wall's EXECUTE
+The host (the resident desktop app, 2026-09-20) directed porting its legacy wall's EXECUTE
 enqueue actions and AGENTS live-wave stream onto the kit wall. Both are
 config-driven seams: with neither key configured the page renders exactly
 as before -- a read-only static wall. Pinned here, each with the mutation

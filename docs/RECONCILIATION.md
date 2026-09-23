@@ -1,9 +1,9 @@
 # RECONCILIATION.md
 
-The kit was designed blind — no access to the MAX3 tree — and says so. This
+The kit was designed blind — no access to the reference deployment's tree — and says so. This
 document closes that loop: every open question answered against the real tree
 (2026-09-19, main at `f6b07ef`), plus the gap analysis from the first live
-agent wave run on MAX3 (2026-09-18/19: PRs #1647–#1655, six built units, five
+agent wave run on the reference deployment, a resident desktop app (2026-09-18/19: PRs #1647–#1655, six built units, five
 merged, one wave stopped by the owner). Everything here is measured, not
 argued; each lesson cites the incident that taught it.
 
@@ -13,13 +13,13 @@ argued; each lesson cites the incident that taught it.
 
 ### Blocking: repo structure (Q1–Q5)
 
-**Q1. `tools/` shipped or repo-only?** Both — MAX3's deployment *is* a clone.
-`pull-latest.bat` hard-resets `C:\Dev\MAX3` to `origin/main`, and the box runs
-`tools/max3_services.py`, `tools/board_wall_server.py` etc. directly from the
+**Q1. `tools/` shipped or repo-only?** Both — the resident app's deployment *is* a clone.
+`pull-latest.bat` hard-resets the deployed checkout to `origin/main`, and the box runs
+`tools/<app>_services.py`, `tools/board_wall_server.py` etc. directly from the
 tree. So `tools/wall/` is correct as designed, and anything placed there is
 live on the box one auto-pull after merge.
 
-**Q2. `pyproject.toml` scope?** One root `pyproject.toml`, package `max3`,
+**Q2. `pyproject.toml` scope?** One root `pyproject.toml`, one application package,
 code under `backend/`. The wall integrity test lands in
 `backend/tests/system/` beside its siblings, as designed.
 
@@ -43,7 +43,7 @@ routes agent work); its *CI plumbing* section is replaced by "defer to the
 host repo's CI scoping".
 
 **Q5. `DROP_PROTOCOL.md` §5?** The file exists but drops are historical: since
-2026-06 MAX3 ships as named PR arcs tracked on the board
+2026-06 the resident app ships as named PR arcs tracked on the board
 (`docs/project/board_state.json` + fragment files), squash-merged one at a
 time. The kit's `drop_shipped` event becomes `item_shipped` carrying the
 merged PR number. Arcs close without drops (Q9: **yes**).
@@ -54,11 +54,11 @@ merged PR number. Arcs close without drops (Q9: **yes**).
 
 **Q7. `.wall/` in-repo or own repo?** In the *target* repo — but with one
 correction learned the hard way: **event shards must not be committed on the
-development branch.** MAX3 development happens in cloud sessions pushing a
+development branch.** The resident app's development happens in cloud sessions pushing a
 single designated branch through a one-PR-at-a-time pipeline; high-churn
 committed shards would ride every PR and conflict constantly (the F-DERIVED-001
 class that board fragments were invented to kill). Instead the kit adopts
-MAX3's proven **isolated-branch telemetry pattern** (`ship_agent_status.py`,
+the resident app's proven **isolated-branch telemetry pattern** (`ship_agent_status.py`,
 verified in production during the first wave): shards live gitignored in the
 working tree; the courier ships snapshots to a dedicated `wall-events` branch
 via an isolated `GIT_INDEX_FILE` (tree and index untouched); the box's courier
@@ -68,7 +68,7 @@ no PR ever carries a shard.
 
 ### Blocking: routing and gates (Q8–Q10)
 
-**Q8. Fast-track destination?** A PR, never straight to main. MAX3's standing
+**Q8. Fast-track destination?** A PR, never straight to main. The resident app's standing
 policy is every change rides a PR opened as `newellnarco`, draft → CI → merge;
 docs-only PRs already get the scoped fast pass. "Fast-track" = the docs-only
 PR path, merged by the coordinator the moment its (scoped) checks are green.
@@ -76,12 +76,12 @@ PR path, merged by the coordinator the moment its (scoped) checks are green.
 **Q9.** Yes — arcs close without shipping a drop (see Q5).
 
 **Q10. Researcher network access?** Config-gated allowlist, default
-repo-plus-local-docs. In MAX3 cloud sessions, outbound HTTPS goes through the
+repo-plus-local-docs. In the resident app's cloud sessions, outbound HTTPS goes through the
 managed proxy and `WebSearch`/`WebFetch` exist — so the kit exposes
 `research.network: "none" | "allowlist" | "session-default"` in
 `wall.json`, default `none`, and the roster doc says the Researcher must state
 in its findings which mode it ran under. On the box: local-only, matching
-MAX3's SSRF-allowlist worker convention.
+the resident app's SSRF-allowlist worker convention.
 
 ### Blocking: cost shape (Q11–Q12)
 
@@ -103,27 +103,27 @@ into the `run_end` event. No estimation needed for the dominant line.
 
 **Q13. Name binding?** Instance (current implementation). Keep.
 
-**Q14. What serves :8123?** In MAX3: `tools/board_wall_server.py` inside the
-MAX3-Wall Windows service (exact-allowlist relay, `NO_CACHE_FILES`). The kit's
+**Q14. What serves :8123?** In the resident app: `tools/board_wall_server.py` inside the
+app's wall Windows service (exact-allowlist relay, `NO_CACHE_FILES`). The kit's
 standalone server must copy its two safety properties: bind `127.0.0.1`
 explicitly, and no-cache headers on the polled JSON. For empty repos the kit
 ships its own stdlib server; the install doc says "if the host repo already
 serves a wall, register the kit's files with it instead."
 
-**Q15. Styling?** MAX3 is plain CSS with theme tokens (WarGames / Tron /
-JARVIS / MAX themes), no Tailwind. `theme.css` + `primitives.css` are the
+**Q15. Styling?** The resident app is plain CSS with theme tokens (four
+named themes), no Tailwind. `theme.css` + `primitives.css` are the
 right shape. Keep.
 
 **Q16. Real screens?** 16+ panels; the wall is standalone HTML served beside
-them (STORIES / INTELLIGENCE / SCOUT / AGENTS tabs today). The kit's wall is
+them (stories, intelligence, review-lane and agents tabs today). The kit's wall is
 the generalization of that page.
 
 ---
 
 ## Part 2 — gap analysis: what the live wave proved, corrected, and added
 
-The first wave ran the predecessor roster (orchestrator / max-developer /
-max-researcher) for ~7 hours on MAX3. Five PRs merged, ~230 new tests, every
+The first wave ran the predecessor roster (orchestrator / developer /
+researcher) for ~7 hours on the resident app. Five PRs merged, ~230 new tests, every
 review finding closed or refuted with proof. These are the deltas the kit must
 encode; each is a measured incident, not a preference.
 
@@ -249,4 +249,4 @@ handoff / transplant procedures with the measured failure classes already
 encoded, and the context documents (rules, failure registry, ship checklist,
 decision log) that make the next wave start where the last one ended.
 
-MAX3 is the reference deployment and first guinea pig.
+The resident desktop app is the reference deployment and first guinea pig.

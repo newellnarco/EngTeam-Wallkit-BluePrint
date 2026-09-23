@@ -281,7 +281,7 @@ script deliberately leaves to you.
 |---|---|---|
 | `templates/CLAUDE.md.template` | `CLAUDE.md` | Entry point: what the project is, current state, doc index, pointer to the rules. |
 | `templates/RULES.md.template` | `RULES.md` | The binding rules. Part 1 is yours to write; Part 2 ships as-is. |
-| `templates/FAILURE_PATTERNS.md.template` | `FAILURE_PATTERNS.md` | Append-only registry of bug classes: seventeen seeded general ones, plus a library of inherited classes genericized from three production deployments (MAX3, REEF, MRC) that await their first occurrence here. |
+| `templates/FAILURE_PATTERNS.md.template` | `FAILURE_PATTERNS.md` | Append-only registry of bug classes: seventeen seeded general ones, plus a library of inherited classes genericized from three production deployments (a resident desktop app, a network appliance and a research-publishing repo) that await their first occurrence here. |
 | `templates/KNOWN_ISSUES.md.template` | `KNOWN_ISSUES.md` | The intake: every finding recorded on arrival, before it is worked, grouped into families by shared mechanism; it leaves only as guarded (a registry class) or declined with a reason. |
 | `templates/ENGINEERING_STANDARD.md.template` | `docs/ENGINEERING_STANDARD.md` | The canonical method: root cause to requirement to test to code, the done-definition, and a per-repo Bindings zone that is the only part you edit. |
 | `templates/DESIGN_DOC.md.template` | `docs/architecture/<ARC>.md` | The per-arc design an arc's stories cite by section: intent, boundary, slice plan, rollback story. |
@@ -479,8 +479,8 @@ report.
 | `.claude/` roster | Merge by adding files. A name collision is a decision, recorded as one. |
 | None of the above | Follow the empty-repo runbook from step 2. |
 
-MAX3 is the reference adoption: an existing repository with its own rules,
-registry and checklist, where the kit's job was mapping and filling gaps rather
+The resident desktop app is the reference adoption: an existing repository
+with its own rules, registry and checklist, where the kit's job was mapping and filling gaps rather
 than installing a second set of standards.
 
 ### Upgrading an adoption
@@ -696,7 +696,7 @@ at a repository, and not for `/wave`, which assumes a wall is already there.
 
 ## Reference deployment
 
-The kit was reconciled against MAX3, a local-first application that ships
+The kit was reconciled against a resident desktop app, a local-first application that ships
 through a single-pull-request pipeline. That deployment is where every measured
 number in `docs/RECONCILIATION.md` comes from. The mapping is
 `docs/WALL_STANDARDS.md`; in short:

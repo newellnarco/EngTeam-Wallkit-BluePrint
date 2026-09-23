@@ -37,7 +37,7 @@ ROLES = ("adjudicator", "architect", "builder", "foreman", "integrator",
 #: lower case (a "max" value, a "reef" metaphor); case-insensitive otherwise.
 FORBIDDEN_EXACT = re.compile(r"\b(MAX|MAX3|MAX3000|MARA|REEF|MRC|Scout|Hawkeye|Bouncer)\b")
 FORBIDDEN_ANY = re.compile(
-    r"netsniff|feed ?hacker|neuroster|linkedin|max ?research ?collective|\bjason\b",
+    r"netsniff|feed ?hacker|neuroster|linkedin|max ?research ?collective|\bjason\b|\bmax3",
     re.IGNORECASE)
 
 ENTRY = re.compile(r"(?ms)^\*\*(\d+)\.(\d+) (.*?)(?=^\*\*\d+\.\d+ |^#|\Z)")
@@ -79,6 +79,7 @@ def test_starting_skills_blocks_name_no_product(role):
 @pytest.mark.parametrize("sample", [
     "a lesson from MAX3 about probes", "the REEF appliance", "as MRC found",
     "Scout reviewed it", "the Neuroster save format", "a LinkedIn feed",
+    "--profile max3", "package max3000",
 ])
 def test_the_name_guard_catches_each_form(sample):
     """Mutation: each form the guard exists for is caught on its own."""

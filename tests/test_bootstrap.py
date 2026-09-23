@@ -216,7 +216,7 @@ def test_remove_purge_state_deletes_the_ledger_only_when_said(tmp_path):
 def test_mcp_config_uses_the_validated_interpreter(tmp_path):
     """DEC-0022: preflight validates THIS interpreter, so the generated
     config must launch the same one — "python3" does not exist on a
-    stock Windows install (host-review finding, MAX3 PR #1662).
+    stock Windows install (host-review finding).
     Mutation: hard-code a spelled interpreter name again."""
     bs.emit_mcp_configs(tmp_path, ["claude-code"], apply=True)
     cfg = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
@@ -271,7 +271,7 @@ def test_templates_is_owned_file_by_file_never_as_a_tree(tmp_path):
     its web views there. So the kit never prunes it on upgrade, and a
     remove deletes exactly the filenames the kit vendored, keeping the
     host's files and the directory holding them (host-review finding,
-    Gemini on MAX3 PR #1662). Mutation: put 'templates' back into
+    Gemini). Mutation: put 'templates' back into
     KIT_OWNED_PREFIXES and both halves fail."""
     repo = tmp_path / "webapp"
     assert run("fresh", repo, "--apply") == 0

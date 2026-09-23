@@ -65,7 +65,7 @@ VENDORED = ("tools/wall", "docs", "frontend/theme", "templates")
 #: all. templates/ is deliberately NOT here: it is a generic root name
 #: (Flask/Django hosts keep their web views there), so the kit owns it
 #: FILE-BY-FILE — never prune it, and remove deletes only the filenames
-#: the kit itself vendored (host-review finding, Gemini on MAX3 #1662).
+#: the kit itself vendored (host-review finding, Gemini).
 KIT_OWNED_PREFIXES = ("tools/wall", "frontend/theme")
 
 #: Context documents `fresh` materializes at the product root — only

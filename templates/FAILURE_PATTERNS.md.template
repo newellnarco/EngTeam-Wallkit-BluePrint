@@ -830,8 +830,8 @@ invalid:
   deleted. Coverage counts the line and the guarantee does not exist.
 - **Root cause:** The assertion has an alternate satisfier: `assert A or B`
   where B is already true; a `"word" in text` that the comment or quoted
-  evidence also satisfies; `len(out) <= MAX` against a builder that truncates
-  to MAX; a test that performs the cleanup it then checks; a shared
+  evidence also satisfies; `len(out) <= LIMIT` against a builder that
+  truncates to LIMIT; a test that performs the cleanup it then checks; a shared
   consequence of two branches asserted instead of their difference; a helper
   called below the seam where the guard lives; a non-empty check that any
   fabricated value passes. The adjacent thing is cheaper to reach, which is

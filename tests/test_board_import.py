@@ -10,8 +10,8 @@ three properties that makes possible, in the order they matter:
    dropped by the fold.
 2. **Idempotent.** A second run writes nothing. A changed source writes one
    `item_state` and no second `item_created`.
-3. **Correct on real data.** The MAX3 profile maps MAX3's real board -- its
-   statuses, its key-prefix bug heuristic, its `arch` arc families -- and the
+3. **Correct on real data.** The slug-keyed profile maps a real slug-keyed
+   board -- its statuses, its key-prefix bug heuristic, its `arch` arc families -- and the
    result folds into a board the wall can render.
 
 Stdlib + pytest only.
@@ -20,6 +20,7 @@ Stdlib + pytest only.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -33,7 +34,9 @@ if str(WALL) not in sys.path:
 import items as items_mod  # noqa: E402
 from adapters import board_import as bi  # noqa: E402
 
-MAX3_BOARD = Path("/home/user/MAX3/docs/project/board_state.json")
+#: A real slug-keyed board on this machine, if the environment names one. The
+#: real-data test is skipped when it is unset or the file is absent.
+REAL_BOARD = Path(os.environ.get("WALL_REAL_BOARD", "") or "/nonexistent/board_state.json")
 
 NOW = "2026-09-19T00:00:00.000Z"
 
@@ -230,19 +233,19 @@ def test_timestamps_normalise(tmp_path: Path) -> None:
 
 
 def test_status_normalisation_is_spelling_insensitive() -> None:
-    profile = bi.PROFILE_MAX3
+    profile = bi.PROFILE_SLUG_KEYED
     for spelling in ("in CI", "In-CI", "in_ci", "  IN CI  "):
         mapped = bi.map_item({"key": "k", "title": "t", "status": spelling},
                              profile, default_ts=NOW)
         assert mapped["fields"]["status"] == "review", spelling
 
 
-# --------------------------------------------------- 4. the MAX3 profile
+# --------------------------------------------- 4. the slug-keyed profile
 
-def test_max3_profile_shape() -> None:
+def test_slug_keyed_profile_shape() -> None:
     """The mappings the owner specified, asserted directly."""
-    p = bi.PROFILE_MAX3
-    assert p["id_field"] == "key"          # MAX3 keys become item ids verbatim
+    p = bi.PROFILE_SLUG_KEYED
+    assert p["id_field"] == "key"          # slug keys become item ids verbatim
     assert p["arc_id_field"] == "arch"
     for source, wall in (("Todo", "planned"), ("Backlog", "planned"), ("Planned", "planned"),
                          ("in CI", "review"), ("In Progress", "in_progress"),
@@ -253,30 +256,30 @@ def test_max3_profile_shape() -> None:
     assert "deferred" in deferred["fields"]["note"], "a deferred item must say why it is blocked"
 
 
-def test_max3_kind_heuristics() -> None:
-    p = bi.PROFILE_MAX3
+def test_slug_keyed_kind_heuristics() -> None:
+    p = bi.PROFILE_SLUG_KEYED
     def kind(key, type_):
         return bi.map_item({"key": key, "title": "t", "status": "Todo", "type": type_},
                            p, default_ts=NOW)["fields"]["kind"]
-    assert kind("fix:scout-timeout", "New Feature") == "bug"       # key prefix wins
+    assert kind("fix:probe-timeout", "New Feature") == "bug"       # key prefix wins
     assert kind("brain:fibonacci-sequences", "New Feature") == "story"
     assert kind("review:gemini-replacement", "Bug") == "bug"       # type field
     assert kind("steward:home:1", "Enhancement") == "story"
 
 
-def test_max3_keys_become_item_ids_verbatim() -> None:
+def test_slug_keyed_keys_become_item_ids_verbatim() -> None:
     mapped = bi.map_item({"key": "brain:fibonacci-sequences", "title": "t", "status": "Todo"},
-                         bi.PROFILE_MAX3, default_ts=NOW)
+                         bi.PROFILE_SLUG_KEYED, default_ts=NOW)
     assert mapped["item_id"] == "brain:fibonacci-sequences"
 
 
-@pytest.mark.skipif(not MAX3_BOARD.is_file(), reason="MAX3 board not present")
-def test_max3_real_board_imports_and_folds(tmp_path: Path) -> None:
+@pytest.mark.skipif(not REAL_BOARD.is_file(), reason="no real slug-keyed board (WALL_REAL_BOARD)")
+def test_slug_keyed_real_board_imports_and_folds(tmp_path: Path) -> None:
     """The proof on real data: every row lands, nothing is left unusable, and
     the folded board is renderable (every arc_id a string, every status known
     or literal)."""
-    source = json.loads(MAX3_BOARD.read_text(encoding="utf-8"))
-    result = bi.import_board(tmp_path, source, bi.PROFILE_MAX3, now=NOW)
+    source = json.loads(REAL_BOARD.read_text(encoding="utf-8"))
+    result = bi.import_board(tmp_path, source, bi.PROFILE_SLUG_KEYED, now=NOW)
 
     assert result["unusable"] == 0
     assert result["imported"] == len(source["items"])
@@ -290,7 +293,7 @@ def test_max3_real_board_imports_and_folds(tmp_path: Path) -> None:
     assert all(i["title"] for i in folded.values())
 
     arcs = {i["arc_id"] for i in folded.values()}
-    assert bi.UNASSIGNED_ARC_ID in arcs, "MAX3 has items with no arch family"
+    assert bi.UNASSIGNED_ARC_ID in arcs, "the real board has items with no arch family"
     assert len(arcs) > 10, "the arch families should produce many arcs"
 
 
@@ -304,6 +307,23 @@ def test_cli_round_trip(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out["imported"] == 5 and out["profile"] == "generic"
+
+
+def test_cli_offers_the_slug_keyed_profile(tmp_path: Path,
+                                           capsys: pytest.CaptureFixture) -> None:
+    """The CLI choice is the format's name; the profile it selects is
+    PROFILE_SLUG_KEYED. Mutation: rename the PROFILES key and argparse rejects
+    the choice (SystemExit), failing here."""
+    assert bi.PROFILES["slug-keyed"] is bi.PROFILE_SLUG_KEYED
+    src = tmp_path / "board.json"
+    src.write_text(json.dumps({"updated": "2026-09-18", "items": [
+        {"key": "brain:fibonacci-sequences", "title": "t", "status": "Todo"}]}),
+        encoding="utf-8")
+    rc = bi.main(["--repo", str(tmp_path), "--source", str(src),
+                  "--profile", "slug-keyed", "--json"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["imported"] == 1 and out["profile"] == "slug-keyed"
 
 
 def test_cli_reports_a_bad_source_without_traceback(tmp_path: Path,

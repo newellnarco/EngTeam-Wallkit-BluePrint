@@ -4,7 +4,7 @@ The adoption requirement (host direction, 2026-09-20): every arc, story,
 status AND detail must survive the move to the kit wall's layout. Three
 layers, each pinned with the mutation that kills it:
 
-* PROFILE_MAX3 maps `detail` (drop the extra_fields entry -> mapping test fails);
+* PROFILE_SLUG_KEYED maps `detail` (drop the extra_fields entry -> mapping test fails);
 * the template renders a toggle + panel for items that carry detail, and none
   for items that do not (drop the detailRow call -> render tests fail);
 * the detail text is HTML-ESCAPED into the panel -- item prose routinely
@@ -42,10 +42,10 @@ def _snapshot_with_items(items):
     }
 
 
-def test_profile_max3_maps_detail():
+def test_profile_slug_keyed_maps_detail():
     row = {"key": "brain:probe", "title": "Probe", "status": "Shipped",
            "arch": "BRAIN", "detail": "the long-form as-built prose"}
-    mapped = bi.map_item(row, bi.PROFILE_MAX3, default_ts="2026-09-20T00:00:00.000Z")
+    mapped = bi.map_item(row, bi.PROFILE_SLUG_KEYED, default_ts="2026-09-20T00:00:00.000Z")
     assert mapped["fields"]["detail"] == "the long-form as-built prose"
 
 
@@ -93,7 +93,7 @@ def test_template_carries_the_page_marker():
 
 
 def test_clearing_a_field_on_the_board_clears_it_on_the_wall(repo):
-    """The omitted-key hole (review finding, MAX3 #1658): a field cleared on
+    """The omitted-key hole (host review finding): a field cleared on
     the source board must not survive on the wall. Mutation that kills this:
     go back to omitting blank fields in map_item and both asserts fail --
     the idempotence check re-reports the item unchanged and the fold keeps
@@ -102,11 +102,11 @@ def test_clearing_a_field_on_the_board_clears_it_on_the_wall(repo):
         {"key": "infra:clearing", "title": "Clearing probe", "status": "Deferred",
          "arch": "INFRA", "pr": "#7", "detail": "SOON_GONE"},
     ]}
-    bi.import_board(repo, board, bi.PROFILE_MAX3)
+    bi.import_board(repo, board, bi.PROFILE_SLUG_KEYED)
     board["items"][0]["detail"] = ""      # cleared on the tracker
     board["items"][0]["pr"] = "--"        # reset to the null token
     board["items"][0]["status"] = "in CI" # leaves the noted status too
-    result = bi.import_board(repo, board, bi.PROFILE_MAX3)
+    result = bi.import_board(repo, board, bi.PROFILE_SLUG_KEYED)
     assert result["updated"] == 1, "the clear must register as a change"
 
     import items as items_mod
@@ -119,8 +119,8 @@ def test_clearing_a_field_on_the_board_clears_it_on_the_wall(repo):
 
 def test_non_dict_json_lines_count_as_corrupt(repo):
     """`null` and bare scalars parse fine and then vanish in merge();
-    without this they left the heartbeat reading ok (review finding,
-    MAX3 #1658). Mutation: drop the isinstance check and ok reads true."""
+    without this they left the heartbeat reading ok (host review
+    finding). Mutation: drop the isinstance check and ok reads true."""
     import json as _json
     path = repo / ".wall" / "events" / "2026-09-19" / "s_a.jsonl"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -140,7 +140,7 @@ def test_import_to_render_roundtrip_carries_detail(repo):
          "arch": "INFRA", "pr": "#1656", "priority": "P1",
          "detail": "ROUNDTRIP_DETAIL_SENTINEL"},
     ]}
-    result = bi.import_board(repo, board, bi.PROFILE_MAX3)
+    result = bi.import_board(repo, board, bi.PROFILE_SLUG_KEYED)
     assert result["imported"] == 1
     courier.run_once(repo)
     html = (repo / ".wall" / "derived" / "wall.html").read_text(encoding="utf-8")

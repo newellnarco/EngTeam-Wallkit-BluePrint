@@ -91,7 +91,8 @@ def test_template_body_is_generic(name):
     not appear as a path somebody is expected to have.
     """
     body = read(TEMPLATES / name)
-    for bad in ("C:\\Dev", "newellnarco", "backend/max3", "MAX3"):
+    # Source-deployment names are guarded kit-wide by test_no_product_names.
+    for bad in ("C:\\Dev", "newellnarco"):
         assert bad not in body, f"{name} leaks host-specific detail: {bad}"
 
 

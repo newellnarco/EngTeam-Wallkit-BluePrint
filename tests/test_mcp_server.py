@@ -89,7 +89,7 @@ def test_serve_reconfigures_real_streams_to_utf8():
     re-encode any stream that can be re-encoded, and must not touch one
     that cannot (the StringIO tests above already prove the latter).
     Mutation: drop the reconfigure loop and the recorder stays empty.
-    Host-review finding (Gemini, MAX3 PR #1662), fixed kit-first."""
+    Host-review finding (Gemini), fixed kit-first."""
 
     class Recorder(io.StringIO):
         def __init__(self, *a):
@@ -315,7 +315,7 @@ def test_array_params_are_invalid_params_not_a_crash():
     """JSON-RPC allows array params but every method here is by-name: a
     request gets INVALID_PARAMS, a notification is ignored, and the
     AttributeError that would kill every attached editor never escapes
-    serve(). Host-review finding (CodeRabbit, MAX3 PR #1662), fixed
+    serve(). Host-review finding (CodeRabbit), fixed
     kit-first. Mutation: drop the isinstance guard and this raises."""
     r = srv.handle_request(SAMPLE, {
         "jsonrpc": "2.0", "id": 5, "method": "initialize", "params": [1]})

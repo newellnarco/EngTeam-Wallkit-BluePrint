@@ -848,7 +848,7 @@ def cmd_ack_doc(a):
     rel = a.path.replace("\\", "/")
     # A prefix strip, not lstrip("./") -- lstrip eats any leading dot, so a
     # dot-directory document (".github/...", ".wall/...") would lose its dot
-    # and read "does not exist" forever (CodeRabbit finding, MAX3 #1667).
+    # and read "does not exist" forever (host-review finding, CodeRabbit).
     while rel.startswith("./"):
         rel = rel[2:]
     target = repo / rel
