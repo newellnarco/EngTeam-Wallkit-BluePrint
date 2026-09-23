@@ -2734,8 +2734,11 @@ invalid:
   persists across restarts. A digest used only for content addressing or
   idempotency declares non-security use in code and keeps its algorithm. A
   lint flags fast hashes applied to fields named pin, password or passphrase.
-- **Command:** `grep -rnE '(sha1|sha256|sha512|md5)\(' <SRC> | grep -iE
-  'pin|pass(word|phrase)?'`
+- **Command:** `grep -rniE 'md5|sha-?(1|224|256|384|512)|createHash|hashlib\.new|MessageDigest|subtle\.digest'
+  <SRC> | grep -iE '(^|[^a-z])(pin|passcode|password|passphrase)'` -- every
+  spelling of the algorithm, and the field name at a leading identifier
+  boundary so `pipeline`, `mapping` and `spinner` stay out (F-CHECK-009,
+  F-SUBSTR-001).
 
 > class-guard: <lint that fails on any fast-hash call whose input or target
 > name matches pin/password/passphrase, plus a test that the stored record
@@ -3305,30 +3308,34 @@ invalid:
 > VARIANT: a webhook-only cache invalidation where one dropped webhook leaves
 > the cache stale until the next unrelated change.
 
-### F-OPS-010 - a persisted, self-adjusting parameter that a stored value can push past its safe bound
+### F-OPS-008 - a failing destructive call relied on as a no-op, then armed by a credential fix
 
 - **Discovered:** inherited, not yet observed here
-- **Paid for:** resident app (1)
-- **Symptom:** A source goes silent for an absurd length of time, or a
-  threshold drifts to where the feature acts on everything or on nothing.
-  Reading the state file shows one extreme value, whether corrupt, hand-edited
-  or hostile, that nothing rejected.
-- **Root cause:** The tuning loop was clamped on the path that computes new
-  values, but not on the path that loads stored values. A secondary floor (a
-  retained retry-after, a minimum wait) bypassed the multiplier's cap
-  altogether. An unreadable state file loaded as "no learning" and nobody
-  could tell.
-- **Check:** Clamp at load and at use, not only at update, toward the safe
-  direction only (slower, stricter). Give every floor that bypasses the main
-  clamp its own ceiling. Report persistence health as ok, unwired or unknown.
+- **Paid for:** browser extension (1)
+- **Symptom:** A privileged cleanup or cancel step has failed on every run
+  for several releases (403, wrong id, expired token), and the pipeline stays
+  green because the failure is tolerated. Someone fixes the credential, and on
+  the next run the step does what its name says, to whatever is in that state
+  at the time: here it would have withdrawn a submission in the middle of
+  store review.
+- **Root cause:** The call was written blind and unconditional, relying on
+  the error when there was nothing to act on. While broken it was a
+  guaranteed no-op, and the pipeline came to depend on that. The repair was
+  treated as a credential change, not as enabling a destructive action.
+- **Check:** Before repairing the credential or id of a call that has been
+  failing, state what the call will now do and to what, and check whether
+  anything is currently in the state it would destroy. Every destructive
+  pipeline call is preceded by a query of the state it intends to change and
+  runs only when that state is present.
 - **Command:**
-  `<PROPERTY_TEST_EXTREME_NEGATIVE_AND_NONNUMERIC_VALUES_FROM_STATE_FILE_AND_LIVE_INPUT>`
+  `<GREP_PIPELINE_FOR_DELETE_CANCEL_WITHDRAW_CALLS_AND_ASSERT_A_STATE_QUERY_PRECEDES_EACH>`
 
-> class-guard: <for every persisted tuned parameter, a property test over
-> hostile stored and live values keeps the effective value inside
-> [configured, maximum]>
-> VARIANT: a trust score read from a cache that a crashed writer left at its
-> sentinel maximum, granting full trust on the next start.
+> class-guard: <each destructive pipeline call, extracted and run against a
+> stub in every state, acts only in the state it names and never on a
+> state it did not query>
+> VARIANT: a retention purge that has been failing on a permissions error,
+> fixed during an incident, which then deletes the very logs the incident
+> needs.
 
 ### F-OPS-009 - an undo that has never been exercised against the real system
 
@@ -3360,34 +3367,30 @@ invalid:
 > VARIANT: a database migration shipped with a down-migration that has never
 > been run, discovered broken during the incident that needed it.
 
-### F-OPS-008 - a failing destructive call relied on as a no-op, then armed by a credential fix
+### F-OPS-010 - a persisted, self-adjusting parameter that a stored value can push past its safe bound
 
 - **Discovered:** inherited, not yet observed here
-- **Paid for:** browser extension (1)
-- **Symptom:** A privileged cleanup or cancel step has failed on every run
-  for several releases (403, wrong id, expired token), and the pipeline stays
-  green because the failure is tolerated. Someone fixes the credential, and on
-  the next run the step does what its name says, to whatever is in that state
-  at the time: here it would have withdrawn a submission in the middle of
-  store review.
-- **Root cause:** The call was written blind and unconditional, relying on
-  the error when there was nothing to act on. While broken it was a
-  guaranteed no-op, and the pipeline came to depend on that. The repair was
-  treated as a credential change, not as enabling a destructive action.
-- **Check:** Before repairing the credential or id of a call that has been
-  failing, state what the call will now do and to what, and check whether
-  anything is currently in the state it would destroy. Every destructive
-  pipeline call is preceded by a query of the state it intends to change and
-  runs only when that state is present.
+- **Paid for:** resident app (1)
+- **Symptom:** A source goes silent for an absurd length of time, or a
+  threshold drifts to where the feature acts on everything or on nothing.
+  Reading the state file shows one extreme value, whether corrupt, hand-edited
+  or hostile, that nothing rejected.
+- **Root cause:** The tuning loop was clamped on the path that computes new
+  values, but not on the path that loads stored values. A secondary floor (a
+  retained retry-after, a minimum wait) bypassed the multiplier's cap
+  altogether. An unreadable state file loaded as "no learning" and nobody
+  could tell.
+- **Check:** Clamp at load and at use, not only at update, toward the safe
+  direction only (slower, stricter). Give every floor that bypasses the main
+  clamp its own ceiling. Report persistence health as ok, unwired or unknown.
 - **Command:**
-  `<GREP_PIPELINE_FOR_DELETE_CANCEL_WITHDRAW_CALLS_AND_ASSERT_A_STATE_QUERY_PRECEDES_EACH>`
+  `<PROPERTY_TEST_EXTREME_NEGATIVE_AND_NONNUMERIC_VALUES_FROM_STATE_FILE_AND_LIVE_INPUT>`
 
-> class-guard: <each destructive pipeline call, extracted and run against a
-> stub in every state, acts only in the state it names and never on a
-> state it did not query>
-> VARIANT: a retention purge that has been failing on a permissions error,
-> fixed during an incident, which then deletes the very logs the incident
-> needs.
+> class-guard: <for every persisted tuned parameter, a property test over
+> hostile stored and live values keeps the effective value inside
+> [configured, maximum]>
+> VARIANT: a trust score read from a cache that a crashed writer left at its
+> sentinel maximum, granting full trust on the next start.
 
 **Observability and diagnosis**
 

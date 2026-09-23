@@ -106,18 +106,45 @@ def test_sections_run_without_gaps():
     assert len(nums) >= 19
 
 
-def test_entries_are_numbered_under_their_section_without_duplicates():
-    text = _text(LIBRARY)
-    ids = ["%s.%s" % (m.group(1), m.group(2)) for m in ENTRY.finditer(text)]
-    assert len(ids) == len(set(ids)), "an entry number is used twice"
-    for section in {i.split(".")[0] for i in ids}:
-        seq = sorted(int(i.split(".")[1]) for i in ids if i.split(".")[0] == section)
-        assert seq == list(range(1, len(seq) + 1)), "section %s entries skip: %s" % (section, seq)
+#: How many entries each section holds, written down independently of the file
+#: so that losing one -- a deleted block, a heading the parser no longer sees --
+#: fails here instead of passing every count and numbering check. A pointer
+#: ("Stated once, as ...") counts: it keeps its number. Retiring or adding an
+#: entry is deliberate, and this table is where that is recorded.
+ENTRIES_PER_SECTION = {
+    1: 22, 2: 10, 3: 9, 4: 9, 5: 12, 6: 15, 7: 10, 8: 13, 9: 5,
+    10: 8, 11: 17, 12: 5, 13: 8, 14: 8, 15: 26, 16: 15, 17: 12, 18: 6,
+}
+
+
+def test_every_entry_sits_under_its_own_section_heading():
+    """An entry whose number disagrees with the heading above it is read by
+    the wrong role: section 18's readers never see an 18.6 filed under 17."""
+    current = None
+    seen: list[str] = []
+    for line in _text(LIBRARY).splitlines():
+        head = re.match(r"^## (\d+)\. ", line)
+        if head:
+            current = head.group(1)
+            continue
+        m = re.match(r"^\*\*(\d+)\.(\d+) ", line)
+        if m:
+            assert m.group(1) == current, "entry %s.%s sits under section %s" % (
+                m.group(1), m.group(2), current)
+            seen.append("%s.%s" % (m.group(1), m.group(2)))
+    assert len(seen) == len(set(seen)), "an entry number is used twice"
+
+
+def test_the_entry_set_matches_the_recorded_baseline():
+    expected = {"%d.%d" % (s, n) for s, count in ENTRIES_PER_SECTION.items()
+                for n in range(1, count + 1)}
+    actual = set(_entries(_text(LIBRARY)))
+    assert actual == expected, "missing %s, unexpected %s" % (
+        sorted(expected - actual), sorted(actual - expected))
 
 
 def test_every_entry_carries_why_check_and_roles_or_points_at_one_that_does():
     entries = _entries(_text(LIBRARY))
-    assert len(entries) >= 150, "the library shrank below its mined corpus"
     for num, body in entries.items():
         ptr = POINTER.search(body)
         if ptr:
