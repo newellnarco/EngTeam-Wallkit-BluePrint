@@ -317,10 +317,24 @@ def test_failed_link_keeps_an_existing_good_copy(tmp_path, monkeypatch):
     monkeypatch.setattr(cs.os, "symlink", boom)
     res = cs.sync(repo, symlink=True)
     assert (repo / "CLAUDE.md").read_bytes() == before
-    assert not list(repo.rglob("*.context-sync-tmp"))
+    assert not list(repo.rglob(".context-sync-*")), "staging left behind"
     assert any("kept the copy, not linking -- symlink failed" in ln
                for ln in res.lines)
     assert cs.check(repo).code == 0
+
+
+@pytest.mark.skipif(os.name == "nt", reason="symlink mode is POSIX-only")
+def test_linking_never_touches_a_file_it_did_not_create(tmp_path):
+    """A user file at any fixed staging-looking name survives a link run,
+    and the run leaves no staging directory behind."""
+    repo = _repo(tmp_path)
+    assert cs.sync(repo).code == 0
+    bystander = repo / "CLAUDE.md.context-sync-tmp"
+    bystander.write_text("mine\n", encoding="utf-8")
+    res = cs.sync(repo, symlink=True)
+    assert res.code == 0 and (repo / "CLAUDE.md").is_symlink()
+    assert bystander.read_text(encoding="utf-8") == "mine\n"
+    assert not list(repo.rglob(".context-sync-*"))
 
 
 def test_non_utf8_master_is_a_finding_not_a_crash(tmp_path):

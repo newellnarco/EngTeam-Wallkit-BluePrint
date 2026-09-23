@@ -11,7 +11,9 @@ that was proven:
 - a fork's pull request from a same-named branch gets a different group, so
   it can never cancel this repository's run;
 - two different branches never share a group;
-- a run on the default branch is never cancelled.
+- a run on the default branch is never cancelled or replaced: each gets its
+  own group, so neither a later push nor a pull request headed from the
+  default branch can drop it.
 """
 
 from __future__ import annotations
@@ -41,18 +43,83 @@ def _lookup(ctx: dict, dotted: str):
     return node
 
 
+_TOKEN = re.compile(r"\s*(\|\||&&|==|!=|\(|\)|,|'[^']*'|[A-Za-z_][\w.]*)")
+
+
+def _tokens(expr: str) -> list[str]:
+    out, pos = [], 0
+    while pos < len(expr):
+        m = _TOKEN.match(expr, pos)
+        if not m:
+            if expr[pos:].strip():
+                raise ValueError("unsupported expression: %r" % expr[pos:])
+            break
+        out.append(m.group(1))
+        pos = m.end()
+    return out
+
+
 def _expr(ctx: dict, expr: str):
     """The subset of the Actions expression language the recipe uses:
-    context paths, `a || b` (first truthy) and `a != b`."""
-    expr = expr.strip()
-    if "!=" in expr:
-        left, right = expr.split("!=", 1)
-        return _expr(ctx, left) != _expr(ctx, right)
-    for part in expr.split("||"):
-        value = _lookup(ctx, part.strip())
-        if value:
+    context paths, 'string' literals, format('..{0}..', x), == and !=,
+    && and || (both returning an operand, as Actions does), parentheses."""
+    toks = _tokens(expr)
+    pos = 0
+
+    def peek():
+        return toks[pos] if pos < len(toks) else None
+
+    def take():
+        nonlocal pos
+        pos += 1
+        return toks[pos - 1]
+
+    def atom():
+        tok = take()
+        if tok == "(":
+            value = or_()
+            assert take() == ")"
             return value
-    return ""
+        if tok.startswith("'"):
+            return tok[1:-1]
+        if tok == "format":
+            assert take() == "("
+            args = [or_()]
+            while peek() == ",":
+                take()
+                args.append(or_())
+            assert take() == ")"
+            fmt, rest = args[0], args[1:]
+            return re.sub(r"\{(\d+)\}", lambda m: str(rest[int(m.group(1))]), fmt)
+        value = _lookup(ctx, tok)
+        return "" if value is None else value
+
+    def cmp_():
+        left = atom()
+        while peek() in ("==", "!="):
+            op, right = take(), atom()
+            left = (left == right) if op == "==" else (left != right)
+        return left
+
+    def and_():
+        left = cmp_()
+        while peek() == "&&":
+            take()
+            right = cmp_()
+            left = right if left else left
+        return left
+
+    def or_():
+        left = and_()
+        while peek() == "||":
+            take()
+            right = and_()
+            left = left if left else right
+        return left
+
+    value = or_()
+    assert pos == len(toks), "trailing tokens in %r" % expr
+    return value
 
 
 def evaluate(ctx: dict, template: str):
@@ -64,14 +131,17 @@ def evaluate(ctx: dict, template: str):
     return "".join(str(_expr(ctx, p)) if i % 2 else p for i, p in enumerate(parts))
 
 
-def push(branch: str) -> dict:
+def push(branch: str, run_id: int = 100) -> dict:
     return {"github": {"workflow": "CI", "repository": REPO, "event_name": "push",
+                       "run_id": run_id,
                        "ref": "refs/heads/" + branch, "ref_name": branch, "head_ref": "",
                        "event": {"repository": {"default_branch": "main"}}}}
 
 
-def pull_request(branch: str, head_repo: str = REPO, number: int = 7) -> dict:
+def pull_request(branch: str, head_repo: str = REPO, number: int = 7,
+                 run_id: int = 200) -> dict:
     return {"github": {"workflow": "CI", "repository": REPO, "event_name": "pull_request",
+                       "run_id": run_id,
                        "ref": "refs/pull/%d/merge" % number, "ref_name": "%d/merge" % number,
                        "head_ref": branch,
                        "event": {"repository": {"default_branch": "main"},
@@ -95,6 +165,22 @@ def test_different_branches_never_share_a_group():
     group, _ = _recipe()
     assert evaluate(push("a"), group) != evaluate(push("b"), group)
     assert evaluate(pull_request("a"), group) != evaluate(pull_request("b", number=9), group)
+
+
+def test_each_default_branch_run_has_its_own_group():
+    """A group holds one running and one pending run; a shared group would
+    let a burst of merges replace the middle one's pending run."""
+    group, _ = _recipe()
+    first, second = evaluate(push("main", 1), group), evaluate(push("main", 2), group)
+    assert first != second
+    assert evaluate(pull_request("main", run_id=3), group) not in (first, second)
+
+
+def test_working_branch_groups_carry_no_run_id():
+    """Only the default branch is unique per run; a working branch must still
+    collapse across runs, or superseded pushes are never cancelled."""
+    group, _ = _recipe()
+    assert evaluate(push("feature/x", 1), group) == evaluate(push("feature/x", 2), group)
 
 
 @pytest.mark.parametrize("ctx,expected", [

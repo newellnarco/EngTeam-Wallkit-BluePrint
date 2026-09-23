@@ -42,6 +42,7 @@ import hashlib
 import json
 import os
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -270,19 +271,26 @@ def _link(repo: Path, e: Entry) -> str | None:
         return "a Cursor rule needs frontmatter, so it is always a copy"
     if os.name == "nt":
         return "symlinks are unreliable on Windows checkouts"
-    # Link at a temporary name, then move it over the target: a failure
-    # anywhere leaves the existing copy exactly where it was.
-    tmp = tpath.with_name(tpath.name + ".context-sync-tmp")
+    # Link inside a private staging directory this call creates (same
+    # parent, so the move is a rename), then move the link over the target:
+    # a failure anywhere leaves the existing copy where it was, and nothing
+    # this call did not create is ever removed.
+    staging = None
     try:
         tpath.parent.mkdir(parents=True, exist_ok=True)
-        if tmp.is_symlink() or tmp.exists():
-            tmp.unlink()
-        os.symlink(os.path.relpath(repo / e.master, tpath.parent), tmp)
-        os.replace(tmp, tpath)
+        staging = Path(tempfile.mkdtemp(prefix=".context-sync-",
+                                        dir=tpath.parent))
+        link = staging / tpath.name
+        os.symlink(os.path.relpath(repo / e.master, tpath.parent), link)
+        os.replace(link, tpath)
     except OSError as exc:
-        with contextlib.suppress(OSError):
-            tmp.unlink()
         return f"symlink failed ({exc.strerror or exc})"
+    finally:
+        if staging is not None:
+            with contextlib.suppress(OSError):
+                (staging / tpath.name).unlink()
+            with contextlib.suppress(OSError):
+                staging.rmdir()
     return None
 
 
