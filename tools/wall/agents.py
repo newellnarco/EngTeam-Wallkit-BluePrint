@@ -21,6 +21,13 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:  # POSIX
+    import fcntl
+    msvcrt = None
+except ImportError:  # Windows
+    fcntl = None
+    import msvcrt
+
 ROLE_PREFIX = {
     "foreman": "frm", "maestro": "mst", "architect": "arc", "adjudicator": "adj",
     "builder": "bld", "integrator": "itg", "reviewer": "rev", "warden": "wrd",
@@ -98,55 +105,53 @@ def _confusable(candidate: str, live: set[str]) -> bool:
     return any(n[:2].lower() == candidate[:2].lower() for n in live)
 
 
-#: A lock older than this is a holder that died. Holders never refresh the
-#: lock's mtime, so this must sit far above the longest real hold (a large
-#: ledger read, a slow disk); a short value lets a waiter break a live lock.
-LOCK_STALE_S = 120.0
+def _try_lock(fd: int) -> bool:
+    try:
+        if fcntl is not None:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        else:
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        return True
+    except OSError:
+        return False
 
 
-def acquire_lock(lock: Path, timeout: float = 10.0, stale_after: float | None = None,
-                 what: str = "file") -> str:
-    """Take an exclusive lock: create `lock` with O_CREAT|O_EXCL, retrying
-    until `timeout` seconds pass, and return the owner token written into it
-    (pass it to `release_lock`). A lock file older than `stale_after` seconds
-    (default: `LOCK_STALE_S`, never less than `timeout`) is a holder that died:
-    it is renamed to a unique name first, so exactly one waiter breaks it --
-    a second waiter's rename finds nothing and simply retries -- then removed.
-    Raises TimeoutError when a live holder keeps it past the timeout."""
-    stale_after = max(LOCK_STALE_S, timeout) if stale_after is None else stale_after
-    token = f"{os.getpid()}-{secrets.token_hex(8)}"
+def acquire_lock(lock: Path, timeout: float = 10.0, what: str = "file") -> int:
+    """Take an exclusive lock on `lock` and return the open descriptor that
+    holds it (pass it to `release_lock`). The lock is an OS advisory lock
+    (flock on POSIX, msvcrt.locking on Windows) held on the open file, never
+    the file's existence: the kernel frees it when the holder closes it or
+    dies, so there is no stale age to guess, no waiter ever breaks a lock,
+    and a holder can only ever release its own. The lock file itself is
+    left in place and is harmless when no one holds it.
+    Raises TimeoutError when a live holder keeps it past `timeout` seconds."""
     lock.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(lock), os.O_RDWR | os.O_CREAT, 0o644)
     deadline = time.time() + timeout
-    while True:
-        try:
-            fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(fd, token.encode())
+    while not _try_lock(fd):
+        if time.time() > deadline:
             os.close(fd)
-            return token
-        except FileExistsError:
-            try:
-                if time.time() - lock.stat().st_mtime > stale_after:
-                    grave = lock.with_name(f"{lock.name}.stale-{token}")
-                    os.rename(lock, grave)  # only one breaker's rename succeeds
-                    grave.unlink(missing_ok=True)
-                    continue
-            except OSError:
-                pass
-            if time.time() > deadline:
-                raise TimeoutError(f"{what} locked: {lock}")
-            time.sleep(0.05)
+            raise TimeoutError(f"{what} locked: {lock}")
+        time.sleep(0.05)
+    return fd
 
 
-def release_lock(lock: Path, token: str | None = None) -> None:
-    """Remove the lock -- but only while it is still ours. A holder whose lock
-    was broken as stale and retaken must not delete the new holder's lock."""
-    if token is not None:
-        try:
-            if lock.read_text(encoding="utf-8") != token:
-                return
-        except OSError:
-            return
-    lock.unlink(missing_ok=True)
+def release_lock(fd: int | None) -> None:
+    """Release a lock taken by `acquire_lock`. Only the holder has the
+    descriptor, so it cannot release anyone else's lock. Idempotent on None."""
+    if fd is None:
+        return
+    try:
+        if fcntl is not None:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        else:
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+    except OSError:
+        pass
+    finally:
+        os.close(fd)
 
 
 class AgentRegistry:
@@ -194,10 +199,11 @@ class AgentRegistry:
     # -------------------------------------------------------------- locking
 
     def _acquire(self, timeout: float = 10.0):
-        self._lock_token = acquire_lock(self.lock, timeout, what="registry")
+        self._lock_fd = acquire_lock(self.lock, timeout, what="registry")
 
     def _release_lock(self):
-        release_lock(self.lock, getattr(self, "_lock_token", None))
+        fd, self._lock_fd = getattr(self, "_lock_fd", None), None
+        release_lock(fd)
 
     # ------------------------------------------------------------- the api
 

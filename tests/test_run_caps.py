@@ -23,6 +23,7 @@ import pytest
 
 import courier
 import wall
+from agents import acquire_lock, release_lock
 
 KIT = Path(__file__).resolve().parents[1]
 SUBAGENT_STOP = KIT / ".claude" / "hooks" / "subagent_stop.py"
@@ -263,32 +264,31 @@ LOCK = Path(".wall") / "registry" / "open_runs.lock"
 
 def test_a_held_lock_refuses_run_start_and_writes_nothing(capped, monkeypatch, capsys):
     lock = capped / LOCK
-    lock.parent.mkdir(parents=True)
-    lock.write_text("12345")  # a live holder: fresh mtime
+    holder = acquire_lock(lock, 1.0)  # a live holder
     monkeypatch.setattr(wall, "OPEN_RUNS_LOCK_TIMEOUT_S", 0.3)
-    monkeypatch.setattr(wall, "OPEN_RUNS_LOCK_STALE_S", 60.0)
-    assert start(capped, "bld_a1", "ST-1", "--run-id", "run_l") == 1
-    err = capsys.readouterr().err
-    assert "open_runs.json locked" in err and str(lock) in err
-    assert lock.read_text() == "12345", "another holder's lock is not taken"
-    assert not [e for e in events(capped) if e.get("event") == "run_start"]
-    assert not (capped / ".wall" / "registry" / "open_runs.json").exists()
-    # run-end takes the same lock.
-    assert cli(capped, "run-end", "--run", "run_l", "--outcome", "pass") == 1
+    try:
+        assert start(capped, "bld_a1", "ST-1", "--run-id", "run_l") == 1
+        err = capsys.readouterr().err
+        assert "open_runs.json locked" in err and str(lock) in err
+        assert not [e for e in events(capped) if e.get("event") == "run_start"]
+        assert not (capped / ".wall" / "registry" / "open_runs.json").exists()
+        # run-end takes the same lock.
+        assert cli(capped, "run-end", "--run", "run_l", "--outcome", "pass") == 1
+    finally:
+        release_lock(holder)
 
 
-def test_a_stale_lock_is_broken_and_released_after(capped, monkeypatch):
+def test_a_crashed_holders_lock_file_does_not_block_and_is_released_after(capped):
     lock = capped / LOCK
     lock.parent.mkdir(parents=True)
-    lock.write_text("99999")
+    lock.write_text("99999")  # left behind by a holder that died
     old = time.time() - 3600
-    os.utime(lock, (old, old))  # a holder that died an hour ago
-    monkeypatch.setattr(wall, "OPEN_RUNS_LOCK_STALE_S", 10.0)
+    os.utime(lock, (old, old))
     assert start(capped, "bld_a1", "ST-1", "--run-id", "run_s") == 0
     assert "run_s" in registry(capped)
-    assert not lock.exists(), "the lock is released after the write"
+    release_lock(acquire_lock(lock, 0.2))  # released after the write
     assert cli(capped, "run-end", "--run", "run_s", "--outcome", "pass") == 0
-    assert not lock.exists()
+    release_lock(acquire_lock(lock, 0.2))
 
 
 def test_concurrent_run_starts_cannot_both_take_the_last_slot(repo, config, monkeypatch):

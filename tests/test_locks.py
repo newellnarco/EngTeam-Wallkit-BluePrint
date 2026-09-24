@@ -1,19 +1,25 @@
-"""The shared O_EXCL lock (agents.acquire_lock / release_lock).
+"""The shared lock (agents.acquire_lock / release_lock).
 
 It guards the agent registry (singletons) and open_runs.json (role caps), so
-a lock that two holders can hold at once silently bypasses both. Three ways
-that used to happen are pinned here:
+a lock that two holders can hold at once silently bypasses both. The lock is
+an OS advisory lock held on an open descriptor, never the lock file's
+existence, which removes the three ways a file-existence lock failed:
 
-- a stale threshold shorter than a real hold let a waiter break a live lock;
-- two waiters that both saw the same stale lock could each break it, the
-  second deleting the first's fresh lock;
-- a holder whose lock had been broken and retaken deleted the new holder's
-  lock on release.
+- a waiter that guessed a live holder was dead broke its lock;
+- two waiters breaking the same stale lock could delete each other's;
+- a holder releasing by path could delete a lock someone else had retaken.
+
+Here: a live holder is never taken over however long it holds; a holder that
+dies frees the lock with no stale age at all; and release acts only on the
+holder's own descriptor, never on the path.
 """
 
 from __future__ import annotations
 
 import os
+import subprocess
+import sys
+import textwrap
 import time
 from pathlib import Path
 
@@ -21,78 +27,82 @@ import pytest
 
 import agents
 
-
-def _age(path: Path, seconds: float) -> None:
-    t = time.time() - seconds
-    os.utime(path, (t, t))
+AGENTS_DIR = Path(agents.__file__).resolve().parent
 
 
-def test_the_default_stale_age_is_far_above_a_real_hold(tmp_path):
-    """Mutation: default stale age back to the timeout (10 s)."""
-    assert agents.LOCK_STALE_S >= 120
+def test_a_live_holder_is_never_taken_over_however_old(tmp_path):
+    """Mutation: acquire ignores the OS lock (plain open)."""
     lock = tmp_path / "x.lock"
-    lock.write_text("live-holder")
-    _age(lock, 30)  # a slow but live holder: 30 s into its hold
-    with pytest.raises(TimeoutError):
-        agents.acquire_lock(lock, timeout=0.2)
-    assert lock.read_text() == "live-holder", "a live lock was broken"
+    fd = agents.acquire_lock(lock, timeout=1.0)
+    old = time.time() - 86400
+    os.utime(lock, (old, old))  # age is irrelevant: the holder is alive
+    try:
+        with pytest.raises(TimeoutError, match="locked"):
+            agents.acquire_lock(lock, timeout=0.2)
+    finally:
+        agents.release_lock(fd)
+    agents.release_lock(agents.acquire_lock(lock, timeout=0.2))
 
 
-def test_a_dead_holders_lock_is_broken_and_retaken(tmp_path):
+def test_a_leftover_lock_file_with_no_holder_is_free(tmp_path):
     lock = tmp_path / "x.lock"
-    lock.write_text("dead-holder")
-    _age(lock, agents.LOCK_STALE_S + 60)
-    token = agents.acquire_lock(lock, timeout=1.0)
-    assert lock.read_text() == token
-    assert not list(tmp_path.glob("x.lock.stale-*")), "the broken lock is removed"
-    agents.release_lock(lock, token)
-    assert not lock.exists()
+    lock.write_text("left by a crash")
+    fd = agents.acquire_lock(lock, timeout=0.2)
+    agents.release_lock(fd)
 
 
-def test_a_second_breaker_cannot_delete_the_first_breakers_fresh_lock(tmp_path, monkeypatch):
-    """Mutation: break a stale lock with unlink instead of rename.
-
-    Waiter B sees the stale lock; before B acts, waiter A breaks it and
-    creates its own. B's break must then find nothing to take -- with a bare
-    unlink it deleted A's live lock and both held it."""
+def test_a_holder_that_dies_frees_the_lock_at_once(tmp_path):
+    """No stale age: the kernel drops a dead process's lock."""
     lock = tmp_path / "x.lock"
-    lock.write_text("dead-holder")
-    _age(lock, agents.LOCK_STALE_S + 60)
-    state = {"a_token": None}
-    real_rename = os.rename
-
-    def racing_rename(src, dst):
-        if state["a_token"] is None:
-            # A wins the break first, then creates its fresh lock.
-            real_rename(src, str(dst) + "-a")
-            Path(str(dst) + "-a").unlink()
-            fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(fd, b"A-fresh")
-            os.close(fd)
-            state["a_token"] = "A-fresh"
-            raise FileNotFoundError(src)  # B's rename of the old lock: gone
-        return real_rename(src, dst)
-
-    monkeypatch.setattr(agents.os, "rename", racing_rename)
-    with pytest.raises(TimeoutError):
-        agents.acquire_lock(lock, timeout=0.3)  # B must wait, not steal
-    assert lock.read_text() == "A-fresh", "B deleted A's live lock"
+    child = subprocess.Popen(
+        [sys.executable, "-c", textwrap.dedent(f"""
+            import sys, time
+            sys.path.insert(0, {str(AGENTS_DIR)!r})
+            import agents
+            agents.acquire_lock(__import__("pathlib").Path({str(lock)!r}), 5.0)
+            print("held", flush=True)
+            time.sleep(60)
+        """)], stdout=subprocess.PIPE, text=True)
+    try:
+        assert child.stdout.readline().strip() == "held"
+        with pytest.raises(TimeoutError):
+            agents.acquire_lock(lock, timeout=0.2)
+        child.kill()
+        child.wait(10)
+        agents.release_lock(agents.acquire_lock(lock, timeout=2.0))
+    finally:
+        child.kill()
+        child.stdout.close()
 
 
-def test_release_leaves_a_lock_that_is_no_longer_ours(tmp_path):
-    """Mutation: release_lock ignores the token."""
+def test_release_frees_only_the_holders_own_descriptor(tmp_path):
+    """Mutation: release_lock unlinks the lock path.
+
+    Deleting the path would let a newcomer lock a fresh file while the
+    current holder still holds the old inode -- two holders at once."""
     lock = tmp_path / "x.lock"
-    token = agents.acquire_lock(lock, timeout=1.0)
-    lock.write_text("someone-else")  # ours was broken and retaken
-    agents.release_lock(lock, token)
-    assert lock.read_text() == "someone-else"
-    agents.release_lock(lock, "someone-else")
-    assert not lock.exists()
+    first = agents.acquire_lock(lock, timeout=1.0)
+    agents.release_lock(first)
+    second = agents.acquire_lock(lock, timeout=1.0)
+    try:
+        agents.release_lock(None)  # a holder with nothing to release
+        with pytest.raises(TimeoutError):
+            agents.acquire_lock(lock, timeout=0.2)
+        assert lock.exists(), "the lock file is never removed"
+    finally:
+        agents.release_lock(second)
 
 
-def test_the_registry_releases_only_its_own_lock(tmp_path):
+def test_the_registry_releases_once_and_only_its_own(tmp_path):
     reg = agents.AgentRegistry(tmp_path)
     reg._acquire(timeout=1.0)
-    reg.lock.write_text("someone-else")
+    with pytest.raises(TimeoutError):
+        agents.AgentRegistry(tmp_path)._acquire(timeout=0.2)
     reg._release_lock()
-    assert reg.lock.read_text() == "someone-else"
+    reg._release_lock()  # a second release is a no-op, not a stray close
+    other = agents.AgentRegistry(tmp_path)
+    other._acquire(timeout=0.2)
+    reg._release_lock()  # must not free other's lock
+    with pytest.raises(TimeoutError):
+        agents.AgentRegistry(tmp_path)._acquire(timeout=0.2)
+    other._release_lock()
