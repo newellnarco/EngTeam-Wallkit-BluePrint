@@ -45,6 +45,7 @@ These answers set the design. They are recorded in the proposed DEC-0036 (append
 | How sessions communicate | **A small shared service**, the coordinator. |
 | Where it runs | **Both options are laid out, and chosen at setup:** self-hosted or serverless. Same API, same trust model, same tests. Authentication is by GitHub identity in both. |
 | How agents are allocated | **The engineer assigns each wave.** No automatic split across repos. |
+| Who is in a wave | **The repo decides.** Engineers are in the same wave only when they work in the same repo, however many sessions each of them runs. Engineers in different repos are never in the same wave. |
 | Repo dependencies | **Independent repos.** Coordination is about shared people, budget and environments, not code dependencies. |
 | Contended CI/CD/CT resources | CI minutes and runners; test environments (**each engineer may have several personal environments; a repo may optionally have one or more shared environments, each covering one, several or all of that repo's deploys**); deploy targets; reviewer and API quotas. |
 
@@ -248,9 +249,12 @@ sequenceDiagram
 
 ### 6.2 How it is counted
 
-- A wave belongs to one repo. Several sessions, on several machines and for
-  several engineers, may work inside the same wave; they share its
-  allocation. The desk shows who is using which slots.
+- **Wave membership follows the repo.** A wave belongs to exactly one repo,
+  and a repo has at most one open wave at a time. Every session working in
+  that repo is in its wave, whichever engineer and machine it belongs to and
+  however many sessions each engineer runs; they share its allocation. Two
+  engineers in different repos are never in the same wave. The desk shows who
+  is using which slots.
 - `wall run-start` *(exists)* already refuses past `role_limits`. With a
   coordinator configured it also refuses past the wave's allocation, counting
   open runs across **every** session in the wave. `--over-cap-reason` still
@@ -278,6 +282,11 @@ Three engineers, four repos, one morning.
 | @engineer-b | laptop-b | web-client | W-7 | 3 builders, 1 reviewer | UI work. |
 | @engineer-c | laptop-c | web-client | W-7 (shared) | uses W-7 slots | A search change in the same wave. |
 | @engineer-c | laptop-c | infra-config | none | 0 | Reviewing only; no agents. |
+
+@engineer-a is in two waves because they work in two repos. @engineer-a and
+@engineer-b are in the same wave (W-12) because both work in api-service, and
+@engineer-b and @engineer-c share W-7 for the same reason. @engineer-a and
+@engineer-c share no wave: they never work in the same repo.
 
 ---
 
@@ -447,8 +456,8 @@ results, the merge queue across repos, and deploy locks.*
 
 ### W2. Two engineers in the same repo on different machines
 
-1. Both sessions check in to the same repo; the desk shows both, with their
-   leased surfaces.
+1. Both sessions check in to the same repo and so join its one open wave;
+   the desk shows both, with their leased surfaces.
 2. Each lease that could collide is claimed at the coordinator; overlapping
    claims return the holder, and the second session re-scopes or sends a
    `release_request`.
@@ -620,8 +629,9 @@ P0 and P3 are useful to a single engineer and can ship first.
 
 ## 15. Questions still open for the owner
 
-1. **Wave ownership.** When two engineers work in the same wave, is the wave
-   owned by one of them (who assigns and closes it) or by the repo's owner?
+1. **Wave ownership.** Membership is settled: the same repo means the same
+   wave. Still open: who assigns and closes a wave that several engineers
+   share: the engineer who opened it, a named lead, or the repo's owner?
 2. **Priority across repos.** When a shared environment has a queue, is it
    first come first served, or does a repo or wave priority reorder it?
 3. **Message routing to people.** Should `blocker` and `question` messages also
@@ -683,18 +693,22 @@ The Patron (2026-09-24):
    serverless, one API, one trust model, one test suite. Identity is GitHub
    identity; access is membership of a configured organization or team; the
    coordinator can refuse but never grant.
-5. **The engineer assigns each wave.** No automatic split across
+5. **Wave membership follows the repo.** Engineers are in the same wave only
+   when they work in the same repository, however many sessions each runs; a
+   repository has at most one open wave at a time, and engineers in
+   different repositories never share one.
+6. **The engineer assigns each wave.** No automatic split across
    repositories. Role caps in each repository stay as ceilings; `wall
    run-start` also refuses past the wave's allocation, counted across every
    session in the wave, unless an over-cap reason is recorded.
-6. **Repositories are independent.** Coordination covers people, budget,
+7. **Repositories are independent.** Coordination covers people, budget,
    environments and deploy targets, not code dependencies.
-7. **Test environments:** each engineer may hold several personal
+8. **Test environments:** each engineer may hold several personal
    environments; a repository may optionally have one or more shared
    environments, each covering one, several or all of its deploys. Shared
    environments and deploy targets are claimed, queued and released through
    the coordinator; production requires a person's approval.
-8. **Contended resources are metered team-wide:** CI minutes and runners,
+9. **Contended resources are metered team-wide:** CI minutes and runners,
    deploy targets, reviewer lanes and API quotas, each draw attributed to a
    session and an engineer.
 
