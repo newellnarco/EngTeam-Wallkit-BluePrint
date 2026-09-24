@@ -1942,7 +1942,8 @@ footer {
       {label:'Items on the board', big: items.length, foot:''},
       {label:'In flight', big: work.length, foot:'in progress, review, blocked, triage'},
       {label:'Agents working', big: working.length, foot:''},
-      {label:'Waiting on you', big:(D.waiting_on_you||[]).length, foot:'answer on the WAITING tab'},
+      {label:'Waiting on you', big:(D.waiting_on_you||[]).length + (D.verify_waiting||[]).length,
+       foot:'answer or verify on the WAITING tab'},
       {label:'Integrity flags', big:nflags, foot: nflags ? 'details on the CREW tab' : 'clean'}
     ];
     $('mainStats').innerHTML = stats.map(function(s){

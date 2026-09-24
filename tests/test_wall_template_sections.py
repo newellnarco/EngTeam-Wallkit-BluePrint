@@ -172,6 +172,18 @@ def test_main_counts_the_new_flags(tmp_path):
 
 # --------------------------------------------------------------- waiting
 
+def test_main_waiting_tile_counts_verifications_too(tmp_path):
+    """Mutation: the tile counts only waiting_on_you. A pending owner
+    verification is work parked on the owner; the MAIN tile read 0 while the
+    WAITING tab read 1."""
+    ask = {"question_id": "q1", "text": "which index?", "item_id": "ST-1"}
+    out = paint(base(waiting_on_you=[ask], verify_waiting=VERIFY_ROWS), tmp_path)
+    assert "Waiting on you 3" in text_of(out["mainStats"]["html"])
+    out = paint(base(verify_waiting=VERIFY_ROWS[:1]), tmp_path)
+    assert "Waiting on you 1" in text_of(out["mainStats"]["html"])
+
+
+
 def test_verify_queue_renders_with_the_verified_command(tmp_path):
     out = paint(base(verify_waiting=VERIFY_ROWS), tmp_path)
     html = out["verifyWaiting"]["html"]
