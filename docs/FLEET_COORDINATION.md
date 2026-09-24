@@ -45,6 +45,7 @@ These answers set the design. They are recorded in the proposed DEC-0036 (append
 | How sessions communicate | **A small shared service**, the coordinator. |
 | Where it runs | **Both options are laid out, and chosen at setup:** self-hosted or serverless. Same API, same trust model, same tests. Authentication is by GitHub identity in both. |
 | How agents are allocated | **The engineer assigns each wave.** No automatic split across repos. |
+| Production issue from a customer | **An incident override takes over all work in that repo** until the fix is in production. The fix still goes through the full process and cycle, all the way to production; the override changes priority, never the gates. |
 | Shared-environment queue | **A priority can jump the queue.** Otherwise first come, first served. |
 | Who is in a wave | **The repo decides.** Engineers are in the same wave only when they work in the same repo, however many sessions each of them runs. Engineers in different repos are never in the same wave. |
 | Repo dependencies | **Independent repos.** Coordination is about shared people, budget and environments, not code dependencies. |
@@ -428,7 +429,8 @@ arrival order among equals. Proposed defaults, open to the owner:
 | `urgent` | The claim's engineer, with a reason; the repo's owner is notified | Goes to the front, ahead of `high`. |
 
 A jump never interrupts the current holder: it takes the next turn, so no test
-run is cut off halfway. Every jump is an attributed event (who, which claim,
+run is cut off halfway. The one exception is a production incident override
+(section 9.5), which may interrupt. Every jump is an attributed event (who, which claim,
 why, whom it passed), each passed session gets a `notice`, and the desk shows
 how often each engineer jumps so the habit stays visible.
 
@@ -453,6 +455,68 @@ results, the merge queue across repos, and deploy locks.*
 - The coordinator reads GitHub once and serves many sessions (queue state, run
   usage, check results), so sessions stop spending the shared API rate limit on
   the same reads.
+
+---
+
+### 9.5 Production incident override
+
+A production issue reported by a customer overrides **all work in that
+repository** until the fix is running in production. The override changes
+who goes first, everywhere the repository competes for anything. It never
+removes a step: the fix goes through the full process and cycle, all the way
+to production.
+
+**Declaring it.** An engineer with write access to the repository declares the
+incident *(proposed: `wall incident open --repo <name> --ref <ticket id>
+--summary "<what the customer sees>"`)*. The reference is the customer ticket
+id, never the customer's personal data (`DATA_PROTECTION.md`). The repository's
+owner and every engineer with a session in the repository get a `blocker`
+message at once. A repository has at most one open incident; a second report
+of the same problem attaches to it.
+
+**What it overrides, in that repository:**
+
+| Resource | During the incident |
+|---|---|
+| Dispatch | No new run starts for anything except incident work (`wall run-start` refuses other items and names the incident). |
+| Running agents | Every non-incident agent stops at its next checkpoint: it commits its work in progress to its own branch, records a `handoff`, and parks. Nothing is killed mid-write and nothing is lost. |
+| Leases | The incident session may lease any path. A conflicting lease is released at the holder's checkpoint, with a handoff record. |
+| Wave allocation | Incident runs get the slots they need regardless of the wave's allocation; each is recorded with the incident id as its over-cap reason. The paused agents' slots are freed for them. |
+| Merge queue | The incident PR goes to the front. Other PRs for the repository are held (taken out of the queue) and put back automatically when the incident closes. |
+| Shared test environments | The incident takes every environment that covers the repository, next. **Unlike a priority jump, it may interrupt:** the current holder is stopped after its current CT step, notified, and put back at the front of the queue afterwards. An environment shared with other repositories is interrupted for them too. |
+| CI runners, reviewer lanes, API quota | Incident jobs and reviews go first. Budgets are not a reason to wait; the spend is recorded against the incident. |
+| Deploy targets | Staging and production locks are reserved for the incident. |
+
+**What it never overrides.** Every gate still runs, in order:
+
+1. Reproduce the issue from the customer's report and record it as a finding
+   (`wall finding`, *exists*), with a regression test that fails.
+2. The fix is a story with citable acceptance criteria and a brief, built by
+   a Builder under a lease, with the failing test now passing.
+3. Review by the Reviewer and the hosted lanes; the Warden if the fix touches
+   a regulated or security surface.
+4. CI green on the PR and on the merge group.
+5. Deploy to staging and run CT.
+6. Deploy to production with a person's approval (GitHub environment
+   protection still enforces it).
+7. Owner verification (`wall verify-request`, *exists*) and the customer's
+   confirmation through the ticket.
+
+**Other repositories** keep working. They are affected only where they share
+something with the incident's repository: a shared environment, runners,
+reviewer lanes or quota, and they get a `notice` when that happens.
+
+**Closing it.** After production is verified, the engineer closes the incident
+*(proposed: `wall incident close --ref <ticket id>`)*. Parked sessions get a
+message to resume, held PRs are put back in the queue (they rebase onto the new
+main in the merge group), interrupted environment holders get their turn back,
+and the wave's allocation applies again. The incident then feeds the existing
+learning loop: a retrospective (`wall retro`, *exists*) and a failure-registry
+entry with its recurrence test, in the same change as any preventive fix.
+
+**Audit.** Every effect above is an event carrying the incident id, in the
+repository's ledger and on the desk: who declared it, what it paused and
+interrupted, every gate it passed, and when it closed.
 
 ---
 
@@ -544,6 +608,20 @@ any repo depends on it.
 
 ---
 
+### W11. A customer reports a production issue
+
+1. The engineer declares the incident for the repository with the customer
+   ticket id. Everyone working in the repository gets a `blocker`.
+2. Non-incident agents park at their next checkpoint; the incident session
+   takes the leases, slots, runners and environments it needs.
+3. The fix runs the full cycle (section 9.5): reproduce, failing test, story,
+   build, review, CI, merge queue (at the front), staging and CT, production
+   with approval, owner verification, customer confirmation.
+4. The engineer closes the incident. Parked work resumes, held PRs re-enter
+   the queue, and the retrospective and failure-registry entry follow.
+
+---
+
 ## 11. The machine desk and the team desk
 
 ### 11.1 Machine desk *(proposed)*
@@ -621,6 +699,7 @@ the next phase never comes.
 | **P2. Allocation and quotas** | Wave allocations, run-start checks against them, the quota ledger, the WAVES and QUOTAS tabs. | Yes |
 | **P3. Merge queue** | Enqueue instead of merge in the role sheets and `WORKFLOW.md`; `merge_group` in CI and in DEC-0035's recipe; branch protection checks on POSTURE. | No (GitHub) |
 | **P4. Environments and deploys** | Environment and deploy objects, claims, CT reporting, the ENVIRONMENTS tab. | Yes |
+| **P5. Incident override** | `wall incident open/close`, the dispatch freeze and checkpoint parking, queue holds, environment interruption, the incident banner on the desk and the repo wall. | Yes (the freeze and parking also work locally in one checkout without it) |
 
 P0 and P3 are useful to a single engineer and can ship first.
 
@@ -639,6 +718,9 @@ P0 and P3 are useful to a single engineer and can ship first.
   Keep TTLs short and CT suites fast, and prefer personal environments.
 - **Allocation by hand needs a habit.** If waves are not assigned, run-start
   refuses. The desk shows unassigned sessions so the gap is visible.
+- **An override is expensive; keep it for real incidents.** It parks everyone
+  in the repository and interrupts shared environments. The desk shows how
+  often each repository declares one, and each is reviewed in its retro.
 - **Clock skew across machines.** Order comes from the coordinator's clock,
   never the client's.
 
@@ -662,6 +744,12 @@ P0 and P3 are useful to a single engineer and can ship first.
    shows `name@session`), or make them unique across the whole team?
 7. **Cost attribution.** Should quota draws roll up to engineers only, or also
    to a cost centre per repo?
+8. **Who may declare an incident.** Any engineer with write access (proposed),
+   or only the repository's owner or an on-call rota?
+9. **Running agents during an incident.** Park at their next checkpoint
+   (proposed), or stop immediately?
+10. **Incident notification.** Beyond the desk, how should an incident reach
+    people (ties to question 3)?
 
 ---
 
@@ -729,7 +817,13 @@ The Patron (2026-09-24):
    environment's queue is first come, first served, except that a claim with
    a priority jumps ahead; a jump never interrupts the current holder and is
    always attributed.
-9. **Contended resources are metered team-wide:** CI minutes and runners,
+9. **A customer-reported production issue overrides all work in its
+   repository** until the fix is in production: dispatch, leases, the wave's
+   allocation, the merge queue, shared environments (which it may
+   interrupt), runners, reviewer lanes and deploy locks all serve it first.
+   It never removes a gate: the fix goes through the full process, all the
+   way to production, with a person approving the production deploy.
+10. **Contended resources are metered team-wide:** CI minutes and runners,
    deploy targets, reviewer lanes and API quotas, each draw attributed to a
    session and an engineer.
 
