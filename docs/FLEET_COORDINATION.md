@@ -50,6 +50,8 @@ These answers set the design. They are recorded in the proposed DEC-0036 (append
 | Who leads a shared wave | **The repo's Patron engineer.** When several engineers share a repo's wave, the repo's Patron engineer is the wave lead: they assign its allocation, approve changes to it, and close it. |
 | Coordinator history | **Kept indefinitely.** |
 | Agent names | **Unique across the whole team.** No two live agents anywhere on the team share a name. |
+| Priority levels | **`normal`, `high`, `urgent`, as proposed. `urgent` needs the lead Patron engineer's approval.** |
+| Reaching people outside the desk | **Both email and chat, for every engineer who has them configured.** `blocker` and `question` messages (and incidents) go to each channel the recipient set up; an engineer with neither sees them on the desk only. |
 | Who is in a wave | **The repo decides.** Engineers are in the same wave only when they work in the same repo, however many sessions each of them runs. Engineers in different repos are never in the same wave. |
 | Repo dependencies | **Independent repos.** Coordination is about shared people, budget and environments, not code dependencies. |
 | Contended CI/CD/CT resources | CI minutes and runners; test environments (**each engineer may have several personal environments; a repo may optionally have one or more shared environments, each covering one, several or all of that repo's deploys**); deploy targets; reviewer and API quotas. |
@@ -330,7 +332,7 @@ Three engineers, four repos, one morning.
 |---|---|---|
 | **Presence** | Who is where, on what, since when. | Heartbeat every 60 s. |
 | **Leases** | "I am writing these paths." | On claim. |
-| **Messages** | Typed: `handoff`, `question`, `notice`, `blocker`, `lease_conflict`, `release_request`. Each has a sender, recipients (sessions, engineers or a repo), an optional item id and a required acknowledgement. | Pushed on the next heartbeat; the Maestro reads its inbox at each wave checkpoint. |
+| **Messages** | Typed: `handoff`, `question`, `notice`, `blocker`, `lease_conflict`, `release_request`. Each has a sender, recipients (sessions, engineers or a repo), an optional item id and a required acknowledgement. | Pushed on the next heartbeat; the Maestro reads its inbox at each wave checkpoint. `blocker` and `question` messages also go out by email and chat to each recipient who configured them (section 7.2). |
 | **The merge queue** | "This change is ready." GitHub's own state. | Immediate. |
 | **The repo ledger** | The durable record. Every coordinator event that concerns a repo is also written into that repo's ledger as an event, so the repo's history is complete without the coordinator. | Next sweep. |
 
@@ -338,14 +340,21 @@ Three engineers, four repos, one morning.
 
 1. **Sessions never talk directly.** Everything goes through the coordinator,
    so it is attributed, ordered and visible on the desk.
-2. **A message is not delivered until acknowledged.** An unacknowledged
+2. **People are reached where they are.** A `blocker` or `question` for an
+   engineer also goes by email and by chat, to every channel that engineer
+   has configured (both, if both are set up; neither, and it stays on the
+   desk). Incidents use the same routing. The outside message carries the
+   kind, repo, item and a link to the desk, never code or customer data, and
+   acknowledging it still happens on the desk or in the session, so the
+   record stays in one place.
+3. **A message is not delivered until acknowledged.** An unacknowledged
    `blocker` or `question` past its SLA escalates to the recipient's engineer,
    then to the repo's owner, using the existing escalation ladder
    (`WORKFLOW.md` section 4).
-3. **Questions still go decision-log first.** A cross-session question checks
+4. **Questions still go decision-log first.** A cross-session question checks
    the repo's decision log before it is sent; the answer, if it is a ruling,
    becomes a DEC-NNNN in the repo it concerns.
-4. **Handoffs carry state, not prose.** A `handoff` names the item, the branch,
+5. **Handoffs carry state, not prose.** A `handoff` names the item, the branch,
    the last commit and the leases being released, so the receiving session can
    verify rather than trust (DEC-0011).
 
@@ -450,13 +459,13 @@ test run.
 **Queue order: a priority can jump the queue.** A shared environment's queue
 is first come, first served, except that a claim marked with a priority moves
 ahead of every claim without one (and ahead of lower priorities), keeping
-arrival order among equals. Proposed defaults, open to the owner:
+arrival order among equals. The levels, as the owner accepted them:
 
 | Priority | Who may set it | Effect |
 |---|---|---|
 | `normal` | Anyone (the default) | Joins the back of the queue. |
 | `high` | The claim's engineer, with a reason | Goes ahead of every `normal` claim. |
-| `urgent` | The claim's engineer, with a reason; the repo's owner is notified | Goes to the front, ahead of `high`. |
+| `urgent` | The claim's engineer requests it, with a reason; **the lead Patron engineer must approve it** before it takes effect | Goes to the front, ahead of `high`. Until approved it waits as `high`. |
 
 A jump never interrupts the current holder: it takes the next turn, so no test
 run is cut off halfway. The one exception is a production incident override
@@ -690,7 +699,9 @@ verification queue.*
 ## 12. Configuration *(proposed)*
 
 A `fleet` block in `.wall/config/wall.json`, and the machine's
-`~/.wall/fleet.json` for the coordinator URL and token reference:
+`~/.wall/fleet.json` for the coordinator URL and token reference. Each
+engineer's own notification channels (an email address, a chat webhook) are
+set once in their profile on the coordinator, not in any repo:
 
 ```json
 {
@@ -765,11 +776,11 @@ P0 and P3 are useful to a single engineer and can ship first.
 1. **Wave ownership.** Settled: the same repo means the same wave, and the
    repo's Patron engineer leads it (assigns, approves changes, closes).
    Still open: who stands in when the Patron engineer is away?
-2. **Priority levels.** Settled: a priority can jump the queue (section 9.2).
-   Still open: are the proposed levels and who may set them right, and should
-   `urgent` need the repo owner's approval rather than only notifying them?
-3. **Message routing to people.** Should `blocker` and `question` messages also
-   reach engineers outside the desk (email, chat), and if so which?
+2. **Priority levels.** Settled: `normal`, `high`, `urgent`, and `urgent`
+   needs the lead Patron engineer's approval (section 9.2).
+3. **Message routing to people.** Settled: both email and chat, for every
+   engineer who has them configured (section 7.2). Still open: which chat
+   systems the first release supports.
 4. **Retention.** Settled: indefinitely (section 5.3). Still open: confirm
    pseudonymous ids with a removable mapping as the way to honour a
    person's removal request without breaking the record.
@@ -784,8 +795,9 @@ P0 and P3 are useful to a single engineer and can ship first.
    or only the repository's owner or an on-call rota?
 9. **Running agents during an incident.** Park at their next checkpoint
    (proposed), or stop immediately?
-10. **Incident notification.** Beyond the desk, how should an incident reach
-    people (ties to question 3)?
+10. **Incident notification.** Settled by question 3: incidents go by email
+    and chat to everyone configured for them. Still open: should an incident
+    also page someone (a phone call or pager), beyond email and chat?
 
 ---
 
@@ -859,13 +871,17 @@ The Patron (2026-09-24):
    environment's queue is first come, first served, except that a claim with
    a priority jumps ahead; a jump never interrupts the current holder and is
    always attributed.
-11. **A customer-reported production issue overrides all work in its
+11. **Priority and reach.** A shared environment's queue has three levels,
+    `normal`, `high` and `urgent`; `urgent` needs the lead Patron engineer's
+    approval. `blocker` and `question` messages, and incidents, also reach
+    each engineer by email and chat where they have configured them.
+12. **A customer-reported production issue overrides all work in its
    repository** until the fix is in production: dispatch, leases, the wave's
    allocation, the merge queue, shared environments (which it may
    interrupt), runners, reviewer lanes and deploy locks all serve it first.
    It never removes a gate: the fix goes through the full process, all the
    way to production, with a person approving the production deploy.
-12. **Contended resources are metered team-wide:** CI minutes and runners,
+13. **Contended resources are metered team-wide:** CI minutes and runners,
    deploy targets, reviewer lanes and API quotas, each draw attributed to a
    session and an engineer.
 
