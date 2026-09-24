@@ -48,6 +48,7 @@ These answers set the design. They are recorded in the proposed DEC-0036 (append
 | Production issue from a customer | **An incident override takes over all work in that repo** until the fix is in production. The fix still goes through the full process and cycle, all the way to production; the override changes priority, never the gates. |
 | Shared-environment queue | **A priority can jump the queue.** Otherwise first come, first served. |
 | Who leads a shared wave | **The repo's Patron engineer.** When several engineers share a repo's wave, the repo's Patron engineer is the wave lead: they assign its allocation, approve changes to it, and close it. |
+| Coordinator history | **Kept indefinitely.** |
 | Agent names | **Unique across the whole team.** No two live agents anywhere on the team share a name. |
 | Who is in a wave | **The repo decides.** Engineers are in the same wave only when they work in the same repo, however many sessions each of them runs. Engineers in different repos are never in the same wave. |
 | Repo dependencies | **Independent repos.** Coordination is about shared people, budget and environments, not code dependencies. |
@@ -158,7 +159,7 @@ same pattern as the repo ledger.
 | `environments` | Personal and shared environments, their repo scope and deploy set, and claims with a queue. | Claims carry a TTL; personal environments persist. |
 | `deploys` | Deploy targets, their lock, their last deploy, approval requirements. | Lock held for the length of one deploy. |
 | `quotas` | Model tokens, CI minutes, runner pool, reviewer lanes, GitHub API: limit, draw so far, draw per session and engineer. | Reset per the provider's window (hour, day, month). |
-| `messages` | Typed messages between sessions and to people. | Kept until acknowledged, then archived. |
+| `messages` | Typed messages between sessions and to people. | Open until acknowledged; kept indefinitely after. |
 
 ### 5.2 API sketch
 
@@ -197,6 +198,19 @@ retried call never double-claims.
 - **Everything is attributed.** Every event names engineer, session and
   machine. The Warden reviews the coordinator like any other data use
   (DEC-0025), and its gate applies before the first team rollout.
+- **History is kept indefinitely.** Coordinator events are append-only and
+  never expire: the team's record of who held what, when, and why stays
+  complete, as each repo's ledger already does. Old events move to cheaper
+  archive storage but stay readable. Two things make indefinite retention safe:
+  - **People can be forgotten without losing the record.** Events refer to an
+    engineer through a stable pseudonymous id; the id-to-login mapping is a
+    separate table. Removing a person (for example under a data-protection
+    request) deletes their mapping row, and their events remain, attributed to
+    an anonymous id. This is the only kind of deletion the coordinator allows.
+  - **Nothing sensitive is kept in the first place** (the least-data rule
+    above), so indefinite retention never means keeping secrets or customer
+    data indefinitely. Incident records carry the ticket id, never the
+    customer's details.
 
 ### 5.4 When the coordinator is unreachable
 
@@ -738,6 +752,9 @@ P0 and P3 are useful to a single engineer and can ship first.
 - **An override is expensive; keep it for real incidents.** It parks everyone
   in the repository and interrupts shared environments. The desk shows how
   often each repository declares one, and each is reviewed in its retro.
+- **Indefinite retention grows.** Plan archive storage from the first
+  rollout, and have the Warden confirm the pseudonymous-id design against
+  the regimes the team is under before any real data lands.
 - **Clock skew across machines.** Order comes from the coordinator's clock,
   never the client's.
 
@@ -753,8 +770,9 @@ P0 and P3 are useful to a single engineer and can ship first.
    `urgent` need the repo owner's approval rather than only notifying them?
 3. **Message routing to people.** Should `blocker` and `question` messages also
    reach engineers outside the desk (email, chat), and if so which?
-4. **Retention.** How long should the coordinator keep events: the length of a
-   wave, a quarter, or indefinitely?
+4. **Retention.** Settled: indefinitely (section 5.3). Still open: confirm
+   pseudonymous ids with a removable mapping as the way to honour a
+   person's removal request without breaking the record.
 5. **Serverless provider.** Which provider should the serverless reference
    deployment target first?
 6. **Agent names across sessions.** Settled: unique across the whole team
@@ -828,9 +846,12 @@ The Patron (2026-09-24):
    session in the wave, unless an over-cap reason is recorded.
 7. **Agent names are unique across the whole team.** The coordinator is
    the name registry; keys remain the identity (DEC-0003).
-8. **Repositories are independent.** Coordination covers people, budget,
+8. **The coordinator keeps its history indefinitely**, append-only, with
+   engineers referenced by pseudonymous ids so a person can be removed
+   without deleting the record.
+9. **Repositories are independent.** Coordination covers people, budget,
    environments and deploy targets, not code dependencies.
-9. **Test environments:** each engineer may hold several personal
+10. **Test environments:** each engineer may hold several personal
    environments; a repository may optionally have one or more shared
    environments, each covering one, several or all of its deploys. Shared
    environments and deploy targets are claimed, queued and released through
@@ -838,13 +859,13 @@ The Patron (2026-09-24):
    environment's queue is first come, first served, except that a claim with
    a priority jumps ahead; a jump never interrupts the current holder and is
    always attributed.
-10. **A customer-reported production issue overrides all work in its
+11. **A customer-reported production issue overrides all work in its
    repository** until the fix is in production: dispatch, leases, the wave's
    allocation, the merge queue, shared environments (which it may
    interrupt), runners, reviewer lanes and deploy locks all serve it first.
    It never removes a gate: the fix goes through the full process, all the
    way to production, with a person approving the production deploy.
-11. **Contended resources are metered team-wide:** CI minutes and runners,
+12. **Contended resources are metered team-wide:** CI minutes and runners,
    deploy targets, reviewer lanes and API quotas, each draw attributed to a
    session and an engineer.
 
