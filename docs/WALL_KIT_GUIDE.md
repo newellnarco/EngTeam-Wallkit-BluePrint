@@ -1,6 +1,6 @@
 # Wall Kit: Technical Reference, User Guide and White Paper
 
-> **This is the consolidated source of truth for the kit.** What it is, how it installs, how it works, how you work with it, how it learns, how it is removed, what to be careful of, and every change made to it: one document, maintained by rule.
+> **This is the consolidated source of truth for the kit.** It covers what the kit is, how it installs and works, how you work with it, how it learns, how it is removed, what to be careful of, and every change made to it. It is one document, maintained by rule.
 >
 > **How it stays true.** Any change to the kit's behavior, commands, configuration, roles, decisions, install or removal, or its documentation updates this file **in the same pull request**. `tests/test_guide_current.py` fails CI when this guide falls behind the code: a `wall` command, a bootstrap mode, a config key, an integrity flag, a role, a skill, a decision or a document that exists but is not described here. The Reviewer rejects a behavior change that leaves this guide untouched, and the Maestro's standing rules and the wave's close carry the same rule. The change log (Appendix C) records every change, newest first.
 >
@@ -286,7 +286,7 @@ Old records are carried forward unchanged, so a local edit nothing touched never
 | --- | --- |
 | `tools/wall/` | `wall.py` CLI (+ `wall.bat`), `bootstrap.py`, `courier.py`, `agents.py`, `service.py`, `server.py`, `shipper.py`, `mcp_server.py`, `summary.py`, `items.py`, `questions.py`, `decisions.py`, `contracts.py`, `quality.py`, `compliance.py`, `oversight.py`, `testkit.py`, `context_sync.py`, `install/` (OS adapters), `adapters/` (board import), `render/`, `config/wall.example.json` |
 | `frontend/theme/` | Design tokens (light and dark, contrast-verified), primitives, preview. No build step |
-| `docs/` | About 35 process documents, 8 compliance blueprints, diagrams, handoff templates, the decision log, the skills library |
+| `docs/` | About 35 process documents including this guide, 8 compliance blueprints, diagrams, handoff templates, the decision log, the skills library |
 | `templates/` | 13 context-document templates |
 | `.claude/` | `MAESTRO.md`, 8 role sheets, skills `wave`, `adopt`, `reviewer-integration`, hooks |
 | `.wall/` | Config, registry, items, events, derived, logs, runs (section 2) |
@@ -623,18 +623,6 @@ See section 9. There are eight compliance blueprints (SOC 2, HIPAA/PHI, PCI DSS 
 
 The loop runs: running system → redacted snapshots shipped unconditionally → freshness (undated counts as stale) → deterministic triage under an act-and-audit grant → a story with evidence, hypotheses, root cause, design and prevention. The events are written by commands: `wall finding` (signature normalized; an `unclassified` finding may not be routed `auto_repaired`), `wall story-filed`, `wall verify-request` and `wall verified` (the owner's answer, in the human session). The courier flags `dropped_findings` (a finding routed `story_filed` with no story past `sla_minutes.story_filed`, default 60) and `verify_overdue` (a verify request older than `verify_horizon_days`, default 7); open requests show on the WAITING tab with the `wall verified` command. A hand-run diagnostic is allowed only while no closed telemetry loop exists (DEC-0034). The snapshot shipper and the classifier that reads your system's logs are yours to build for your product; the kit supplies the events, the checks and the procedure.
 
-### 7.20 Run starts and role caps (S)
-
-`wall run-start` is the one way a dispatch opens a run: it writes `run_start` with the agent key, role, item, deadline, scopes and decisions in context, and registers the run in `.wall/registry/open_runs.json` in the shape the SubagentStop hook resolves, under an exclusive lock so two dispatches cannot both pass the cap. It refuses past `role_limits[role]`, counting runs with no terminal event that are not past their deadline, unless `--over-cap-reason` is given (recorded on the event). The lock is `.wall/registry/open_runs.lock` (10 s timeout; a lock older than 10 s is treated as stale and retaken); a live holder at the timeout makes the command exit 1 and name the lock. `wall run-end` writes the terminal record for setups without hooks and leaves a marker (`.wall/runs/<run_id>/ended.json`); if the SubagentStop hook later fires for that run it consumes the marker and writes nothing, so there is exactly one terminal record. Markers older than 6 hours are ignored, so a leftover never swallows a later real stop.
-
-### 7.21 Retrospective and rebalance records (S for validation, P for content)
-
-`wall retro --wave W --file retro.json` refuses a retrospective that breaks RETROSPECTIVES.md: no measured signal (each needs a `source` of ledger, wall, checks or ci), more than 3 diffs, a diff kind outside the closed list (rule, sop, template, failure_class, rebalance, design_candidate, no_change), a diff with no horizon, why or owner, or any `retro_input` since the last retro left unaddressed (adopted with a diff in this record, queued with an item, or declined with a reason). `wall rebalance` writes `rebalance_applied` with the signals, knob, from, to, expected effect, horizon and a one-step revert; it refuses a second rebalance in the same cycle without `--reason`, and refuses a second reversal of the same knob, routing it to the Adjudicator as an escalated question (`q_rebalance_<knob>_ep<N>`, one per oscillation episode, so a knob that oscillates again after a ruling asks the Adjudicator again). Rebalances show on the RETRO tab and in `wall summary`.
-
-### 7.22 Context-document budget headroom (S)
-
-`wall doctor` measures every document registered in `BUDGETED_DOCS.md` (or the path in `budgeted_docs`) in its declared unit (characters, bytes, lines, or tokens approximated at 4 characters) and reports ok, warn (under 10% headroom) or fail (over budget) per document. Unfilled placeholders and unrecognised units read "not measured", never "fine"; no register at all reads "not measured".
-
 ### 7.17 Fleet (P)
 
 For more than one adopting repo (`FLEET.md`): verdicts are exit codes (0 in sync, 1 diverged and acted on, 2 UNKNOWN, which is never a pass). One hash-pinned, byte-identical shared block. Delivery by draft PR. Every inbound item is adopted, reworded or declined with a reason.
@@ -646,6 +634,18 @@ Docker, VMs and Kubernetes (`DEPLOYMENT_TARGETS.md`). The invariants: one sweepe
 ### 7.19 Skills library (P, pinned by tests)
 
 This is the method layer: 18 sections, 211 entries, mapped to roles, product-free by test. It covers diagnosis from the answer back to the question, research, design, building, testing, review, CI and release, systems you don't own, live systems, security, detection, compliance, operations, web and UX, platforms, heuristics and state.
+
+### 7.20 Run starts and role caps (S)
+
+`wall run-start` is the one way a dispatch opens a run: it writes `run_start` with the agent key, role, item, deadline, scopes and decisions in context, and registers the run in `.wall/registry/open_runs.json` in the shape the SubagentStop hook resolves, under an exclusive lock so two dispatches cannot both pass the cap. It refuses past `role_limits[role]`, counting runs with no terminal event that are not past their deadline, unless `--over-cap-reason` is given (recorded on the event). The lock is `.wall/registry/open_runs.lock` (10 s timeout; a lock older than 10 s is treated as stale and retaken); a live holder at the timeout makes the command exit 1 and name the lock. `wall run-end` writes the terminal record for setups without hooks and leaves a marker (`.wall/runs/<run_id>/ended.json`); if the SubagentStop hook later fires for that run it consumes the marker and writes nothing, so there is exactly one terminal record. Markers older than 6 hours are ignored, so a leftover never swallows a later real stop.
+
+### 7.21 Retrospective and rebalance records (S for validation, P for content)
+
+`wall retro --wave W --file retro.json` refuses a retrospective that breaks RETROSPECTIVES.md: no measured signal (each needs a `source` of ledger, wall, checks or ci), more than 3 diffs, a diff kind outside the closed list (rule, sop, template, failure_class, rebalance, design_candidate, no_change), a diff with no horizon, why or owner, or any `retro_input` since the last retro left unaddressed (adopted with a diff in this record, queued with an item, or declined with a reason). `wall rebalance` writes `rebalance_applied` with the signals, knob, from, to, expected effect, horizon and a one-step revert; it refuses a second rebalance in the same cycle without `--reason`, and refuses a second reversal of the same knob, routing it to the Adjudicator as an escalated question (`q_rebalance_<knob>_ep<N>`, one per oscillation episode, so a knob that oscillates again after a ruling asks the Adjudicator again). Rebalances show on the RETRO tab and in `wall summary`.
+
+### 7.22 Context-document budget headroom (S)
+
+`wall doctor` measures every document registered in `BUDGETED_DOCS.md` (or the path in `budgeted_docs`) in its declared unit (characters, bytes, lines, or tokens approximated at 4 characters) and reports ok, warn (under 10% headroom) or fail (over budget) per document. Unfilled placeholders and unrecognised units read "not measured", never "fine"; no register at all reads "not measured".
 
 ## 8. How it learns and matures as it's used
 
@@ -879,9 +879,9 @@ flowchart TD
 
 | Deleted (only if unmodified, or with `--force`) | Kept |
 | --- | --- |
-| `tools/wall/` and `frontend/theme/` | `docs/`, including the decision log |
+| `tools/wall/` and `frontend/theme/` (whole trees, every file checked first) | `docs/`, including the decision log |
 | Kit-named files in `templates/` (the folder too, if empty) | Every root context doc (`AGENTS.md`, `RULES.md` ...) |
-| `.claude/` and `tools/git-hooks/` files that bootstrap added | Every `.claude/` file you authored, even with `--force` |
+| `.claude/` and `tools/git-hooks/` files that bootstrap added | Every `.claude/` or `tools/git-hooks/` file you authored, even with `--force` |
 | The kit's `.gitignore` block (your lines restored byte for byte) | `.wall/`: **the ledger is the audit record** (unless `--purge-state`) |
 | The `wall` entry in `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`, or only those named with `--mcp` (the file itself if nothing else is left) | Other MCP servers in those files |
 | `.wall/` only with `--purge-state` | Generated `CLAUDE.md` copies (with a warning) |
@@ -896,11 +896,11 @@ If any candidate is modified or unverifiable, **nothing** is changed: no deletio
 
 ### Hand cleanup checklist
 
-1. Anything under `.claude/` that remove kept because you edited or authored it: keep it, or delete it by hand.
+1. Anything under `.claude/` or `tools/git-hooks/` that remove kept because you edited or authored it: keep it, or delete it by hand.
 2. Remove the `hooks` block from `.claude/settings.json` / `~/.claude/settings.json`. Otherwise every tool call will try to run a script that no longer exists. The hooks exit 0, so this is noise rather than breakage.
 3. Remove the git hooks from `.git/hooks/` if you installed them.
-5. For each generated `CLAUDE.md`: either delete its banner line and keep it as a hand-written file, or delete it and keep `AGENTS.md` (which many tools read natively).
-6. Optionally delete the `wall-events` branch on the remote. It's the shipped audit record, so check retention obligations first.
+4. For each generated `CLAUDE.md`: either delete its banner line and keep it as a hand-written file, or delete it and keep `AGENTS.md` (which many tools read natively).
+5. Optionally delete the `wall-events` branch on the remote. It's the shipped audit record, so check retention obligations first.
 
 ### Verify
 
@@ -957,7 +957,7 @@ grep -l '"wall"' .mcp.json .cursor/mcp.json .vscode/mcp.json 2>/dev/null   # not
 ### Reliability
 
 - **Check `generated_at`.** A wall served from cache is confidently wrong.
-- **Without hooks, the ledger is incomplete.** `doctor` will say so (orphan runs). Enable hooks for a trustworthy record.
+- **Without hooks, the ledger is incomplete.** `doctor` will say so (orphan runs). Enable hooks for a trustworthy record, or close runs with `wall run-end`.
 - **Unattended git can hang on a credential prompt.** Set `GCM_INTERACTIVE=never` and `GIT_TERMINAL_PROMPT=0` for the timer's environment.
 - **The product-specific half of diagnostics is yours** (section 8): the kit writes and checks the loop's events, but reading your system's logs and classifying its errors is code you build for your product.
 
@@ -987,14 +987,14 @@ The first edition of this guide listed fourteen places where the docs and the co
 | 1 | Bootstrap did not copy `.claude/`, `.gitignore` or git hooks | Merged by adding (collisions reported, settings never copied); `.gitignore` block written and stripped; hooks copied, installing stays opt-in | `tests/test_bootstrap_manifest.py` |
 | 2 | No manifest; upgrade/remove could destroy local edits | sha256 manifest; upgrade and remove refuse modified or unverifiable files, all or nothing, unless `--force` | `tests/test_bootstrap_manifest.py` |
 | 3 | INSTALL.md CLI table out of date | Table lists every subcommand; a test compares it with the parser | `tests/test_cli_table.py` |
-| 4 | `remove --mcp` and `unregister --name` ignored | Both honored | `tests/test_bootstrap_manifest.py`, service tests |
-| 5 | Docs still said "one PR slot" after DEC-0016 | Wave skill, session lifecycle, integrator sheet and transplant order state DEC-0016 | `tests/test_doc_drift_pr_slot.py` |
+| 4 | `remove --mcp` and `unregister --name` ignored | Both honored | `tests/test_bootstrap_manifest.py`, `tests/test_service.py` |
+| 5 | Docs still said "one PR slot" after DEC-0016 | Wave skill, session lifecycle, integrator sheet, roster spec and transplant order state DEC-0016 | `tests/test_doc_drift_pr_slot.py` |
 | 6 | Roster spec named the wrong singleton roles | Matches `agents.SINGLETON_ROLES` (architect, adjudicator, warden) | `tests/test_doc_drift_singletons.py` |
 | 7 | LOGGING_AND_AUDIT listed commands that don't exist | Real commands only; unbuilt ones in one labelled "planned" list | `tests/test_doc_drift_logging_commands.py` |
 | 8 | WALL_STANDARDS layout and decision range stale | Every derived file listed; range has no upper bound | `tests/test_doc_drift_derived_files.py` |
-| 9 | `role_limits` displayed, not enforced | `wall run-start` refuses past the cap; courier flags `over_cap` | `tests/test_run_caps.py` |
+| 9 | `role_limits` displayed, not enforced | `wall run-start` refuses past the cap, under a lock; courier flags `over_cap` | `tests/test_run_caps.py` |
 | 10 | `budget_headroom()` was a stub | Measured from `BUDGETED_DOCS.md`; ok / warn / fail per document | `tests/test_budget_headroom.py` |
-| 11 | Retro, rebalance and diagnostics records were hand-written | `wall retro`, `wall rebalance`, `wall finding`, `story-filed`, `verify-request`, `verified`, each validating; courier flags `dropped_findings`, `verify_overdue` | `tests/test_retro_rebalance.py`, `tests/test_diagnostics_events.py` |
+| 11 | Retro, rebalance and diagnostics records were hand-written | `wall retro`, `wall rebalance`, `wall finding`, `story-filed`, `verify-request`, `verified`, each validating; courier flags `dropped_findings`, `verify_overdue`; the wall shows them | `tests/test_retro_rebalance.py`, `tests/test_diagnostics_events.py`, `tests/test_wall_template_sections.py` |
 | 12 | DESIGN tab planned, not built | Unchanged: still planned, and labelled so on the wall (DEC-0026) | |
 | 13 | Demo source not in the repo | `demo/README.md` now says plainly the demo cannot be regenerated yet | |
 | 14 | Five open `KNOWN_ISSUES` entries | Still open and tracked there as work items (below) | |
@@ -1037,11 +1037,11 @@ The first edition of this guide listed fourteen places where the docs and the co
 | `wall install` did nothing | No `--yes`: it prints the plan and exits 1 by design | `wall install --yes` |
 | Heartbeat `fail` / corrupt lines | A partially written or hand-edited shard | `wall doctor --json`; inspect the named shard; never edit events, append corrections |
 | An agent shows `stale` | A run passed `stale_after_min` with no `run_end` | Hooks not enabled, or the agent died. Enable hooks; the Foreman narrates; re-dispatch |
-| Orphan runs in `doctor` | SubagentStop hook not installed | Merge `hooks.json.example` into `.claude/settings.json` |
+| Orphan runs in `doctor` | SubagentStop hook not installed | Merge `hooks.json.example` into `.claude/settings.json`, or close runs with `wall run-end` |
 | `diff-state` reports drift | An item file was written outside the ledger | `wall rebuild` (add `--prune` for items no event created) |
 | `/wave` is unknown | `.claude/` is missing (an install older than the manifest bootstrap), or a `COLLISION` kept your own file | Re-run `bootstrap.py upgrade`; resolve collisions; restart the session |
 | `bootstrap upgrade/remove` exits 1 naming `MODIFIED` / `UNVERIFIED` files | You edited a kit file, or the stamp predates the manifest | Move the fix upstream; or re-run with `--force` knowing the edit is overwritten |
-| `wall run-start` refuses | The role is at its `role_limits` cap | Wait for a run to end, raise the cap in `wall.json` (your decision), or pass `--over-cap-reason` |
+| `wall run-start` refuses | The role is at its `role_limits` cap, or the open-runs lock is held | Wait for a run to end, raise the cap in `wall.json` (your decision), or pass `--over-cap-reason`; a held lock clears in 10 s |
 | `wall retro` refuses | Unmeasured signal, over 3 diffs, a kind outside the list, a missing horizon, or an unaddressed retro-note | Fix the file; address every retro-note (adopted / queued / declined) |
 | `wall rebalance` refuses | A second knob this cycle, or a second reversal of the same knob | Wait for the retro; give `--reason`; or take the oscillation to the Adjudicator |
 | The Maestro returns a "dispatch plan" | The session has no `Agent` tool (e.g. it's running as a subagent) | Run from the top-level Claude Code session |
@@ -1094,13 +1094,13 @@ The first edition of this guide listed fourteen places where the docs and the co
 | **Lease** | An exclusive claim on a file scope |
 | **Ledger** | The append-only, reproducible event log |
 | **Maestro** | The top-level session: the orchestrator |
+| **Manifest** | The sha256 of every file bootstrap owns, in `kit_source.json`; what lets upgrade and remove tell your edits from the kit's bytes |
 | **Mutation protocol** | Plant the defect, watch the test fail, restore |
 | **Patron** | The driving human engineer |
 | **Shard** | One session's daily event file |
 | **Structural / Procedural / Advisory** | Enforcement grades: code refuses / written instruction / recommendation |
 | **Transplant** | Moving a finished unit onto the moved main |
 | **VARIANT fixture** | A test form of a failure class that has never occurred, so the guard covers the family |
-| **Manifest** | The sha256 of every file bootstrap owns, in `kit_source.json`; what lets upgrade and remove tell your edits from the kit's bytes |
 | **Wave** | One round of dispatch, build, integrate, report and close |
 | **Warden** | The singleton security and compliance authority: blocks, never grants |
 
@@ -1239,7 +1239,7 @@ Every document the kit ships, and what it is for. A new document is added here i
 | `docs/RETROSPECTIVES.md` | The measured retro at wave close: per-role signals, five-whys on the process, diffs not sentiment |
 | `docs/SCAN_LANE.md` | Growing the scan lane: one finding, one prevention -- the support file each scanner reads, the fixture that proves each rule, promotion from report-only to blocking |
 | `docs/SESSION_LIFECYCLE.md` | Session start/close SOPs, startup questions, engineer escalation |
-| `docs/SKILLS_LIBRARY.md` | The starting skills every role inherits: the genericized experience of earlier deployments -- diagnosis from the answer back to the question, research, review, CI, live actuation, security, compliance, web, classifiers -- mapped to roles, product-free by test |
+| `docs/SKILLS_LIBRARY.md` | The starting skills every role inherits: the genericized experience of earlier deployments, mapped to roles, product-free by test |
 | `docs/TECH_EVALUATION.md` | Measure-before-flip: bench, flag protocol, decision record, re-eval triggers; metered-service economics and live-lane comparison controls |
 | `docs/TEMPLATE_INTAKE.md` | Per-template question sets: required + LLM probes, worked examples |
 | `docs/TESTING_STANDARDS.md` | Tiers, mutation protocol, SAST lane, sharding + rebalance, derived and published surfaces |
