@@ -314,6 +314,10 @@ batched round rather than guessing at placeholders.
 The only one that needs real thought today is `RULES.md` Part 1 - the hard
 rules. Everything else can start thin and grow.
 
+Then refresh the generated tool copies from your edited `AGENTS.md`, so the
+first commit carries current context: `python3 tools/wall/context_sync.py sync`
+(`check` exits 1 if any copy is stale).
+
 **3. Initialize and make the first commit.** `git init`, then commit the kit and
 the filled templates together. This commit is the base every agent rebases onto,
 so it should already contain the rules they are supposed to follow.

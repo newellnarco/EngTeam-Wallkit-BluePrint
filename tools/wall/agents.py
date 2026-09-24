@@ -98,26 +98,37 @@ def _confusable(candidate: str, live: set[str]) -> bool:
     return any(n[:2].lower() == candidate[:2].lower() for n in live)
 
 
+#: A lock older than this is a holder that died. Holders never refresh the
+#: lock's mtime, so this must sit far above the longest real hold (a large
+#: ledger read, a slow disk); a short value lets a waiter break a live lock.
+LOCK_STALE_S = 120.0
+
+
 def acquire_lock(lock: Path, timeout: float = 10.0, stale_after: float | None = None,
-                 what: str = "file") -> None:
+                 what: str = "file") -> str:
     """Take an exclusive lock: create `lock` with O_CREAT|O_EXCL, retrying
-    until `timeout` seconds pass. A lock file older than `stale_after`
-    seconds (default: `timeout`) is a holder that died without releasing;
-    it is removed and the create retried. Raises TimeoutError when a live
-    holder keeps it past the timeout."""
-    stale_after = timeout if stale_after is None else stale_after
+    until `timeout` seconds pass, and return the owner token written into it
+    (pass it to `release_lock`). A lock file older than `stale_after` seconds
+    (default: `LOCK_STALE_S`, never less than `timeout`) is a holder that died:
+    it is renamed to a unique name first, so exactly one waiter breaks it --
+    a second waiter's rename finds nothing and simply retries -- then removed.
+    Raises TimeoutError when a live holder keeps it past the timeout."""
+    stale_after = max(LOCK_STALE_S, timeout) if stale_after is None else stale_after
+    token = f"{os.getpid()}-{secrets.token_hex(8)}"
     lock.parent.mkdir(parents=True, exist_ok=True)
     deadline = time.time() + timeout
     while True:
         try:
             fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            os.write(fd, str(os.getpid()).encode())
+            os.write(fd, token.encode())
             os.close(fd)
-            return
+            return token
         except FileExistsError:
             try:
                 if time.time() - lock.stat().st_mtime > stale_after:
-                    lock.unlink(missing_ok=True)
+                    grave = lock.with_name(f"{lock.name}.stale-{token}")
+                    os.rename(lock, grave)  # only one breaker's rename succeeds
+                    grave.unlink(missing_ok=True)
                     continue
             except OSError:
                 pass
@@ -126,7 +137,15 @@ def acquire_lock(lock: Path, timeout: float = 10.0, stale_after: float | None = 
             time.sleep(0.05)
 
 
-def release_lock(lock: Path) -> None:
+def release_lock(lock: Path, token: str | None = None) -> None:
+    """Remove the lock -- but only while it is still ours. A holder whose lock
+    was broken as stale and retaken must not delete the new holder's lock."""
+    if token is not None:
+        try:
+            if lock.read_text(encoding="utf-8") != token:
+                return
+        except OSError:
+            return
     lock.unlink(missing_ok=True)
 
 
@@ -175,10 +194,10 @@ class AgentRegistry:
     # -------------------------------------------------------------- locking
 
     def _acquire(self, timeout: float = 10.0):
-        acquire_lock(self.lock, timeout, what="registry")
+        self._lock_token = acquire_lock(self.lock, timeout, what="registry")
 
     def _release_lock(self):
-        release_lock(self.lock)
+        release_lock(self.lock, getattr(self, "_lock_token", None))
 
     # ------------------------------------------------------------- the api
 

@@ -1179,8 +1179,10 @@ def load_open_runs(repo: Path) -> tuple[dict, str]:
 #: across the whole read-count-append-write of run-start and run-end, so two
 #: concurrent run-starts cannot both count the same free slot. A lock file
 #: older than the stale age is a holder that died; it is broken and retaken.
+#: The stale age sits far above any real hold, so a slow holder is never
+#: mistaken for a dead one.
 OPEN_RUNS_LOCK_TIMEOUT_S = 10.0
-OPEN_RUNS_LOCK_STALE_S = 10.0
+OPEN_RUNS_LOCK_STALE_S = 120.0
 
 
 def _open_runs_lock(repo: Path) -> Path:
@@ -1192,8 +1194,8 @@ def with_open_runs_lock(repo: Path, fn):
     timeout is a refusal (exit 1) that names the lock, never a silent skip."""
     lock = _open_runs_lock(repo)
     try:
-        acquire_lock(lock, OPEN_RUNS_LOCK_TIMEOUT_S, OPEN_RUNS_LOCK_STALE_S,
-                     what="open_runs.json")
+        token = acquire_lock(lock, OPEN_RUNS_LOCK_TIMEOUT_S, OPEN_RUNS_LOCK_STALE_S,
+                             what="open_runs.json")
     except TimeoutError as exc:
         print(f"refusing: {exc} -- another run-start/run-end holds it; retry, or "
               f"remove the lock file if no wall command is running", file=sys.stderr)
@@ -1201,7 +1203,7 @@ def with_open_runs_lock(repo: Path, fn):
     try:
         return fn()
     finally:
-        release_lock(lock)
+        release_lock(lock, token)
 
 
 def save_open_runs(repo: Path, runs: dict, shape: str = "map") -> None:

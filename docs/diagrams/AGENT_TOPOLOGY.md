@@ -141,7 +141,7 @@ solid edges are **work handoffs** (somebody does).
 | Courier / timer / server / shipper | **Parallel to everything** | Zero model calls, read-mostly; the observability plane never takes the control plane's locks |
 | Hooks | **Parallel** (fire per event) | Never block; a hook that can block a run becomes a second control plane |
 | `wall run-start` per role | **Capped** (`role_limits[role]` open runs) | Refused in code (exit 1) past the cap unless an over-cap reason is recorded; the courier flags `over_cap` on a run written by hand |
-| Rebalances | **Sequential** (one knob per cycle) | `wall rebalance` refuses a second knob before the next `retro_held`; a second reversal of the same knob goes to the Adjudicator |
+| Rebalances | **Sequential** (one knob per cycle) | `wall rebalance` refuses a second knob before the next `retro_held` unless `--reason` records why; a second reversal of the same knob goes to the Adjudicator |
 | Warden sign-off | **Sequential gate** per in-scope arc | An in-scope design cannot dispatch stories past an unrecorded sign-off; routine arcs get act-and-audit instead |
 | Question answering | **Sequential** through Maestro | One writer for decisions is what makes "no answer contradicts another" enforceable |
 | Decision writes (`DEC-NNNN`) | **Sequential** (Maestro only) | Same single-writer rule |
@@ -200,7 +200,7 @@ sequenceDiagram
     V->>M: pass
     M->>P: flip ready + merge (Maestro alone)
     M->>M: bookkeeping AT merge (G9), item shipped
-    Note over M: WAVE CLOSE — wall retro (validated retro_held),<br/>then at most one wall rebalance per cycle
+    Note over M: WAVE CLOSE — wall retro (validated retro_held),<br/>then one wall rebalance per cycle (a second needs --reason)
 ```
 
 ## 4. Concern → mechanism map

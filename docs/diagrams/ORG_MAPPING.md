@@ -83,7 +83,7 @@ flowchart TB
     QA -->|"pass / findings"| EM
     EM -->|"merge + flip ready<br/>(alone)"| BOARD
     PMO -.->|"metrics + rebalance<br/>recommendations"| EM
-    EM -->|"wall retro + wall rebalance<br/>(validated; one knob per cycle)"| BOARD
+    EM -->|"wall retro + wall rebalance<br/>(validated; one knob per cycle<br/>unless --reason)"| BOARD
     PMO -.->|"flags: over_cap, dropped_findings,<br/>verify_overdue"| EM
     BOARD -.->|"measured signals"| PMO
     SECN -.-> QA
@@ -102,7 +102,7 @@ AGENT_TOPOLOGY.md section 2 pins.
 | Org function | Carried by | Where it is written |
 |---|---|---|
 | **Product ownership** | The driving engineer — "the Patron": effort variables + product Q&A, the human queue, all ceilings | PRODUCT_INTAKE.md, SESSION_LIFECYCLE.md section 4 |
-| **Engineering management / delivery** | Maestro (the session): dispatch, capacity within caps (every run opens through `wall run-start`, which refuses one past `role_limits`), merge authority, process sign-off | MAESTRO.md, WORKFLOW.md sections 2/7, `wall run-start` |
+| **Engineering management / delivery** | Maestro (the session): dispatch, capacity within caps (every run opens through `wall run-start`, which refuses one past `role_limits` unless an over-cap reason is recorded), merge authority, process sign-off | MAESTRO.md, WORKFLOW.md sections 2/7, `wall run-start` |
 | **Project management** | Deliberately **state, not a head**: the wall's arcs/stories/bugs (epics/stories/defects), SLA ladder, escalation flags, decision log. Nobody "runs the board"; the courier verifies it and the Maestro acts on it | WALL_STANDARDS.md section 4, ITEM_AUTHORING.md, WORKFLOW.md section 4 |
 | **PMO / metrics & reporting analyst** | Foreman (judgment) + Courier and the wall (mechanical): throughput, cost, utilization, integrity; capacity **recommendations with numbers attached**; the retro and the rebalance it recommends are recorded through `wall retro` and `wall rebalance`, which validate them | CAPACITY_REBALANCING.md, RETROSPECTIVES.md, foreman.md |
 | **Solution / enterprise architecture** | Architect: domain design in docs/architecture/, arcs + stories authored from it, requirements sign-off, rulings; doc changes broadcast blast radius | architect.md, ITEM_AUTHORING.md sections 2-4 |
@@ -130,12 +130,12 @@ over-deliver, and test it):
 
 | Grade | Meaning | Examples, with the mechanism named |
 |---|---|---|
-| **structural** | Code refuses the violation; no discipline required | The Warden/Architect/Adjudicator singletons (`tools/wall/agents.py` raises on a second live claim); the wall server's localhost-only bind and four-file allowlist (`tools/wall/server.py`); integrity flags, stale reclassification and budget trajectory computed, never asserted (`tools/wall/courier.py`); byte-reproducible ledger merge (verified by test); **role caps** refused at `wall run-start` past `role_limits[role]` unless an over-cap reason is recorded, and flagged `over_cap` by the courier when a run is written around the command (`tools/wall/wall.py`, `tools/wall/courier.py`); **retro validation** — `wall retro` refuses a retrospective without measured signals, with more than three diffs or diffs outside the closed list, or with a Patron input unaddressed (`tools/wall/wall.py`); **one knob per cycle** — `wall rebalance` refuses a second knob before the next `retro_held` and routes a second reversal of the same knob to the Adjudicator (`tools/wall/wall.py`); **install edit protection** — bootstrap's per-file sha256 manifest makes `upgrade` and `remove` refuse to overwrite or delete a locally modified file without `--force` (`tools/wall/bootstrap.py`) |
+| **structural** | Code refuses the violation; no discipline required | The Warden/Architect/Adjudicator singletons (`tools/wall/agents.py` raises on a second live claim); the wall server's localhost-only bind and four-file allowlist (`tools/wall/server.py`); integrity flags, stale reclassification and budget trajectory computed, never asserted (`tools/wall/courier.py`); byte-reproducible ledger merge (verified by test); **role caps** refused at `wall run-start` past `role_limits[role]` unless an over-cap reason is recorded, and flagged `over_cap` by the courier when a run is written around the command (`tools/wall/wall.py`, `tools/wall/courier.py`); **retro validation** — `wall retro` refuses a retrospective without measured signals, with more than three diffs or diffs outside the closed list, or with a Patron input unaddressed (`tools/wall/wall.py`); **one knob per cycle** — `wall rebalance` refuses a second knob before the next `retro_held` unless `--reason` records why, and routes a second reversal of the same knob to the Adjudicator (`tools/wall/wall.py`); **install edit protection** — bootstrap's per-file sha256 manifest makes `upgrade` and `remove` refuse to overwrite or delete a locally modified file without `--force` (`tools/wall/bootstrap.py`) |
 | **procedural** | A written instruction agents are briefed from, its load-bearing phrases pinned by tests that fail on drift | Merge authority (G12), gates-last (G6), the authority matrix, the Warden's gates, the transplant safety proof, the review-meter rules — role sheets + WORKFLOW, pinned across the tests/ suite. What a retro concludes and which knob a rebalance turns stay judgment; only the record's shape and the cycle rule are structural |
 | **advisory** | A recommendation; the engineer may override, and overrides are recorded | Budget meters (warn, never stop), rebalance defaults, the fast-track globs, disposition of optional reviewer findings |
 
 **Moved from procedural to structural** in this revision: role caps, retro
-validation, one-knob-per-cycle and install edit protection. Each was a written
+validation, one-knob-per-cycle (overridable only with a recorded reason) and install edit protection. Each was a written
 rule agents were briefed from; each is now a refusal in code, with its guard
 mutation-checked in `tests/test_run_caps.py`, `tests/test_retro_rebalance.py`
 and `tests/test_bootstrap_manifest.py`. A run, retro or rebalance written by
