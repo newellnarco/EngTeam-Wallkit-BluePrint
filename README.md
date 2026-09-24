@@ -266,10 +266,18 @@ python3 tools/wall/bootstrap.py fresh --into ../your-repo --apply \
 
 Dry-run first (drop `--apply`) to see exactly what lands: the bounded
 side-repo subtree (`tools/wall/`, `docs/`, `frontend/theme/`,
-`templates/`), the `.wall/` skeleton, every MISSING context document
-from `templates/` (an existing file is never overwritten), a
-`kit_source.json` stamp for later upgrades, and your editors' MCP
-configs pointing at the wall server as the engineer's seat. Same
+`templates/`), the agent roster (`.claude/`: `MAESTRO.md`, `agents/`,
+`skills/`, `hooks/`) and the versioned git hooks (`tools/git-hooks/`),
+both merged by adding — a file you already have is never overwritten,
+and `.claude/settings*.json` is never copied — the `.wall/` skeleton,
+the kit's required ignores as one marked block in `.gitignore`, every
+MISSING context document from `templates/` (an existing file is never
+overwritten), a `kit_source.json` stamp holding the kit commit and a
+sha256 per kit file for later upgrades, and your editors' MCP configs
+pointing at the wall server as the engineer's seat. The git hooks are
+copied, not installed: `bash tools/git-hooks/install.sh` is your call
+(`docs/GIT_HOOKS.md`). Wiring the session hooks into
+`.claude/settings.json` is yours too (`.claude/hooks/README.md`). Same
 command on a laptop, VM, Docker, cluster node or cloud box —
 stdlib-only, nothing to install first. Steps 2-6 below are what the
 script deliberately leaves to you.
@@ -461,9 +469,12 @@ python3 tools/wall/bootstrap.py adopt --into ../your-repo --apply  # + vendor th
 
 It detects what already serves each adoption function (by the names
 those things actually go by), vendors only the machine — your
-documents stay the documents of record — and names the gaps to fill
-from `templates/`. The checklist below is what you then do with the
-report.
+documents stay the documents of record — merges the kit's `.claude/`
+roster and `tools/git-hooks/` by adding (a role sheet you already have
+under the same name is reported as a `COLLISION` and kept, never
+overwritten: step 3's decision), appends the required `.gitignore`
+block, and names the gaps to fill from `templates/`. The checklist
+below is what you then do with the report.
 
 ### Adoption checklist
 
@@ -497,8 +508,18 @@ python3 tools/wall/bootstrap.py upgrade --into ../your-repo --apply  # re-vendor
 ```
 
 It shows the upstream commit range since your stamped kit source and
-reminds you to read the decision index first. The numbered discipline
-it automates:
+reminds you to read the decision index first, refreshes the
+`.gitignore` block, and adds any roster file the newer kit brings
+(a host file is still never overwritten). **A local edit to a kit
+file is refused, not overwritten:** the stamp records a sha256 per
+kit file, and a file whose bytes no longer match its record is named
+as `MODIFIED` and the upgrade exits 1 with nothing changed — the same
+for a stray the kit would prune. Upstream the fix (step 2) or pass
+`--force` to discard the edit. A stamp written before the manifest
+existed has no hashes: there a file counts as unmodified only if it
+matches this kit's copy or the kit's own blob at the stamped commit,
+and anything else is `UNVERIFIED` and needs `--force` the same way.
+The numbered discipline it automates:
 
 1. **Read the delta as decisions first, code second.** The decision
    index (`docs/decisions/index.md`) is the changelog of *rulings*; the
@@ -528,8 +549,8 @@ it automates:
 ### Dependencies, and uninstalling
 
 **Dependencies are verified, not bundled (DEC-0022).** Every bootstrap
-install and upgrade runs a preflight naming what this machine needs and
-why: Python 3.11+ (the one hard dependency), git (a warning if absent —
+mode runs a preflight naming what this machine needs and why (a failed
+check stops an `--apply` install or upgrade, never a remove): Python 3.11+ (the one hard dependency), git (a warning if absent —
 stamps degrade honestly), and nothing else — stdlib only, no pip
 installs, ever. Optional surfaces bring their own host (an MCP editor,
 a browser, the platform scheduler), and the preflight says which.
@@ -541,9 +562,17 @@ python3 tools/wall/bootstrap.py remove --into ../your-repo          # dry run
 python3 tools/wall/bootstrap.py remove --into ../your-repo --apply  # do it
 ```
 
-It un-vendors the machine and strips exactly the wall's entry from each
-MCP client config (other servers kept). **The `.wall/` ledger survives
-by default** — it is the audit trail; only an explicit `--purge-state`
+It runs the same preflight (never fatal here: taking the kit out needs
+none of it), un-vendors the machine, deletes the `.claude/` and
+`tools/git-hooks/` files bootstrap itself added, strips the kit's
+`.gitignore` block, and strips exactly the wall's entry from each MCP
+client config (other servers kept; `--mcp cursor` limits it to the
+named clients, default all three). **Nothing with local edits is
+deleted by default:** a kit file whose bytes left the stamp's record,
+or that cannot be verified, is listed and the remove exits 1 with
+nothing changed; `--force` deletes it. A `.claude/` file you wrote is
+never deleted, `--force` or not. **The `.wall/` ledger survives by
+default** — it is the audit trail; only an explicit `--purge-state`
 deletes it. Context documents, `docs/` and your decision log are never
 touched: by uninstall time they are your documents. Run
 `wall uninstall` (the machine timer) *before* removing `tools/wall`.

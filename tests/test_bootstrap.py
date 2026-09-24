@@ -139,14 +139,18 @@ def test_upgrade_is_verbatim_and_leaves_host_config_alone(tmp_path, capsys):
     drifted.write_text("# local fork — drift with a byline\n", encoding="utf-8")
 
     capsys.readouterr()
-    assert run("upgrade", repo) == 0
+    assert run("upgrade", repo) == 1  # the drift is named, not laundered
     out = capsys.readouterr().out
     assert "update  wall/summary.py" in out
+    assert "MODIFIED   tools/wall/summary.py" in out
     assert "decisions/index.md" in out or "DECISIONS first" in out
     assert drifted.read_text(encoding="utf-8").startswith("# local fork"), (
         "a dry run must not re-vendor")
 
-    assert run("upgrade", repo, "--apply") == 0
+    assert run("upgrade", repo, "--apply") == 1
+    assert drifted.read_text(encoding="utf-8").startswith("# local fork"), (
+        "a locally modified kit file was overwritten without --force")
+    assert run("upgrade", repo, "--apply", "--force") == 0
     assert (drifted.read_text(encoding="utf-8")
             == (KIT / "tools" / "wall" / "summary.py")
             .read_text(encoding="utf-8")), "re-vendor is VERBATIM"
@@ -232,6 +236,12 @@ def test_upgrade_prunes_kit_owned_strays_and_never_docs(tmp_path):
     assert run("fresh", repo, "--apply") == 0
     stale = repo / "tools" / "wall" / "retired_module.py"
     stale.write_text("# dropped upstream\n", encoding="utf-8")
+    # an earlier kit shipped it: its bytes are on the manifest, so the
+    # prune is verified (an unrecorded stray is test_bootstrap_manifest's)
+    stamp_path = repo / ".wall" / "config" / "kit_source.json"
+    stamp = json.loads(stamp_path.read_text(encoding="utf-8"))
+    stamp["files"]["tools/wall/retired_module.py"] = bs._sha256(stale)
+    stamp_path.write_text(json.dumps(stamp), encoding="utf-8")
     host_doc = repo / "docs" / "HOST_NOTE.md"
     host_doc.write_text("host-authored\n", encoding="utf-8")
     assert run("upgrade", repo) == 0

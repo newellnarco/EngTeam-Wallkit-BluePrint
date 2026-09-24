@@ -100,6 +100,33 @@ Courier itself is stdlib Python, local file I/O only, zero model calls and zero
 network. The one command that reaches the network is `wall ship` (below), which
 is separately invoked and separately gated.
 
+### Taking the kit out of a repo
+
+The timer and the repo's files come out in two steps, in this order.
+`wall uninstall` removes the task (it needs the adapter code under
+`tools/wall/`). Then `tools/wall/bootstrap.py remove --into <repo>` takes
+the files out. It is a dry run until `--apply`, and it refuses `--apply`
+while the machine registry still lists the repo.
+
+The remove runs the same dependency preflight as an install, but a failed
+check never stops it, because removing the kit needs none of those
+dependencies. It deletes only what the stamp's per-file manifest
+(`.wall/config/kit_source.json`) shows bootstrap wrote:
+
+- the vendored machine
+- the kit's `templates/` files
+- the `.claude/` and `tools/git-hooks/` files it added
+- the marked `.gitignore` block
+- the wall's MCP entries (`--mcp <client>` limits this to the named
+  clients)
+
+A kit file with local edits, or one it cannot verify against the manifest,
+is listed. The command then exits 1 and changes nothing, unless you pass
+`--force`. A `.claude/` file the host wrote is never deleted. The `.wall/`
+ledger stays unless you pass `--purge-state`. If you installed the git
+hooks into `.git/hooks/`, delete those copies yourself: the remove never
+touches a hooks directory.
+
 ---
 
 ## Serving the wall
