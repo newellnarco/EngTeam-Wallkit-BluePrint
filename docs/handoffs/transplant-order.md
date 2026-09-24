@@ -2,8 +2,11 @@
 
 > **G11 / G13.** The first wave ran this procedure five times by re-sending a
 > long hand-written brief, and it drifted each time -- once mis-stating a file
-> location. This is the order form for one unit through the single PR slot.
-> Hand out **one at a time**.
+> location. This is the order form for one unit's own branch and PR. Under
+> DEC-0016 other units' PRs may be open at the same time on disjoint leased
+> surfaces, but merges are serialized by the Maestro: the rebase onto the moved
+> `main` that precedes each merge is handed out **one at a time**. A host whose
+> standing rules mandate a single designated branch runs single-slot mode.
 >
 > The procedure itself is `.claude/agents/integrator.md` and `WORKFLOW.md`
 > section 9. This document supplies the values; it does not restate the steps.
@@ -25,7 +28,7 @@
 
 | Field | Value |
 |---|---|
-| Designated ref (the one PR branch) | |
+| Designated ref (this unit's PR branch; the host's single designated branch in single-slot mode) | |
 | Designated ref SHA **before** the transplant | required for `--force-with-lease` |
 | `main` SHA at the start | |
 | Merge base | |

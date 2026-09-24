@@ -28,7 +28,11 @@ The wall adds one top-level directory. Everything else uses existing homes.
   events/<YYYY-MM-DD>/<sid>.jsonl   append-only, sharded per session, GITIGNORED
   items/<item_id>.json          one file per arc / story / bug
   derived/                      GITIGNORED - regenerated, never merged
-    wall.html  wall.json  ledger.jsonl  heartbeat.json
+    wall.html  wall.json  docs.json    rendered wall, snapshot, docs payload
+    ledger.jsonl  heartbeat.json       merged ledger, last-run health
+    .courier-state.json                shard checkpoints
+                                       (these six: courier.run_once)
+    doctor.json                        written by `wall doctor --json`
   logs/                         GITIGNORED - trace, 14-day TTL
   runs/<run_id>/                GITIGNORED - prompts, diffs, tool calls, 7-day TTL
 
@@ -333,8 +337,8 @@ decided: 2026-09-19T14:03Z
 
 Free-text markdown stops scaling around a hundred entries, which is why status
 and supersession live in structured fields rather than prose. The kit's own
-settled decisions ship as `DEC-0001` through `DEC-0012` and are the worked
-example of the format.
+settled decisions ship as `DEC-0001` onward -- `docs/decisions/index.md` is
+the list -- and are the worked example of the format.
 
 ---
 

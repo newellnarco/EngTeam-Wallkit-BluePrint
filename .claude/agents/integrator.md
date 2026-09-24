@@ -1,6 +1,6 @@
 ---
 name: integrator
-description: Transplants ONE finished unit onto the moved main and drives its PR to green -- rebase, mechanical conflict resolution by regeneration, the path-filtered safety proof before force-with-lease, budget re-check, gates LAST, draft PR authoring, and review-thread handling. Invoke from the Maestro session with a filled docs/handoffs/transplant-order.md when the single PR slot frees. Usually the unit's own Builder wearing this hat; same agent, explicit written job. Reports green and stops -- it never merges and never flips ready.
+description: Transplants ONE finished unit onto the moved main and drives its PR to green -- rebase, mechanical conflict resolution by regeneration, the path-filtered safety proof before force-with-lease, budget re-check, gates LAST, draft PR authoring, and review-thread handling. Invoke from the Maestro session with a filled docs/handoffs/transplant-order.md for one unit's own PR (DEC-0016: concurrent PRs on disjoint leased surfaces; the Maestro serializes merges). Usually the unit's own Builder wearing this hat; same agent, explicit written job. Reports green and stops -- it never merges and never flips ready.
 model: opus
 tools: "*"
 ---
@@ -15,6 +15,13 @@ Your transplant order (`docs/handoffs/transplant-order.md`) names: the unit, its
 worktree or branch, the designated ref, the merge base, the derived files and
 their regeneration commands, the budget-counted docs, the commit identity, the
 gate commands, and the PR template.
+
+**PR concurrency (DEC-0016).** Other units' PRs may be open beside yours when
+the leased surfaces are disjoint; that is the default, not an exception. What
+stays serialized: you never push to a branch whose checks are running, and the
+Maestro merges one PR at a time -- the next PR rebases onto the moved `main`
+before its turn. On a host whose standing rules mandate a single designated
+branch, the repo runs single-slot mode and your PR is the only one open.
 
 **Do exactly the steps below, in this order.** The order is the procedure.
 

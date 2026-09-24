@@ -1,6 +1,6 @@
 ---
 name: wave
-description: Run one wave of agent work with the wall-kit roster -- ground, scope, dispatch under leases, collect findings, route questions decision-log-first, integrate one PR at a time, and report COMPLETED / IN PROGRESS / NEW every cycle with a snapshot export. Use when the user asks to run a wave, work the backlog with agents, start or continue the crew, or dispatch builders. The invoking session IS the Maestro and keeps merge authority.
+description: Run one wave of agent work with the wall-kit roster -- ground, scope, dispatch under leases, collect findings, route questions decision-log-first, integrate with cooperative PRs and serialized merges, and report COMPLETED / IN PROGRESS / NEW every cycle with a snapshot export. Use when the user asks to run a wave, work the backlog with agents, start or continue the crew, or dispatch builders. The invoking session IS the Maestro and keeps merge authority.
 ---
 
 # /wave -- run a wave
@@ -33,7 +33,7 @@ cannot dispatch. Do not stall, and do not quietly become the Builder. Run
 phases 1 and 2, vet every candidate's status against ground truth, fix drift,
 export the snapshot, and hand back a **dispatch plan**: per unit the item key,
 the acceptance criteria, the exact file surfaces shown to be disjoint, and the
-merge order for the single PR slot. State plainly that you could not spawn and
+merge order for the Maestro's serialized merges (DEC-0016). State plainly that you could not spawn and
 why. A plan reported as a dispatch is the one failure this path exists to stop.
 
 ## Phase 2 -- Scope
@@ -48,7 +48,9 @@ For each candidate unit:
   ambiguity you are handing down; resolve it now or dispatch it as a question.
 - **Known worktree phantoms** (G4) -- list them, so three agents do not
   independently chase the same phantom failure.
-- **Merge order** -- decided at scoping, because there is one PR slot.
+- **Merge order** -- decided at scoping. PRs may be open concurrently on
+  disjoint leased surfaces, but the Maestro merges them one at a time
+  (DEC-0016).
 
 ## Phase 3 -- Dispatch
 
@@ -92,11 +94,16 @@ Adjudicator, never quietly into a second decision record.
 
 Route each one with `docs/handoffs/finding-route.md`.
 
-## Phase 6 -- Integrate, one PR at a time
+## Phase 6 -- Integrate: concurrent PRs, merges one at a time
 
-One branch, one PR slot, N worktrees. Hand **one** transplant order at a time
-(`docs/handoffs/transplant-order.md`) to an Integrator -- usually the unit's own
-Builder wearing that hat.
+One branch and one PR per unit, N worktrees (DEC-0016): units whose leased
+surfaces are disjoint may have PRs open at the same time. Merges stay
+serialized -- the Maestro merges one at a time, the next PR rebases onto the
+moved main first, and nobody pushes to a branch whose checks are running. Hand
+each unit's transplant order (`docs/handoffs/transplant-order.md`) to an
+Integrator -- usually the unit's own Builder wearing that hat. A host whose
+standing rules mandate a single designated branch runs single-slot mode: the
+same procedure with the PR count pinned to one.
 
 The procedure is WORKFLOW section 9 and is followed literally: rebase onto moved
 main, regenerate derived files by tooling (never hand-merge them), run the
@@ -145,9 +152,10 @@ trigger.
 ## Caps
 
 `{"builder": 4, "reviewer": 2, "researcher": 6}` by default -- researcher tracks
-builders + 2. Foreman, Architect and Adjudicator are singletons enforced by the
-registry. The Integrator is a hat a Builder wears, not a seat: it consumes the
-PR slot, not a builder slot.
+builders + 2. Architect, Adjudicator and Warden are singletons enforced by the
+registry at claim time; the Foreman's singleton is a lock file with a heartbeat
+and TTL; the Maestro is this session and is never claimed. The Integrator is a
+hat a Builder wears, not a seat: it drives one unit's PR, not a builder slot.
 
 ## The five things that cost the last wave something
 
