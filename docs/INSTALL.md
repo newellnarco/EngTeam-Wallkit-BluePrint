@@ -35,8 +35,11 @@ file write.
 
 This also solves something a per-repo design structurally cannot: Claude and
 GitHub quotas are **account-level**, not repo-level. A per-repo wall cannot show
-true remaining budget. The machine-wide walker can, and the cross-repo rollup
-comes free.
+true remaining budget. The machine-wide walker is the place a cross-repo
+rollup belongs. **That rollup is not built yet:** each repo still renders and
+serves its own wall, and a second `wall serve` needs its own `--port`. The
+machine desk that fixes this, and the team tier above it, are proposed in
+`docs/FLEET_COORDINATION.md` (proposed DEC-0036, not in force).
 
 `WALL_HOME` overrides the location of that directory. It exists so the tests can
 exercise a real install against a temporary directory instead of writing into

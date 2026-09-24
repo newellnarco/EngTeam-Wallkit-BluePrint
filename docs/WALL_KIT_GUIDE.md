@@ -627,6 +627,8 @@ The loop runs: running system → redacted snapshots shipped unconditionally →
 
 For more than one adopting repo (`FLEET.md`): verdicts are exit codes (0 in sync, 1 diverged and acted on, 2 UNKNOWN, which is never a pass). One hash-pinned, byte-identical shared block. Delivery by draft PR. Every inbound item is adopted, reworded or declined with a reason.
 
+**Proposed, not built: fleet coordination** (`FLEET_COORDINATION.md`, proposed DEC-0036). One machine already sweeps many repos (DEC-0010), but each repo serves its own wall on one port, and a team breaks the one-session assumptions: two sessions in one repo on different machines cannot see each other's leases, open runs or roster, can race merges, and overwrite each other's `wall-events` telemetry. The proposal adds two tiers above the unchanged repo wall. A **machine desk** serves every registered repo from one local server and needs no service. A **team tier** adds a shared coordinator (self-hosted or serverless, chosen at setup, GitHub identity) holding presence, cross-machine leases, wave allocations the engineer assigns, shared test environments and deploy locks, a team-wide quota ledger, and typed, acknowledged messages between sessions. Merges move to the platform merge queue: a Maestro enqueues and never merges. It ships in five phases (P0 machine desk to P4 environments and deploys); the design lists seven questions still open for the owner.
+
 ### 7.18 Deployment targets (P)
 
 Docker, VMs and Kubernetes (`DEPLOYMENT_TARGETS.md`). The invariants: one sweeper per checkout; the unauthenticated server is never exposed; one writer for the telemetry branch; applying a manifest counts as consent.
@@ -1005,6 +1007,7 @@ The first edition of this guide listed fourteen places where the docs and the co
 - **First install over same-named files.** `fresh` and `adopt` still overwrite a differing host file under `docs/` or `tools/wall/` on the *first* install (a re-run is protected by the manifest). Blocking there would make `adopt` refuse on any host with a same-named doc; it deserves its own decision.
 - **The demo** cannot be regenerated until its source is committed.
 - **The DESIGN tab** waits for its data contract (DEC-0026).
+- **More than one session, machine or engineer.** Today each repo serves its own wall (a second `wall serve` needs its own `--port`), and sessions in the same repo on different machines cannot see each other's leases, runs or roster. The fix is proposed in `FLEET_COORDINATION.md` (proposed DEC-0036) and is not built.
 
 ### Things you may not have considered
 
@@ -1012,7 +1015,7 @@ The first edition of this guide listed fourteen places where the docs and the co
 - **Access control for the repo itself.** The kit's segregation of duties is only as strong as GitHub permissions and branch protection. Require your review on the default branch, and restrict who can push to `wall-events`.
 - **Provider-side spend caps.** Budgets are advisory, so set hard limits at the model provider and in GitHub billing.
 - **Session sandboxing.** Run agent sessions in a container or VM with scoped tokens. Don't run them on a machine holding production credentials.
-- **Multiple humans.** The kit models one Patron. With a team, decide who answers WAITING items, who can `ack-doc`, who can `verified`, and who can write `OWNER_DECISIONS`. Record that as a DEC.
+- **Multiple humans.** The kit models one Patron. With a team, decide who answers WAITING items, who can `ack-doc`, who can `verified`, and who can write `OWNER_DECISIONS`. Record that as a DEC. The team model, with GitHub identity per session, is proposed in `FLEET_COORDINATION.md` (proposed DEC-0036).
 - **Continuity.** If the one machine with the timer dies, the wall stops but no work is lost (state is in git). Document how to re-register on a new machine.
 - **Model changes.** Model names are pinned in role frontmatter. When models change, update the tiering DEC and re-measure token-per-unit costs, rather than silently swapping.
 - **Licensing and data residency** of the model provider, for regulated data.
@@ -1226,6 +1229,7 @@ Every document the kit ships, and what it is for. A new document is added here i
 | `docs/EVENT_SCHEMA.md` | The ledger contract — read before the first real run |
 | `docs/FAST_TRACK.md` | Doc-only routing (generator sources are code), and the CI meter economics that go with it |
 | `docs/FLEET.md` | More than one adopting repository: exit-code verdicts, the spin-off exchange, one byte-identical artifact, dispositions |
+| `docs/FLEET_COORDINATION.md` | **Proposed, not built.** A team of engineers with many sessions, machines and repos: the machine desk, the coordinator, wave allocation, cross-session messages, the platform merge queue, test environments, deploy locks, team quotas, workflows and screenshots (proposed DEC-0036). Its mock desk is `docs/fleet/desk-mock.html`; screenshots in `docs/images/fleet/` |
 | `docs/GIT_HOOKS.md` | The free local gate: hooks as step 0, named escape hatches instead of `--no-verify`, line-ending pinning, baseline ratchets |
 | `docs/INSTALL.md` | Machine-wide timer, serving, platform specifics, the full CLI table (`tests/test_cli_table.py`) |
 | `docs/ITEM_AUTHORING.md` | Arcs, stories, bugs — how the Architect writes them, how research enriches them |
@@ -1278,6 +1282,11 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 ## Appendix C. Change log
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
+
+### 2026-09-24: fleet coordination proposed
+
+- **Proposed, not built:** `docs/FLEET_COORDINATION.md` and its proposed DEC-0036 design the team tier: a machine desk serving every registered repo from one server, a shared coordinator (self-hosted or serverless, GitHub identity), waves the engineer assigns, cross-machine leases, typed acknowledged messages between sessions, the platform merge queue in place of the Maestro's merge, personal and shared test environments, deploy locks and team-wide quotas. Includes workflows, diagrams, real screenshots of the wall and a mock of the desk.
+- **`INSTALL.md` no longer claims a cross-repo rollup exists.** It said the rollup "comes free"; it was never built. It now says so and points to the proposal.
 
 ### 2026-09-24: operational gaps closed; this guide made canonical
 
