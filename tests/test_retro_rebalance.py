@@ -198,6 +198,30 @@ def test_second_reversal_goes_to_the_adjudicator(repo, tmp_path, capsys):
     assert of(repo, "rebalance_applied")[-1]["adjudication"] == "DEC-0099"
 
 
+def test_an_oscillation_after_a_ruling_asks_the_adjudicator_again(repo, tmp_path):
+    def oscillations():
+        qs = questions.fold(wall.fresh_events(repo)).questions
+        return sorted(q for q, v in qs.items()
+                      if v["ambiguity_class"] == "rebalance_oscillation")
+    # Episode one: oscillate, get routed, get a ruling.
+    assert rebalance(repo, "builders", "4", "3") == 0
+    retro(repo, tmp_path, wave="w1")
+    assert rebalance(repo, "builders", "3", "4") == 0
+    retro(repo, tmp_path, wave="w2")
+    assert rebalance(repo, "builders", "4", "3") == 1
+    assert len(oscillations()) == 1
+    assert rebalance(repo, "builders", "4", "3", "--adjudication", "DEC-0099") == 0
+    # Episode two: the same knob oscillates again after the ruling (the
+    # ruling resets the count, so it takes two more reversals to re-trigger).
+    retro(repo, tmp_path, wave="w3")
+    assert rebalance(repo, "builders", "3", "4") == 0
+    retro(repo, tmp_path, wave="w4")
+    assert rebalance(repo, "builders", "4", "3") == 0
+    retro(repo, tmp_path, wave="w5")
+    assert rebalance(repo, "builders", "3", "4") == 1
+    assert len(oscillations()) == 2, "a new episode is a new question"
+
+
 def test_a_new_value_is_not_a_reversal(repo, tmp_path):
     rebalance(repo, "builders", "4", "3")
     retro(repo, tmp_path, wave="w1")

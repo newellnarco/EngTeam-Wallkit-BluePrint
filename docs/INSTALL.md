@@ -110,19 +110,27 @@ while the machine registry still lists the repo.
 
 The remove runs the same dependency preflight as an install, but a failed
 check never stops it, because removing the kit needs none of those
-dependencies. It deletes only what the stamp's per-file manifest
-(`.wall/config/kit_source.json`) shows bootstrap wrote:
+dependencies. What it deletes depends on the scope, and each scope is
+checked against the stamp's per-file manifest
+(`.wall/config/kit_source.json`) before anything is deleted:
 
-- the vendored machine
-- the kit's `templates/` files
-- the `.claude/` and `tools/git-hooks/` files it added
-- the marked `.gitignore` block
-- the wall's MCP entries (`--mcp <client>` limits this to the named
-  clients)
+- **The vendored machine trees** (`tools/wall/`, `frontend/theme/`) are
+  deleted whole, after every file in them has been checked. A locally
+  modified file, or one the manifest cannot verify, blocks the remove unless
+  you pass `--force`; with `--force` it is deleted along with the tree.
+- **In `templates/`**, only the files that carry the kit's template file
+  names are deleted (each checked the same way). Any other file there is
+  the host's and stays; the directory goes only if that leaves it empty.
+- **In `.claude/` and `tools/git-hooks/`**, only the files the manifest
+  shows bootstrap added are deleted.
+- **The marked `.gitignore` block** is stripped back to the host's bytes.
+- **The wall's MCP entries** are stripped (`--mcp <client>` limits this to
+  the named clients).
 
-A kit file with local edits, or one it cannot verify against the manifest,
-is listed. The command then exits 1 and changes nothing, unless you pass
-`--force`. A `.claude/` file the host wrote is never deleted. The `.wall/`
+A checked file with local edits, or one that cannot be verified against the
+manifest, is listed. The command then exits 1 and changes nothing, unless
+you pass `--force`. A `.claude/` or `tools/git-hooks/` file the host wrote
+is never deleted, `--force` or not. The `.wall/`
 ledger stays unless you pass `--purge-state`. If you installed the git
 hooks into `.git/hooks/`, delete those copies yourself: the remove never
 touches a hooks directory.
@@ -194,16 +202,72 @@ same bar by hand.
 
 ## CLI surface
 
+`--repo PATH` is a **global** flag: it goes before the subcommand, and it
+defaults to the current directory.
+
 ```
-wall install [--yes] [--interval 120]   consent-gated; prints the plan, creates on --yes
-wall register [--repo PATH] [--name N]  adds a repo to the registry; no privileges
-wall unregister [--repo PATH]
-wall verify [--app PATH]                timer alive? heartbeat fresh? registry sane? app in sync?
-wall uninstall [--purge]                removes the task; --purge also removes registry + sweeper
-wall serve [--port 8123] [--check]      the local wall server
-wall run-once                           what the timer calls; also manual/CI entry point
-wall doctor                             heartbeat, integrity flags, roster, plumbing
+python tools/wall/wall.py [--repo PATH] <command> [flags]
 ```
+
+Every subcommand in `tools/wall/wall.py`'s parser is listed below, once.
+`tests/test_cli_table.py` reads the parser and fails when this table gains or
+loses a row the code does not have. Most writing commands also take
+`--session S` (the shard they append to) and `--by WHO` (who is recorded);
+`wall <command> -h` prints the full flag list.
+
+**The wall and the ledger**
+
+| Command | Main flags | What it does |
+|---|---|---|
+| `wall run-once` | `[--rebuild]` | Merge shards and render the wall; what the timer calls, and the manual/CI entry point. |
+| `wall summary` | `[--json]` | One-screen human digest of the wall. |
+| `wall doctor` | `[--json]` | Heartbeat, integrity flags, roster, plumbing, measured budget headroom; `--json` also writes `.wall/derived/doctor.json`. |
+| `wall classify` | `[--staged]` | Show the route for the current changeset, by path. |
+| `wall agents` | `[roster\|claim\|release\|whois\|audit] [--role R] [--key K] [--name N] [--at TS]` | Roster operations; `whois --at` resolves a name at a past instant. |
+| `wall rebuild` | `[--prune]` | Regenerate `.wall/items/` from events alone; `--prune` deletes item files no event created. |
+| `wall diff-state` | none | Ledger-derived item state against what is on disk. |
+| `wall trace` | `[ITEM_OR_TRACE]` | Causal timeline for an item or a trace. |
+| `wall why` | `[ITEM]` | Decisions in effect, and which runs saw them. |
+| `wall answer` | `[ASK_ID] [--text T] [--decision]` | Resolve a human-queue question; `--decision` also writes a DEC-NNNN skeleton. |
+| `wall ack-doc` | `PATH [--by WHO] [--feedback TEXT]` | Acknowledge a document of record at its current sha; `--feedback` records a correction instead of signing off. |
+| `wall fast-track` | `[--staged] [--file P]... [--stage] [--commit] [--allow-main] [-m MSG] [--item I]` | Classify, run the local gates, stage; `--commit` commits locally and never pushes. |
+| `wall context` | `sync\|check [--adopt] [--symlink] [--dry-run]` | AGENTS.md masters to the generated CLAUDE.md and other tool copies. |
+
+**Compliance**
+
+| Command | Main flags | What it does |
+|---|---|---|
+| `wall compliance` | `REGIME --applicable\|--not-applicable --reason WHY` | Select whether a regime applies; the reason is the decision-log entry. |
+| `wall attest` | `REGIME CONTROL --status pass\|fail\|waiver --note N` | Self-attest one control; the note carries the proof or the reason. |
+| `wall compliance-scan` | `[--by WHO] [--source S]` | Warden evidence pass: which regimes the code suggests (DEC-0030). |
+| `wall audit` | `REGIME --file JSON` | Record a full Warden audit of one regime: every control, with proof or reason. |
+
+**The learning loops** (each validates its record before writing it)
+
+| Command | Main flags | What it does |
+|---|---|---|
+| `wall run-start` | `--key K --role R --item I --deadline-min N [--scope P]... [--model M] [--decision DEC]... [--over-cap-reason WHY]` | Write `run_start` and register the run in `open_runs.json`; refuses (exit 1) past `role_limits[role]` unless `--over-cap-reason` is recorded. |
+| `wall run-end` | `--run RUN [--outcome O] [--error-class C] [--model-used M] [--cost-usd N] [--duration-s N]` | The no-hooks path: write `run_end` / `run_error` and unregister the run; refuses a second terminal record. |
+| `wall retro` | `--wave W --file JSON` | Validate a wave-close retrospective (measured signals, at most 3 diffs from the closed list, horizons) and write `retro_held`; refuses while any `retro_input` is unaddressed. |
+| `wall retro-note` | `--text T [--by WHO]` | A Patron input the next retrospective must consume (`retro_input`). |
+| `wall rebalance` | `--knob K --from A --to B --signal NAME=VALUE... --expect E --horizon H [--reason WHY] [--adjudication REF]` | Record one executed rebalance with its one-step revert; one knob per cycle, and a second reversal of the same knob goes to the Adjudicator. |
+| `wall finding` | `--signature S --class C --route R --snapshot-ref REF [--playbook P]` | Record a `diagnostic_finding`; the signature is normalized first. |
+| `wall story-filed` | `--finding EVENT_ID --item I` | Join a finding to the item filed for it (`story_filed`). |
+| `wall verify-request` | `--item I --what W [--steps S]...` | Append to the owner-verification queue. |
+| `wall verified` | `--item I --verdict confirmed\|confirmed_with_findings [--note N]` | The owner's verification answer (human only). |
+
+**Plumbing** (dispatched to `service.py` and `shipper.py`)
+
+| Command | Main flags | What it does |
+|---|---|---|
+| `wall install` | `[--yes] [--interval S] [--system NAME]` | Consent-gated: prints the plan, creates the one machine-wide timer only on `--yes`; `--system` forces a platform adapter. |
+| `wall register` | `[--name N]` | Add this repo to the timer's registry; a plain file write, no privileges. |
+| `wall unregister` | `[--name NAME]` | Drop this repo from the registry; `--name NAME`: unregister by registry name. |
+| `wall verify` | `[--app PATH] [--stale-after-s N]` | Timer alive, heartbeat fresh (stale after 300s by default), registry sane, deployed app in sync. |
+| `wall uninstall` | `[--purge] [--system NAME]` | Remove the timer and keep `.wall/`; `--purge` also removes the sweeper and the machine registry. |
+| `wall serve` | `[--port 8123] [--check] [--verbose]` | Serve `.wall/derived/` on 127.0.0.1; `--check` probes a running server. |
+| `wall ship` | `[--branch wall-events]` | Push today's shards and snapshot to the isolated branch; separately invoked and gated. |
+| `wall fetch-events` | `[--branch wall-events]` | Materialise the isolated branch locally (git fetch), freshness-guarded. |
 
 `wall.py` keeps its own argument parsing and lazily imports `service.py` for the
 install family. The seam is six functions, each taking the argparse namespace
@@ -379,16 +443,20 @@ wall verify  /home/j/code/your-repo
   ok   heartbeat  last sweep 47s ago
   ok   registry   3 repo(s), this one included
   ok   timer      installed and running; scheduler last run Sat 2026-09-19 11:58:00 UTC
-  ??   budget     not measured (no budget-counted context doc wired yet)
+  ok   budget     1 registered doc(s): 1 ok
+  ok   budget RULES.md 5210 / 8000 characters, 2790 left (34.9%)
   all checks passed
 ```
 
-The `budget` row is deliberately `??` and not `ok`. RECONCILIATION G10: the host
-repo's reviewer-prompt budget sat 53 characters from a hard failure while three
-parked units each added rules to the counted sections, and the doctor is meant
-to report that headroom. `service.budget_headroom()` is the hook, it returns
-`None` today, and the doctor renders `None` as "not measured" -- never as
-"fine".
+The `budget` row is measured. RECONCILIATION G10: the host repo's
+reviewer-prompt budget sat 53 characters from a hard failure while three
+parked units each added rules to the counted sections, so the doctor reports
+that headroom. `service.budget_headroom()` reads the host's
+`BUDGETED_DOCS.md` register (or wall.json's `budgeted_docs`), measures each
+registered document in the unit its Budget cell declares, and reports `fail`
+over budget, `warn` under 10% headroom, `ok` otherwise, one row per document.
+A row it cannot measure honestly is `??`. With no register at all the row is
+`??  not measured` -- never "fine".
 
 ---
 

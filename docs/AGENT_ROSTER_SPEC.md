@@ -243,8 +243,10 @@ role sheet (`.claude/agents/integrator.md`) plus an order form
 assumes it. The procedure is WORKFLOW section 9.
 
 Authority stops in exactly the same place as the Builder's: **reports green,
-never merges, never flips ready** (G12). The Integrator consumes the single PR
-slot, not a builder slot, which is why it is a hat and not a cap line.
+never merges, never flips ready** (G12). The Integrator drives its own unit's
+PR -- one PR per unit, concurrent on disjoint leased surfaces, with merges
+serialized by the Maestro (DEC-0016) -- and takes no builder slot, which is
+why it is a hat and not a cap line.
 
 ---
 

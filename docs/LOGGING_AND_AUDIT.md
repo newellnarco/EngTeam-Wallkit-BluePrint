@@ -114,6 +114,26 @@ wall doctor [--json]            heartbeat, integrity flags (seq gaps, orphan
                                 --json also writes .wall/derived/doctor.json
 ```
 
+The learning-loop records, each validated before it is written (the command
+refuses what the governing document forbids):
+
+```
+wall run-start --key --role --item --deadline-min   run_start + open_runs.json;
+                                refuses past role_limits unless
+                                --over-cap-reason is recorded
+wall run-end --run <run_id>     no-hooks path: the terminal record the
+                                SubagentStop hook would write
+wall retro --wave --file        retro_held, validated against RETROSPECTIVES.md
+wall rebalance --knob --from --to --signal --expect --horizon
+                                rebalance_applied; one knob per cycle, a second
+                                reversal goes to the Adjudicator
+wall finding --signature --class --route --snapshot-ref
+                                diagnostic_finding (DIAGNOSTICS_LOOP.md)
+wall story-filed --finding --item   joins a finding to the story that carries it
+wall verify-request --item --what --steps   owner-verification queue
+wall verified --item --verdict  the owner's answer (human only)
+```
+
 **Planned -- not built.** Nothing in this list exists yet; do not script
 against it:
 

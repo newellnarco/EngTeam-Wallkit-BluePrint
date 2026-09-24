@@ -62,6 +62,11 @@ These are the measured failure classes. Each one cost a wave something.
   by reading the check runs directly. Verify claims against git, tests and CI
   before they enter a report or the wall.
 
+One standing rule governs the kit itself rather than a dispatch: **the guide is
+current.** Any change to the kit's behavior, commands, config, roles, decisions,
+install/remove or docs updates `docs/WALL_KIT_GUIDE.md` in the same PR;
+`tests/test_guide_current.py` fails when it drifts.
+
 ---
 
 ## 3. The dispatch sequence
@@ -87,8 +92,12 @@ Per WORKFLOW section 2, in this order, every time:
    All-Opus builders measured 400-720K tokens per unit.
 4. **Attach decisions.** Every in-scope `DEC-NNNN` goes into the prompt and into
    `decisions_in_context` on the run record.
-5. **Write `run_start`** with agent key, item, deadline, scopes, and register the
-   run in `.wall/registry/open_runs.json` so the SubagentStop hook can close it.
+5. **Write `run_start` with `wall run-start`** (`--key --role --item
+   --deadline-min`, plus `--scope` and `--decision` per scope and decision). It
+   writes the event and registers the run in `.wall/registry/open_runs.json` so
+   the SubagentStop hook can close it, and it refuses a run past
+   `role_limits[role]` unless `--over-cap-reason` records why. Never hand-write
+   the JSON: the courier flags a hand-written run past the cap as `over_cap`.
 6. **Send the brief as a document**, not a paraphrase: fill
    `docs/handoffs/dispatch-brief.md` (G13 -- five hand-written re-briefs drifted).
 
@@ -172,8 +181,9 @@ Two rules about what a report costs:
   acceptance criteria, exact file surfaces shown to be disjoint, and the merge
   order. Say plainly that you could not spawn. A plan reported as a dispatch is
   the failure this rule exists to prevent.
-- **No hooks installed.** Terminal events become best-effort agent writes, and
-  `wall doctor` will show orphan runs. Install the hooks (`.claude/hooks/README.md`)
+- **No hooks installed.** Terminal events become `wall run-end --run <run_id>`
+  writes (the no-hooks path), and `wall doctor` will show orphan runs for any
+  that were missed. Install the hooks (`.claude/hooks/README.md`)
   before treating the ledger as complete.
 - **Courier unavailable.** The wall goes stale; say so in the report rather than
   reporting from memory.

@@ -238,6 +238,11 @@ def test_a_branch_differing_from_the_default_only_in_case_is_kept_like_it():
     assert evaluate(push("Main", 1), cancel) is False
     assert not same_group(evaluate(push("Main", 1), group), evaluate(push("Main", 2), group))
     assert not same_group(evaluate(push("Main", 1), group), evaluate(push("main", 2), group))
+    # A pull request from 'Main' has ref_name '<n>/merge', so the exception
+    # does not reach it: plain branch group, cancelling like any other PR.
+    assert evaluate(pull_request("Main"), cancel) is True
+    assert same_group(evaluate(pull_request("Main", run_id=5), group),
+                      evaluate(pull_request("Main", run_id=6), group))
 
 
 def test_the_evaluator_compares_strings_as_actions_does():

@@ -90,7 +90,9 @@ Before assigning any work, Maestro:
    second builder whose scope overlaps is not dispatched.
 3. **Attaches decisions.** Any `DEC-NNNN` in scope goes into the prompt and into
    `decisions_in_context` on the run record.
-4. **Writes `run_start`** with agent key, item, deadline and scopes.
+4. **Writes `run_start`** with agent key, item, deadline and scopes, using
+   `wall run-start` -- which also registers the run for the SubagentStop hook
+   and refuses a run past the role cap. The JSON is never hand-written.
 
 Leases carry a TTL so a dead agent does not hold a path forever. When parallel
 sessions arrive, git worktrees go underneath the same lease check — the check

@@ -179,6 +179,25 @@ def test_gitignore_block_is_appended_once_refreshed_and_stripped(tmp_path):
     assert (repo / ".gitignore").read_text(encoding="utf-8") == host + "dist/\n"
 
 
+@pytest.mark.parametrize("nl", [b"\r\n", b"\n"])
+def test_gitignore_keeps_the_hosts_line_endings_byte_for_byte(tmp_path, nl):
+    """Mutation: rewrite with the platform ending. read_text() folds CRLF to
+    LF, so only a byte-level comparison sees every host line restyled."""
+    repo = tmp_path / "r"
+    repo.mkdir()
+    host = b"node_modules/" + nl + b"*.log" + nl
+    (repo / ".gitignore").write_bytes(host)
+    assert run("fresh", repo, "--apply") == 0
+    raw = (repo / ".gitignore").read_bytes()
+    assert raw.startswith(host)
+    if nl == b"\r\n":
+        assert b"\n" not in raw.replace(b"\r\n", b""), "a bare LF crept in"
+    else:
+        assert b"\r\n" not in raw, "a CRLF crept in"
+    assert run("remove", repo, "--apply") == 0
+    assert (repo / ".gitignore").read_bytes() == host
+
+
 def test_gitignore_the_kit_created_goes_on_remove(tmp_path):
     repo = fresh(tmp_path)
     assert (repo / ".gitignore").read_text(

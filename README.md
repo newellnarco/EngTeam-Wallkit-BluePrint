@@ -21,6 +21,12 @@ amplifies.** The status wall is just its visible surface.
 > secure, scalable, enterprise-grade products — an amplifier for the people
 > accountable for the work, not a substitute for them.
 
+> [!NOTE]
+> **The consolidated reference:** `docs/WALL_KIT_GUIDE.md` is the single,
+> maintained source of truth for what the kit is, how it installs, works,
+> learns and is removed. Every change to the kit updates it in the same PR
+> (`tests/test_guide_current.py`).
+
 A standalone, dependency-free scaffold that drops into an empty repository — or
 an existing one — and stands up a **turnkey engineering organization run by LLM
 agents**: architecture, project management, product management, design,
@@ -80,7 +86,7 @@ written procedure.
 | Security & compliance authority | **Warden** (exactly one, singleton-enforced) | Guardrail corpus; architecture sign-off on in-scope arcs; data-use verdicts (dev + product); delivery audit — blocks autonomously, never grants. **Audits the cross-cutting security lane** — SAST + secrets in CI, gated research network, localhost-only surfaces, consent-gated installs — machinery that runs structurally on its own; the Warden verifies it holds and rules on what it raises | `.claude/agents/warden.md`, `docs/TESTING_STANDARDS.md` (SAST lane), `docs/INSTALL.md`; the singleton is refused in code by `tools/wall/agents.py`, the bind by `tools/wall/server.py` |
 | Analysts | **Researchers** (N, parallel) | Evidence with sources, options with costs | `.claude/agents/researcher.md`, `docs/handoffs/finding-route.md` |
 | Engineers | **Builders** (N, parallel) | Implementation in leased scopes, tests owed | `.claude/agents/builder.md`, `docs/TESTING_STANDARDS.md` |
-| Release engineer | **Integrator** (a hat) | Rebase, safety proof, gates last, one PR at a time | `.claude/agents/integrator.md`, `docs/WORKFLOW.md` §9, `docs/handoffs/transplant-order.md` |
+| Release engineer | **Integrator** (a hat) | Rebase, safety proof, gates last; its unit's own PR, merged one at a time by the Maestro (DEC-0016) | `.claude/agents/integrator.md`, `docs/WORKFLOW.md` §9, `docs/handoffs/transplant-order.md` |
 | QA / code review | **Reviewer** + external lanes | Cold diff read, mutation protocol, DoD gate | `.claude/agents/reviewer.md`, `.claude/skills/reviewer-integration/SKILL.md` |
 
 **Under-promising on purpose.** Every capability above is graded by how it is
@@ -97,7 +103,7 @@ of quietly becoming marketing.
 Full mapping with DDD alignment: `docs/diagrams/ORG_MAPPING.md`. The same
 system as sessions, hooks and state — with what runs parallel vs sequential:
 
-![Agent topology — hooks, session, pools, state, PR slot](docs/diagrams/assets/agent-topology.svg)
+![Agent topology — hooks, session, pools, state, PRs](docs/diagrams/assets/agent-topology.svg)
 
 Deep version with the concern-to-mechanism map: `docs/diagrams/AGENT_TOPOLOGY.md`.
 
@@ -228,7 +234,7 @@ rhythm.
 | # | Phase | What happens | Specified in |
 |---|---|---|---|
 | 0 | **See it work** | Render the sample wall from fake shards, 30 seconds, zero model calls | "Try it in 30 seconds" above |
-| 1 | **Deploy into the repo** | Copy `tools/wall/`, `docs/`, `frontend/theme/`, `.claude/`, `.gitignore`; empty repo fills templates, existing repo maps them | The two runbooks below |
+| 1 | **Deploy into the repo** | `tools/wall/bootstrap.py` vendors `tools/wall/`, `docs/`, `frontend/theme/` and `templates/`; merges `.claude/` and `tools/git-hooks/` by adding (a differing host file is a reported COLLISION, never overwritten; `settings*.json` is never copied); writes the kit's `.gitignore` lines as one marked block; stamps a per-file sha256 manifest. Empty repo fills templates, existing repo maps them | The two runbooks below, INSTALL.md |
 | 2 | **Start it** | `wall run-once` (works with nothing installed) -> `wall serve` -> the wall is live at `127.0.0.1:8123` | INSTALL.md |
 | 3 | **Close the loop** | `wall install --yes` (consent-gated) puts the one machine-wide timer on; `wall verify` proves it; shards + diagnostics ship off-box | INSTALL.md |
 | 4 | **Define the product** | Intake Q&A: effort variables + six product domains, derived from the repo first, asked second | PRODUCT_INTAKE.md |
@@ -374,8 +380,9 @@ the `generated_at` stamp before believing anything on the page.
 
 **7. Run the first wave.** With the roster claimed and the wall live, invoke the
 `/wave` skill in the session. Maestro surveys the items, vets them, dispatches
-against **disjoint file surfaces**, and integrates through one pull-request slot
-in a set merge order.
+against **disjoint file surfaces**, and integrates through concurrent pull
+requests on those disjoint surfaces, merged one at a time in a set merge order
+(DEC-0016).
 
 Expect the first wave to teach you something the kit did not know. When it does,
 the response is a `FAILURE_PATTERNS.md` entry plus the matching
@@ -625,6 +632,10 @@ authority on which commands are in that state today.
 | Integration | Rebase, regenerate derived files, prove, gate, open the pull request | The role sheet exists so the procedure stops being re-typed |
 | Context templates | The root context documents a new project starts from (thirteen templates) | `templates/`, this repository |
 | Decision log | One file per ruling, superseded rather than rewritten | `docs/decisions/` |
+| Role caps | `wall run-start` writes `run_start` and refuses a run past `role_limits[role]` unless an over-cap reason is recorded | Enforced in code; the courier flags `over_cap` on a run written by hand |
+| Learning-loop records | `wall retro`, `wall rebalance`, `wall finding` / `story-filed` / `verify-request` / `verified` write the retro, rebalance and diagnostics events, each validated before it is written | A retro with unaddressed Patron inputs or more than three diffs is refused; one knob per cycle, a second reversal goes to the Adjudicator; the courier flags `dropped_findings` and `verify_overdue` |
+| Budget headroom | The doctor measures every document registered in `BUDGETED_DOCS.md` against its declared budget | `ok` / `warn` / `fail` per document; "not measured" only when no register exists |
+| Install manifest and edit protection | `bootstrap.py` stamps the sha256 of every file it owns in `.wall/config/kit_source.json` | `upgrade` and `remove` refuse, all-or-nothing, to overwrite or delete a locally modified or unverifiable file unless `--force` |
 
 ---
 
@@ -634,6 +645,7 @@ authority on which commands are in that state today.
 
 | File | What it is |
 |---|---|
+| `WALL_KIT_GUIDE.md` | **The consolidated reference** — what the kit is, how it installs, works, learns and is removed; updated in the same PR as every kit change |
 | `RECONCILIATION.md` | **BINDING** — the 16 questions answered, the wave's measured lessons |
 | `WALL_STANDARDS.md` | Folder layout, git boundaries, reference-deployment mapping |
 | `AGENT_ROSTER_SPEC.md` | The roles, models, caps, authority |
@@ -665,7 +677,7 @@ authority on which commands are in that state today.
 | `MCP_INTEGRATION.md` | The wall as an MCP server: one integration point for every editor and agent, role-gated |
 | `CAPABILITY_TRUST.md` | Discovery is never trust: the default-deny adoption gate for tools, servers and skills; fetched content is data; the output-relay gate |
 | `FLEET.md` | More than one adopting repository: exit-code verdicts, the spin-off exchange, one byte-identical artifact, dispositions |
-| `INSTALL.md` | Machine-wide timer, serving, platform specifics |
+| `INSTALL.md` | Machine-wide timer, serving, platform specifics, the full CLI table (`tests/test_cli_table.py`) |
 | `OPEN_QUESTIONS.md` | Settled decisions, and whatever is open now |
 | `ORIGINAL_OUTLINE.md` | The source outline, unedited |
 | `decisions/` | `DEC-NNNN.md`, one per ruling, plus `index.md` |
@@ -688,7 +700,8 @@ authority on which commands are in that state today.
 | Path | What it is |
 |---|---|
 | `templates/` | The root context documents, with placeholders |
-| `tools/wall/` | Courier, roster, CLI, service + server + shipper, install adapters, renderer, board-import adapters |
+| `tools/wall/` | Courier, roster, CLI, service + server + shipper, install adapters, renderer, board-import adapters, `bootstrap.py` |
+| `tools/git-hooks/` | Versioned pre-commit and pre-push hooks; copied by bootstrap, installed only by their `install.sh` |
 | `frontend/theme/` | Tokens, primitives, preview |
 | `sample/make_sample.py` | Fixture generator, zero model calls |
 | `tests/` | Scaffolding and integrity tests |

@@ -24,8 +24,8 @@ human stops it -- not between units. Do not ask permission per unit.
    first work of the wave: an item claiming an open PR the host says is merged
    is fixed before anything is dispatched (G9).
 4. Confirm the hooks are installed (`.claude/hooks/README.md`). Without them the
-   terminal ledger events are best-effort and `wall doctor` will read orphaned
-   runs as live agents.
+   terminal ledger events are written with `wall run-end`, and any that are
+   missed show in `wall doctor` as orphaned runs read as live agents.
 5. Check budget. Advisory, but recorded before dispatch, never after the overrun.
 
 **Degrade path (G0a).** If the `Agent` tool is unavailable in this session you
@@ -56,6 +56,13 @@ For each candidate unit:
 
 Per WORKFLOW section 2, in order: budget, leases, decisions attached, `run_start`
 written and registered in `.wall/registry/open_runs.json`, then the brief.
+
+The `run_start` is `wall run-start --key <agent_key> --role <role> --item <id>
+--deadline-min <n>` (plus `--scope` / `--decision` per scope and decision),
+never hand-written JSON. It refuses a run past `role_limits[role]`; the only
+override is `--over-cap-reason "..."`, which is recorded. **Only without
+hooks**, close each run with `wall run-end --run <run_id> --outcome <outcome>`;
+with hooks installed the SubagentStop hook writes the terminal record.
 
 **The brief is a document, not a paraphrase.** Fill
 `docs/handoffs/dispatch-brief.md`. Five hand-written re-briefs drifted in one
@@ -93,6 +100,15 @@ reason at every hop. A finding that contradicts a live decision goes to the
 Adjudicator, never quietly into a second decision record.
 
 Route each one with `docs/handoffs/finding-route.md`.
+
+A diagnostic finding (a failure signature out of a snapshot, DIAGNOSTICS_LOOP)
+is recorded with `wall finding --signature "..." --class
+known_playbook|unclassified --route auto_repaired|story_filed|escalated
+--snapshot-ref <ref>`. A `story_filed` route is joined to its item with `wall
+story-filed --finding <event_id> --item <id>` before `sla_minutes.story_filed`
+runs out, or the wall flags it as a dropped finding. A change the owner must
+see for themselves goes on the queue with `wall verify-request`; only the owner
+answers it, with `wall verified`.
 
 ## Phase 6 -- Integrate: concurrent PRs, merges one at a time
 
@@ -141,6 +157,16 @@ trigger.
   a reason.
 - Leases released; `run_end` present for every `run_start` (the SubagentStop
   hook writes these, but `wall doctor` is what proves it).
+- **The retro is recorded with `wall retro --wave <wave> --file <retro.json>`**
+  (the Foreman prepares the file). It refuses a record without measured
+  signals, with more than three diffs, or with a Patron input left unaddressed.
+- **A capacity change is executed with `wall rebalance --knob <knob> --from <a>
+  --to <b> --signal name=value --expect "..." --horizon "..."`**: one knob per
+  cycle, and a second reversal of the same knob goes to the Adjudicator instead
+  of being applied.
+- **The guide is current.** Any change to the kit's behavior, commands, config,
+  roles, decisions, install/remove or docs updates `docs/WALL_KIT_GUIDE.md` in
+  the same PR; `tests/test_guide_current.py` fails when it drifts.
 - Final report in the same three sections, plus what the next wave should start
   with.
 - Every lesson the wave paid for that the skills library lacks is written up,

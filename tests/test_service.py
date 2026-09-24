@@ -254,6 +254,47 @@ def test_cmd_register_and_unregister(home: Path, repo: Path, capsys):
     assert service.read_registry()["repos"] == []
 
 
+def test_unregister_name_drops_the_named_row_not_this_repo(home: Path, repo: Path,
+                                                           tmp_path: Path):
+    other = tmp_path / "other"
+    other.mkdir()
+    service.register_repo(repo, name="here")
+    service.register_repo(other, name="gone-checkout")
+    # Run from `repo`, name the other row: the name wins over the path.
+    assert service.cmd_unregister(args(repo=str(repo), name="gone-checkout")) == 0
+    rows = service.read_registry()["repos"]
+    assert [r["name"] for r in rows] == ["here"]
+    # A name no row carries is the desired end state already: success, no-op.
+    assert service.unregister_repo(repo, name="nobody")["removed"] is False
+    assert [r["name"] for r in service.read_registry()["repos"]] == ["here"]
+
+
+def test_unregister_name_matching_two_rows_is_refused(home: Path, repo: Path,
+                                                      tmp_path: Path, capsys):
+    other = tmp_path / "other"
+    other.mkdir()
+    service.register_repo(repo, name="twin")
+    service.register_repo(other, name="twin")
+    assert service.cmd_unregister(args(repo=str(repo), name="twin")) == 1
+    assert "matches 2 rows" in capsys.readouterr().err
+    assert len(service.read_registry()["repos"]) == 2
+
+
+def test_wall_cli_passes_unregister_name_through(home: Path, repo: Path, tmp_path: Path):
+    import wall
+    other = tmp_path / "other"
+    other.mkdir()
+    service.register_repo(repo, name="here")
+    service.register_repo(other, name="gone-checkout")
+    old = sys.argv
+    sys.argv = ["wall", "--repo", str(repo), "unregister", "--name", "gone-checkout"]
+    try:
+        assert wall.main() == 0
+    finally:
+        sys.argv = old
+    assert [r["name"] for r in service.read_registry()["repos"]] == ["here"]
+
+
 def test_cmd_register_warns_when_no_sweeper_exists_yet(home: Path, repo: Path, capsys):
     service.cmd_register(args(repo=str(repo)))
     assert "wall install --yes" in capsys.readouterr().out

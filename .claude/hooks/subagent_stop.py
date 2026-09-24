@@ -10,8 +10,8 @@ Contract:
   - stdlib only, no imports outside the standard library, no network.
   - one `os.write` per record, O_APPEND, so concurrent lines never interleave
     (EVENT_SCHEMA section 6).
-  - idempotent: if the agent already wrote a terminal event for this run, this
-    hook writes nothing.
+  - idempotent: if the agent (or `wall run-end`) already wrote a terminal event
+    for this run, this hook writes nothing.
   - NEVER blocks the session. Every failure path logs and exits 0.
   - writes nothing to stdout. A PreToolUse-style JSON decision on stdout could
     change harness behaviour; this hook only records.
@@ -22,12 +22,19 @@ cannot import is a hook that does not fire, and the duplication is 60 lines.
 Run identity, in precedence order:
   1. `run_id` in the hook payload, if the harness supplies one.
   2. `WALL_RUN_ID` in the environment.
-  3. `.wall/registry/open_runs.json` -- the runs the Maestro registered at
+  3. `.wall/runs/<run_id>/ended.json` -- the marker `wall run-end` leaves when it
+     writes a run's terminal record itself (the no-hooks path, or an agent that
+     closed its own run). The oldest unconsumed marker for this session is
+     consumed and the hook no-ops: the terminal record already exists, and a
+     second, synthetic `unresolved` one would double-count the run. A marker
+     older than MARKER_MAX_AGE_S is ignored (a no-hooks install never consumes
+     them, and a stale one must not swallow a later, real stop).
+  4. `.wall/registry/open_runs.json` -- the runs the Maestro registered at
      dispatch, filtered to this session and to runs with no terminal event yet.
      Exactly one match is used directly; several means the oldest is used and the
      record is marked `inferred_oldest` so the ambiguity is visible rather than
      assumed away.
-  4. None of the above -- a synthetic id, marked `unresolved`. The integrity
+  5. None of the above -- a synthetic id, marked `unresolved`. The integrity
      panel will show the real run as an orphan, which is the honest outcome.
 """
 
@@ -46,6 +53,8 @@ TERMINAL_EVENTS = ("run_end", "run_error")
 ERROR_OUTCOMES = ("error", "timeout")
 VALID_OUTCOMES = ("pass", "partial", "blocked", "timeout", "error", "human_required")
 ZERO_TOKENS = {"in": 0, "out": 0, "cache_read": 0, "cache_write": 0}
+ENDED_MARKER = "ended.json"        # written by `wall run-end` (tools/wall/wall.py)
+MARKER_MAX_AGE_S = 6 * 3600
 
 
 def now_iso():
@@ -166,12 +175,53 @@ def load_open_runs(wall):
     return {k: v for k, v in data.items() if isinstance(v, dict) and k}
 
 
+def ended_markers(wall, session_id):
+    """`wall run-end` markers for this session, oldest first, as (ended,
+    run_id, path). Unreadable or stale markers are skipped, never fatal."""
+    runs = Path(wall) / "runs"
+    try:
+        paths = sorted(runs.glob("*/" + ENDED_MARKER)) if runs.is_dir() else []
+    except OSError:
+        return []
+    now = time.time()
+    out = []
+    for path in paths:
+        try:
+            if now - path.stat().st_mtime > MARKER_MAX_AGE_S:
+                continue
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(data, dict) or not data.get("run_id"):
+            continue
+        sessions = {data.get("session_id"), data.get("registered_session")}
+        if session_id and session_id not in sessions:
+            continue
+        out.append((str(data.get("ended") or ""), str(data["run_id"]), path))
+    out.sort()
+    return out
+
+
+def consume_marker(path):
+    """Remove one marker. Only the process whose unlink succeeds consumes it,
+    so two hooks firing at once cannot both claim the same closed run."""
+    try:
+        os.unlink(str(path))
+        return True
+    except OSError:
+        return False
+
+
 def resolve_run(wall, payload, session_id, closed):
     for key in ("run_id", "agent_run_id", "subagent_run_id"):
         if payload.get(key):
             return str(payload[key]), "payload"
     if os.environ.get("WALL_RUN_ID"):
         return os.environ["WALL_RUN_ID"], "env"
+
+    for _ended, run_id, path in ended_markers(wall, session_id):
+        if consume_marker(path):
+            return run_id, "run_end_marker"
 
     candidates, already_closed = [], []
     for run_id, rec in load_open_runs(wall).items():
@@ -281,8 +331,13 @@ def main():
         closed = terminal_run_ids(wall, session_id)
         run_id, resolution = resolve_run(wall, payload, session_id, closed)
 
-        if run_id in closed:
-            log_exit(wall, 0, "payload=%s run=%s already_terminal" % (parse_state, run_id))
+        # A run `wall run-end` closed leaves a marker; consume it for a run
+        # resolved any other way too, so it cannot swallow a later stop.
+        marked = (resolution == "run_end_marker" or
+                  consume_marker(Path(wall) / "runs" / str(run_id) / ENDED_MARKER))
+        if run_id in closed or marked:
+            log_exit(wall, 0, "payload=%s run=%s already_terminal%s" % (
+                parse_state, run_id, " (wall run-end)" if marked else ""))
             return 0
 
         record = build_record(payload, wall, session_id, run_id, resolution)

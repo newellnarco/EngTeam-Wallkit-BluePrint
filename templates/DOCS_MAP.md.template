@@ -76,6 +76,7 @@ column is a list of files, not a sentiment.
 | Agent context changed (`AGENTS.md`, root or nested) | The master only - never a generated copy - then `python tools/wall/context_sync.py sync`, committing the regenerated copies in the same change |
 | Rule or standing directive issued | `RULES.md` (or the host's equivalent) in the same working chunk it was issued - a directive that exists only in a conversation is a bug |
 | Decision made | One decision record, and the superseding marks in both directions |
+| Any change a reader of the overview would notice | The project's consolidated guide (if it keeps one) is updated in the same change: <CONSOLIDATED_GUIDE_PATH> |
 | <CHANGE_KIND> | <DOC_SURFACES> |
 
 ---

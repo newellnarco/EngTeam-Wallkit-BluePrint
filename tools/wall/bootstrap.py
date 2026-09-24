@@ -396,11 +396,19 @@ def gitignore_block() -> str:
     return "\n".join((GITIGNORE_BEGIN, *GITIGNORE_LINES, GITIGNORE_END)) + "\n"
 
 
+def _newline_of(path: Path) -> str:
+    """The host file's line ending, so a rewrite never restyles its lines:
+    read_text() folds CRLF to LF, and write_text() would write the
+    platform's ending back over every host line."""
+    return "\r\n" if path.is_file() and b"\r\n" in path.read_bytes() else "\n"
+
+
 def ensure_gitignore(repo: Path, apply: bool) -> bool:
     """Idempotently put the kit's required ignores in the host's
     .gitignore, inside the marked block; a stale block is refreshed in
     place, host lines are never touched. Returns whether it changed."""
     path = repo / ".gitignore"
+    nl = _newline_of(path)
     text = path.read_text(encoding="utf-8") if path.is_file() else ""
     block = gitignore_block()
     if _GITIGNORE_BLOCK.search(text):
@@ -417,7 +425,7 @@ def ensure_gitignore(repo: Path, apply: bool) -> bool:
     _say(f"  {verb:<7} .gitignore  (wall kit block: "
          f"{', '.join(GITIGNORE_LINES)})")
     if apply:
-        path.write_text(new, encoding="utf-8")
+        path.write_text(new, encoding="utf-8", newline=nl)
     return True
 
 
@@ -427,6 +435,7 @@ def strip_gitignore(repo: Path, apply: bool) -> None:
     path = repo / ".gitignore"
     if not path.is_file():
         return
+    nl = _newline_of(path)
     text = path.read_text(encoding="utf-8")
     m = _GITIGNORE_BLOCK.search(text)
     if not m:
@@ -438,7 +447,7 @@ def strip_gitignore(repo: Path, apply: bool) -> None:
     if new.strip():
         _say("  strip   .gitignore  (wall kit block only; host lines kept)")
         if apply:
-            path.write_text(new, encoding="utf-8")
+            path.write_text(new, encoding="utf-8", newline=nl)
     else:
         _say("  remove  .gitignore  (held only the wall kit block)")
         if apply:

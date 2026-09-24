@@ -34,7 +34,8 @@ flowchart TB
     end
 
     subgraph Capture
-        Hooks[Session hooks<br/>run start / run end / tool use]
+        Hooks[Session hooks<br/>run end / tool use]
+        CLI[wall CLI writers<br/>run-start - run-end - retro - rebalance<br/>finding - story-filed - verify-request - verified<br/>each validates before it writes]
         Shards[(.wall/events/<br/>per-session shards)]
     end
 
@@ -59,12 +60,14 @@ flowchart TB
     Maestro -->|dispatch| Researcher
     Maestro -->|question| Architect
     Maestro -->|question| Adjudicator
-    Builder -->|slot frees| Integrator
+    Builder -->|unit complete| Integrator
     Builder -.->|every run| Hooks
     Integrator -.-> Hooks
     Reviewer -.-> Hooks
     Researcher -.-> Hooks
+    Maestro -->|"run-start: cap check<br/>retro - rebalance - finding"| CLI
     Hooks --> Shards
+    CLI --> Shards
     Shards --> Courier
     Courier --> Derived
     Courier --> Shipper
@@ -81,6 +84,15 @@ flowchart TB
     Derived --> Foreman
     Foreman --> Maestro
 ```
+
+The **Capture** plane has two writers. The hooks record what a run did; the
+`wall` CLI writers record what the Maestro and the owner decided, and each one
+refuses a record that breaks its rule before anything reaches a shard:
+`run-start` refuses a run past `role_limits[role]`, `retro` refuses a
+retrospective that leaves a Patron input unaddressed or carries more than
+three diffs, `rebalance` refuses a second knob in one cycle. The courier then
+flags what was written around them (`over_cap`, `dropped_findings`,
+`verify_overdue`). The full command list is `docs/INSTALL.md` "CLI surface".
 
 Two edges are load-bearing by their absence. No agent writes `Derived` - not
 even the Foreman, which **reads** consolidated state and reports judgment back
@@ -119,8 +131,9 @@ sequenceDiagram
     participant CI as Checks
     participant C as Courier
 
+    M->>C: wall run-start: role cap checked, run_start written
+    Note over M,C: past role_limits the run is refused (exit 1)<br/>unless an over-cap reason is recorded
     M->>B: dispatch: key, acceptance, file surface
-    H-->>C: run_start
     B->>B: build within the declared surface
     B->>M: question: ambiguity blocks part of the work
     H-->>C: question_raised, item blocked
@@ -132,7 +145,7 @@ sequenceDiagram
     B->>M: unit complete, gates green in the working copy
     H-->>C: run_end with usage from the harness
 
-    Note over M,B: single pull-request slot frees
+    Note over M,B: its own PR, beside others on disjoint leased surfaces (DEC-0016)
     M->>B: assume Integrator: rebase, regenerate, prove, gates LAST
     B->>CI: draft pull request
     CI-->>B: check runs
@@ -158,21 +171,37 @@ side and by hooks on the other; the human sits inside it rather than beside it.
 
 ```mermaid
 flowchart LR
-    Timer[machine timer<br/>one per machine] --> Courier[courier run-once]
+    Timer[machine timer<br/>one per machine] --> Courier[courier run-once<br/>flags: over_cap - dropped_findings<br/>verify_overdue]
     Courier --> Derived[(derived snapshot<br/>+ heartbeat)]
     Derived --> Wall[wall.html]
     Wall --> Read{Owner or Maestro<br/>reads the wall}
-    Read -->|work to do| Dispatch[dispatch an agent]
+    Read -->|work to do| Start[wall run-start<br/>role cap check]
+    Start -->|"under cap, or over-cap reason recorded"| Dispatch[dispatch an agent]
+    Start -->|over cap| Refused[refused, exit 1]
     Read -->|nothing to do| Idle[no model calls]
     Dispatch --> Run[agent run]
-    Run --> Hooks[hooks write records]
+    Run --> Hooks[hooks write records<br/>or wall run-end]
     Hooks --> Shards[(event shards)]
+    Read -->|a finding| Finding[wall finding - story-filed<br/>verify-request - verified]
+    Read -->|wave close| Retro[wall retro<br/>validated retro_held]
+    Retro --> Rebalance[wall rebalance<br/>one knob per cycle]
+    Finding --> Shards
+    Retro --> Shards
+    Rebalance --> Shards
     Shards --> Courier
     Run -->|transition| Courier
     Idle --> Timer
 ```
 
-Three properties worth naming:
+The learning half of the loop writes through the same validated commands:
+a retrospective is refused while any Patron `retro_input` is unaddressed or
+when it carries more than three diffs, a second knob before the next
+`retro_held` is refused, and a second reversal of the same knob is routed to
+the Adjudicator. What gets written around the commands is caught on the next
+sweep: the courier flags a run over its role cap, a finding with no filed
+story or route, and a verification request left unanswered.
+
+Three properties worth naming (a fourth, the validated writers, is above):
 
 - **The timer is the fallback, not the driver.** Dispatch, completion and merge
   transitions trigger a snapshot directly, because the wall was watched live

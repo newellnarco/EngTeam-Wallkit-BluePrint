@@ -200,10 +200,14 @@ def register_repo(repo: Path | str, *, name: str | None = None,
     return out
 
 
-def unregister_repo(repo: Path | str, *, env: dict | None = None) -> dict:
+def unregister_repo(repo: Path | str, *, name: str | None = None,
+                    env: dict | None = None) -> dict:
     """Remove a repo row. Returns ``{"removed", "path", "error"}``.
 
-    Removing a repo that was never registered is a success with
+    With ``name`` the row is chosen by its registry name instead of by the
+    repo path -- the way to drop a row whose checkout moved or was deleted.
+    A name that matches more than one row is refused (naming them), never
+    guessed. Removing a repo that was never registered is a success with
     ``removed=False``: the desired end state holds either way.
     """
     resolved = Path(repo).resolve()
@@ -212,8 +216,18 @@ def unregister_repo(repo: Path | str, *, env: dict | None = None) -> dict:
     if registry.get("_error"):
         out["error"] = registry["_error"]
         return out
-    kept = [row for row in registry["repos"] if Path(row["path"]) != resolved]
-    out["removed"] = len(kept) != len(registry["repos"])
+    rows = registry["repos"]
+    if name:
+        hits = [row for row in rows if row.get("name") == name]
+        if len(hits) > 1:
+            out["error"] = "name %r matches %d rows (%s) -- unregister by --repo instead" % (
+                name, len(hits), ", ".join(row["path"] for row in hits))
+            return out
+        out["path"] = hits[0]["path"] if hits else "(no row named %r)" % name
+        kept = [row for row in rows if row.get("name") != name]
+    else:
+        kept = [row for row in rows if Path(row["path"]) != resolved]
+    out["removed"] = len(kept) != len(rows)
     if out["removed"]:
         try:
             write_registry({"repos": kept}, env)
@@ -435,7 +449,9 @@ def _register_rows(text: str) -> list[dict]:
     for line in text.splitlines():
         line = line.strip()
         if not line.startswith("|"):
-            if header is not None and rows:
+            # The register table ends at its first non-table line -- rows or
+            # not. An empty register must not adopt a LATER table's rows.
+            if header is not None:
                 break
             continue
         cells = [c.strip() for c in line.strip("|").split("|")]
@@ -738,8 +754,10 @@ def cmd_register(args) -> int:
 
 
 def cmd_unregister(args) -> int:
-    """Remove this repo from the machine registry. Absent is success."""
-    outcome = unregister_repo(_repo(args), env=getattr(args, "env", None))
+    """Remove this repo (or, with --name, the row of that name) from the
+    machine registry. Absent is success."""
+    outcome = unregister_repo(_repo(args), name=getattr(args, "name", None),
+                              env=getattr(args, "env", None))
     if outcome["error"]:
         print("unregister failed: %s" % outcome["error"], file=sys.stderr)
         return 1
@@ -815,7 +833,9 @@ def main(argv: list[str] | None = None) -> int:
     register_parser.add_argument("--name")
     register_parser.set_defaults(fn=cmd_register)
 
-    sub.add_parser("unregister").set_defaults(fn=cmd_unregister)
+    unregister_parser = sub.add_parser("unregister")
+    unregister_parser.add_argument("--name", help="drop the row with this name")
+    unregister_parser.set_defaults(fn=cmd_unregister)
 
     verify_parser = sub.add_parser("verify")
     verify_parser.add_argument("--app", help="deployed application root to compare")

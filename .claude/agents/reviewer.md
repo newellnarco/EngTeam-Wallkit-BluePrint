@@ -89,6 +89,7 @@ the fix is a lookup, not an argument.
 | A hand-edited shard map | `.wall/config/shards.json` is derived state; a hand edit is a conflict resolved by picking the side that looks right | The diff against what the generator produces |
 | A SAST or secrets finding neither fixed nor refuted with proof | An unaddressed finding is an accepted risk nobody recorded accepting. A secrets finding also requires rotation, not deletion from the diff | The finding id and the absent reply |
 | A gate result that predates the final edit | It measured a tree that no longer exists (G6) | The gate's timestamp against the last commit |
+| Behavior changed, guide not updated | Any change to the kit's behavior, commands, config, roles, decisions, install/remove or docs updates `docs/WALL_KIT_GUIDE.md` in the same PR; `tests/test_guide_current.py` fails when it drifts | The changed surface and the guide section that still describes the old one |
 
 ## 4. Rework is capped
 

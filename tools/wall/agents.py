@@ -98,6 +98,38 @@ def _confusable(candidate: str, live: set[str]) -> bool:
     return any(n[:2].lower() == candidate[:2].lower() for n in live)
 
 
+def acquire_lock(lock: Path, timeout: float = 10.0, stale_after: float | None = None,
+                 what: str = "file") -> None:
+    """Take an exclusive lock: create `lock` with O_CREAT|O_EXCL, retrying
+    until `timeout` seconds pass. A lock file older than `stale_after`
+    seconds (default: `timeout`) is a holder that died without releasing;
+    it is removed and the create retried. Raises TimeoutError when a live
+    holder keeps it past the timeout."""
+    stale_after = timeout if stale_after is None else stale_after
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    deadline = time.time() + timeout
+    while True:
+        try:
+            fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return
+        except FileExistsError:
+            try:
+                if time.time() - lock.stat().st_mtime > stale_after:
+                    lock.unlink(missing_ok=True)
+                    continue
+            except OSError:
+                pass
+            if time.time() > deadline:
+                raise TimeoutError(f"{what} locked: {lock}")
+            time.sleep(0.05)
+
+
+def release_lock(lock: Path) -> None:
+    lock.unlink(missing_ok=True)
+
+
 class AgentRegistry:
     def __init__(self, repo: Path):
         self.repo = repo
@@ -143,27 +175,10 @@ class AgentRegistry:
     # -------------------------------------------------------------- locking
 
     def _acquire(self, timeout: float = 10.0):
-        self.lock.parent.mkdir(parents=True, exist_ok=True)
-        deadline = time.time() + timeout
-        while True:
-            try:
-                fd = os.open(str(self.lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                os.write(fd, str(os.getpid()).encode())
-                os.close(fd)
-                return
-            except FileExistsError:
-                try:
-                    if time.time() - self.lock.stat().st_mtime > timeout:
-                        self.lock.unlink(missing_ok=True)
-                        continue
-                except OSError:
-                    pass
-                if time.time() > deadline:
-                    raise TimeoutError(f"registry locked: {self.lock}")
-                time.sleep(0.05)
+        acquire_lock(self.lock, timeout, what="registry")
 
     def _release_lock(self):
-        self.lock.unlink(missing_ok=True)
+        release_lock(self.lock)
 
     # ------------------------------------------------------------- the api
 

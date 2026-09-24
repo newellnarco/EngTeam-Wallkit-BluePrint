@@ -40,7 +40,7 @@ import courier                      # noqa: E402
 import decisions as decisions_mod   # noqa: E402
 import items as items_mod           # noqa: E402
 import questions as questions_mod   # noqa: E402
-from agents import AgentRegistry    # noqa: E402
+from agents import AgentRegistry, acquire_lock, release_lock  # noqa: E402
 
 
 def load_config(repo: Path) -> dict:
@@ -1131,6 +1131,9 @@ FINDING_CLASSES = ("known_playbook", "unclassified")
 FINDING_ROUTES = ("auto_repaired", "story_filed", "escalated")
 VERIFY_VERDICTS = ("confirmed", "confirmed_with_findings")
 ZERO_TOKENS = {"in": 0, "out": 0, "cache_read": 0, "cache_write": 0}
+#: Left in .wall/runs/<run_id>/ by run-end; .claude/hooks/subagent_stop.py
+#: consumes it and writes nothing (one terminal record per run).
+RUN_END_MARKER = "ended.json"
 
 
 def default_session() -> str:
@@ -1170,6 +1173,35 @@ def load_open_runs(repo: Path) -> tuple[dict, str]:
     if not isinstance(data, dict):
         raise ValueError("open_runs.json is not an object")
     return {k: v for k, v in data.items() if isinstance(v, dict) and k}, "map"
+
+
+#: The open_runs.json lock (the registry's O_EXCL pattern, agents.py). Held
+#: across the whole read-count-append-write of run-start and run-end, so two
+#: concurrent run-starts cannot both count the same free slot. A lock file
+#: older than the stale age is a holder that died; it is broken and retaken.
+OPEN_RUNS_LOCK_TIMEOUT_S = 10.0
+OPEN_RUNS_LOCK_STALE_S = 10.0
+
+
+def _open_runs_lock(repo: Path) -> Path:
+    return repo / ".wall" / "registry" / "open_runs.lock"
+
+
+def with_open_runs_lock(repo: Path, fn):
+    """Run `fn()` holding the open_runs.json lock. A live holder past the
+    timeout is a refusal (exit 1) that names the lock, never a silent skip."""
+    lock = _open_runs_lock(repo)
+    try:
+        acquire_lock(lock, OPEN_RUNS_LOCK_TIMEOUT_S, OPEN_RUNS_LOCK_STALE_S,
+                     what="open_runs.json")
+    except TimeoutError as exc:
+        print(f"refusing: {exc} -- another run-start/run-end holds it; retry, or "
+              f"remove the lock file if no wall command is running", file=sys.stderr)
+        return 1
+    try:
+        return fn()
+    finally:
+        release_lock(lock)
 
 
 def save_open_runs(repo: Path, runs: dict, shape: str = "map") -> None:
@@ -1228,8 +1260,13 @@ def open_runs_of_role(events: list[dict], registry: dict, role: str,
 
 def cmd_run_start(a):
     """Write `run_start` and register the run (MAESTRO.md dispatch step 5),
-    refusing a run that would exceed `role_limits[role]`."""
+    refusing a run that would exceed `role_limits[role]`. The cap check and
+    the write happen under one lock (with_open_runs_lock)."""
     repo = Path(a.repo).resolve()
+    return with_open_runs_lock(repo, lambda: _run_start_locked(a, repo))
+
+
+def _run_start_locked(a, repo: Path):
     config = load_config(repo)
     if a.deadline_min <= 0:
         print("--deadline-min must be a positive number of minutes", file=sys.stderr)
@@ -1312,8 +1349,13 @@ def cmd_run_start(a):
 
 def cmd_run_end(a):
     """The no-hooks path: write the terminal record the SubagentStop hook
-    would have written, and drop the run from open_runs.json."""
+    would have written, and drop the run from open_runs.json (under the
+    open_runs lock), leaving an ended-run marker the hook no-ops on."""
     repo = Path(a.repo).resolve()
+    return with_open_runs_lock(repo, lambda: _run_end_locked(a, repo))
+
+
+def _run_end_locked(a, repo: Path):
     try:
         registry, shape = load_open_runs(repo)
     except (OSError, ValueError) as exc:
@@ -1392,6 +1434,15 @@ def cmd_run_end(a):
     if registered is not None:
         registry.pop(a.run)
         save_open_runs(repo, registry, shape)
+    # The marker the SubagentStop hook consumes and no-ops on: the run is no
+    # longer in open_runs.json, so without it a hook firing after this would
+    # write a second, synthetic `unresolved` terminal record.
+    courier.atomic_write(
+        repo / ".wall" / "runs" / a.run / RUN_END_MARKER,
+        json.dumps({"run_id": a.run, "session_id": record["session_id"],
+                    "registered_session": reg.get("session_id"),
+                    "event": payload["event"], "event_id": record.get("event_id"),
+                    "ended": record.get("ts")}, sort_keys=True) + "\n")
     print(f"{payload['event']} {a.run}  outcome={outcome}"
           f"{f'  error={error_class}' if error_class else ''}  "
           f"(seq {record['seq']} in {record['session_id']})")
@@ -1588,7 +1639,13 @@ def cmd_rebalance(a):
              if _is_reversal(window[i - 1], window[i].get("from"), window[i].get("to"))]
     reversal = bool(history) and _is_reversal(history[-1], frm, to)
     if reversal and prior and not a.adjudication:
-        qid = f"q_rebalance_{''.join(c if c.isalnum() else '_' for c in a.knob)}_{len(prior) + 1}"
+        # One question per oscillation EPISODE: episodes are separated by
+        # adjudicated changes of this knob, so the id carries that count. An id
+        # built from the reversal count alone repeats after every ruling, is
+        # already folded, and the Adjudicator would never be asked again.
+        episode = sum(1 for e in history if e.get("adjudication")) + 1
+        qid = (f"q_rebalance_{''.join(c if c.isalnum() else '_' for c in a.knob)}"
+               f"_ep{episode}")
         folded = questions_mod.fold(events).questions
         if qid not in folded:
             text = (f"Rebalance oscillation on {a.knob}: {frm} -> {to} would reverse "
@@ -2230,7 +2287,8 @@ def main() -> int:
     s.set_defaults(fn=cmd_register)
 
     s = sub.add_parser("unregister", help="drop this repo from the registry")
-    s.add_argument("--name", help="display name for this repo")
+    s.add_argument("--name", help="drop the registry row with this name instead of "
+                                  "this repo's path (a moved or deleted checkout)")
     s.set_defaults(fn=cmd_unregister)
 
     s = sub.add_parser("verify", help="timer alive, heartbeat fresh, app in sync")

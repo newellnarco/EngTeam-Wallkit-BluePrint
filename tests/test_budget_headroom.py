@@ -124,6 +124,18 @@ def test_empty_register_is_not_measured(host):
     assert "not measured" in check["budget"]["detail"]
 
 
+def test_an_empty_register_does_not_adopt_a_later_table(host):
+    (host / "BUDGETED_DOCS.md").write_text(
+        "# BUDGETED_DOCS.md\n\n## The register\n\n" + HEADER +
+        "\nUnits are whatever...\n\n## History\n\n"
+        "| Document | Budget | Note |\n|---|---|---|\n"
+        "| `a.md` | 100 characters | an old row, not the register |\n",
+        encoding="utf-8")
+    assert service.budget_headroom(host) == []
+    check = {c["name"]: c for c in service.doctor_checks(host, adapter=adapter())}
+    assert "not measured" in check["budget"]["detail"]
+
+
 def test_config_can_point_at_a_mapped_register(host):
     (host / ".wall" / "config").mkdir(parents=True)
     (host / ".wall" / "config" / "wall.json").write_text(

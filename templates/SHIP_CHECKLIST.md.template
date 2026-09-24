@@ -142,6 +142,8 @@ Skipping a reviewer never licenses claiming it passed. A tool that returns
       same change**. A design document describing the old behaviour is worse
       than none.
 - [ ] A new document has a row in the `AGENTS.md` doc index.
+- [ ] The project's consolidated guide (if it keeps one) is updated in the
+      same change.
 - [ ] A ruling made along the way is written to `docs/decisions/` as its own
       file, so it is not re-litigated.
 - [ ] `AGENTS.md` "Current state" reflects what this change actually leaves

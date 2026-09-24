@@ -14,6 +14,8 @@ import json
 import os
 import subprocess
 import sys
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -252,3 +254,133 @@ def test_a_run_deadline_later_than_stale_after_min_is_not_an_orphan(capped, writ
     write_shard(SESSION, [{"event": "run_start", "run_id": "long", "role": "builder",
                            "ts": iso(-45), "deadline": iso(60)}])
     assert courier.run_once(capped)["integrity"]["orphan_runs"] == []
+
+
+# ------------------------------------------------------ open_runs.json lock
+
+LOCK = Path(".wall") / "registry" / "open_runs.lock"
+
+
+def test_a_held_lock_refuses_run_start_and_writes_nothing(capped, monkeypatch, capsys):
+    lock = capped / LOCK
+    lock.parent.mkdir(parents=True)
+    lock.write_text("12345")  # a live holder: fresh mtime
+    monkeypatch.setattr(wall, "OPEN_RUNS_LOCK_TIMEOUT_S", 0.3)
+    monkeypatch.setattr(wall, "OPEN_RUNS_LOCK_STALE_S", 60.0)
+    assert start(capped, "bld_a1", "ST-1", "--run-id", "run_l") == 1
+    err = capsys.readouterr().err
+    assert "open_runs.json locked" in err and str(lock) in err
+    assert lock.read_text() == "12345", "another holder's lock is not taken"
+    assert not [e for e in events(capped) if e.get("event") == "run_start"]
+    assert not (capped / ".wall" / "registry" / "open_runs.json").exists()
+    # run-end takes the same lock.
+    assert cli(capped, "run-end", "--run", "run_l", "--outcome", "pass") == 1
+
+
+def test_a_stale_lock_is_broken_and_released_after(capped, monkeypatch):
+    lock = capped / LOCK
+    lock.parent.mkdir(parents=True)
+    lock.write_text("99999")
+    old = time.time() - 3600
+    os.utime(lock, (old, old))  # a holder that died an hour ago
+    monkeypatch.setattr(wall, "OPEN_RUNS_LOCK_STALE_S", 10.0)
+    assert start(capped, "bld_a1", "ST-1", "--run-id", "run_s") == 0
+    assert "run_s" in registry(capped)
+    assert not lock.exists(), "the lock is released after the write"
+    assert cli(capped, "run-end", "--run", "run_s", "--outcome", "pass") == 0
+    assert not lock.exists()
+
+
+def test_concurrent_run_starts_cannot_both_take_the_last_slot(repo, config, monkeypatch):
+    config({"role_limits": {"builder": 1}, "stale_after_min": 30})
+    # Widen the race window: the read of the ledger happens, then a pause,
+    # then the write. Without the lock both threads count 0 open runs.
+    real = wall.fresh_events
+
+    def slow(r):
+        out = real(r)
+        time.sleep(0.2)
+        return out
+    monkeypatch.setattr(wall, "fresh_events", slow)
+    results = []
+
+    def go(key):
+        results.append(wall.cmd_run_start(wall_args(repo, key)))
+    threads = [threading.Thread(target=go, args=(k,)) for k in ("bld_a1", "bld_a2")]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(30)
+    assert sorted(results) == [0, 1]
+    starts = [e for e in events(repo) if e.get("event") == "run_start"]
+    assert len(starts) == 1 and len(registry(repo)) == 1
+
+
+def wall_args(repo: Path, key: str):
+    import argparse
+    return argparse.Namespace(
+        repo=str(repo), key=key, role="builder", item="ST-1", deadline_min=30.0,
+        session=SESSION, run_id=None, over_cap_reason=None, trace=None, name=key,
+        parent_run=None, model=None, scope=[], decision=[])
+
+
+# ------------------------------------------- run-end, then the hook fires
+
+def fire_hook(repo: Path, payload: dict | None = None, **env_extra) -> subprocess.CompletedProcess:
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("WALL_RUN_ID", "WALL_SESSION_ID")}
+    env["WALL_ROOT"] = str(repo / ".wall")
+    env.update(env_extra)
+    return subprocess.run([sys.executable, str(SUBAGENT_STOP)],
+                          input=json.dumps(payload or {"session_id": SESSION}),
+                          capture_output=True, text=True, env=env, timeout=60)
+
+
+def terminals(repo: Path) -> list[dict]:
+    return [e for e in events(repo) if e.get("event") in ("run_end", "run_error")]
+
+
+def test_run_end_then_the_hook_gives_exactly_one_terminal_record(capped):
+    assert start(capped, "bld_a1", "ST-1", "--run-id", "run_h") == 0
+    assert cli(capped, "run-end", "--run", "run_h", "--outcome", "pass") == 0
+    marker = capped / ".wall" / "runs" / "run_h" / "ended.json"
+    assert marker.is_file()
+    proc = fire_hook(capped)
+    assert proc.returncode == 0 and proc.stdout == ""
+    ends = terminals(capped)
+    assert len(ends) == 1, [e.get("hook") for e in ends]
+    assert ends[0]["run_id"] == "run_h" and ends[0]["hook"]["source"] == "wall run-end"
+    assert not [e for e in ends if str(e.get("run_id", "")).startswith("run_unknown")]
+    assert not marker.exists(), "the marker is consumed"
+    log = (capped / ".wall" / "logs" / "hooks.log").read_text()
+    assert "run=run_h already_terminal (wall run-end)" in log
+
+
+def test_the_marker_is_consumed_once_and_a_later_stop_still_records(capped):
+    start(capped, "bld_a1", "ST-1", "--run-id", "run_a")
+    start(capped, "bld_a2", "ST-1", "--run-id", "run_b")
+    cli(capped, "run-end", "--run", "run_a", "--outcome", "pass")
+    assert fire_hook(capped).returncode == 0      # run_a's stop: no-op
+    assert fire_hook(capped).returncode == 0      # run_b's stop: recorded
+    ends = sorted(terminals(capped), key=lambda e: e["run_id"])
+    assert [e["run_id"] for e in ends] == ["run_a", "run_b"]
+    assert ends[1]["hook"]["resolution"] == "open_runs_unique"
+
+
+def test_run_end_marker_also_stops_an_env_resolved_duplicate(capped):
+    start(capped, "bld_a1", "ST-1", "--run-id", "run_e2")
+    cli(capped, "run-end", "--run", "run_e2", "--outcome", "pass",
+        "--session", "s_elsewhere")  # terminal lands in another shard
+    assert fire_hook(capped, WALL_RUN_ID="run_e2").returncode == 0
+    assert len(terminals(capped)) == 1
+
+
+def test_a_stale_marker_does_not_swallow_a_real_stop(capped):
+    start(capped, "bld_a1", "ST-1", "--run-id", "run_old")
+    cli(capped, "run-end", "--run", "run_old", "--outcome", "pass")
+    marker = capped / ".wall" / "runs" / "run_old" / "ended.json"
+    old = time.time() - 7 * 3600
+    os.utime(marker, (old, old))
+    start(capped, "bld_a2", "ST-1", "--run-id", "run_new")
+    assert fire_hook(capped).returncode == 0
+    assert sorted(e["run_id"] for e in terminals(capped)) == ["run_new", "run_old"]
