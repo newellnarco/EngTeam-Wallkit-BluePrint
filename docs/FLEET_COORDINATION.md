@@ -47,6 +47,8 @@ These answers set the design. They are recorded in the proposed DEC-0036 (append
 | How agents are allocated | **The engineer assigns each wave.** No automatic split across repos. |
 | Production issue from a customer | **An incident override takes over all work in that repo** until the fix is in production. The fix still goes through the full process and cycle, all the way to production; the override changes priority, never the gates. |
 | Shared-environment queue | **A priority can jump the queue.** Otherwise first come, first served. |
+| Who leads a shared wave | **The repo's Patron engineer.** When several engineers share a repo's wave, the repo's Patron engineer is the wave lead: they assign its allocation, approve changes to it, and close it. |
+| Agent names | **Unique across the whole team.** No two live agents anywhere on the team share a name. |
 | Who is in a wave | **The repo decides.** Engineers are in the same wave only when they work in the same repo, however many sessions each of them runs. Engineers in different repos are never in the same wave. |
 | Repo dependencies | **Independent repos.** Coordination is about shared people, budget and environments, not code dependencies. |
 | Contended CI/CD/CT resources | CI minutes and runners; test environments (**each engineer may have several personal environments; a repo may optionally have one or more shared environments, each covering one, several or all of that repo's deploys**); deploy targets; reviewer and API quotas. |
@@ -57,7 +59,8 @@ These answers set the design. They are recorded in the proposed DEC-0036 (append
 
 | Term | Meaning |
 |---|---|
-| **Engineer** | A person, identified by their GitHub login. Owns sessions, assigns waves, approves production deploys. |
+| **Engineer** | A person, identified by their GitHub login. Owns sessions, approves production deploys. |
+| **Patron engineer** *(proposed)* | The one engineer who is the Patron for a repo (today's Patron role, now one per repo). Leads that repo's wave: assigns its allocation, approves changes to it, closes it. |
 | **Machine** | A workstation, VM, container or cloud sandbox that runs sessions. Has one machine timer (DEC-0010). |
 | **Session** | One Maestro (DEC-0002) in one checkout of one repo on one machine, acting for one engineer. Identified by `session_id`, as today. |
 | **Repo wall** | Today's wall: one repository's fold of its event ledger. Unchanged. |
@@ -122,12 +125,20 @@ across machines and people, and mirrors a summary of each repo wall.
 | State | Today | Proposed |
 |---|---|---|
 | Event ledger, items, decisions | Per checkout | **Per checkout, unchanged.** Coordinator events are also written into each affected repo's ledger, so a repo's history stays complete on its own. |
-| Roster (`agents.md`) | Per checkout | Per checkout. Agent names are scoped to a session; the desk shows `name@session`. |
+| Roster (`agents.md`) | Per checkout | Per checkout, **with names unique across the whole team**: the coordinator is the name registry. A live agent's name is never live anywhere else on the team, in any repo or session, so a name on the desk means exactly one agent. Keys stay the identity (DEC-0003) and never change. |
 | Leases | Per checkout | **Local leases stay; a path lease that could collide with another session is also claimed at the coordinator**, which is the arbiter across machines. |
 | Open runs, role caps | Per checkout | Per checkout for the hook; **counted against the wave allocation at the coordinator**. |
 | Merge authority | Each Maestro | **The merge queue.** Sessions enqueue only. |
 | Telemetry branch | One `wall-events` branch, overwritten | Superseded when a coordinator is configured; without one, **one branch per session** (`wall-events/<session_id>`) so machines stop overwriting each other. |
 | Environments, deploy targets, quotas | Not modelled | Coordinator objects. |
+
+**How team-wide names work.** `wall agents claim` *(exists)* picks a name from
+the role's pool. With a coordinator configured, it asks the coordinator for a
+name that is not live anywhere on the team, and releases it there on `wall
+agents release`. The role pools grow to fit a team. If the coordinator is
+unreachable, the claim takes a provisional local name, flagged on the wall;
+on reconnect a colliding provisional name is renamed, and the key, which every
+event references, never changes.
 
 ---
 
@@ -223,8 +234,8 @@ working.
 
 ### 6.1 The rule
 
-**The engineer assigns each wave.** Before a wave starts, the engineer who owns
-it records how many agents of each role it may run, its token and CI budget,
+**The repo's Patron engineer assigns each wave.** Before a wave starts, the
+repo's Patron engineer, as wave lead, records how many agents of each role it may run, its token and CI budget,
 and its time window. Role caps in each repo's `wall.json` stay as hard
 ceilings; the allocation is at or below them.
 
@@ -235,6 +246,7 @@ sequenceDiagram
   participant C as Coordinator
   participant S as Session (Maestro)
   participant R as Repo wall
+  Note over E: E is api-service's Patron engineer (wave lead)
   E->>D: assign wave W-12 in api-service:<br/>5 builders, 2 reviewers, 1 researcher,<br/>18M tokens, 240 CI min, 09:00–13:00
   D->>C: PUT /v1/waves/api-service/W-12
   S->>C: GET /v1/waves?repo=api-service
@@ -265,7 +277,11 @@ sequenceDiagram
 - Token and CI budgets are soft limits: the desk shows burn against them and
   raises a message to the wave's engineer at 80% and 100%. The hard ceiling
   remains the account's own quota.
-- An engineer may reassign mid-wave. A reassignment is a `rebalance` event
+- **The Patron engineer leads the shared wave.** Other engineers working in
+  the repo ask the wave lead for slots or budget (a `question` message); only
+  the wave lead changes the allocation and closes the wave. Every engineer
+  still owns their own sessions.
+- The wave lead may reassign mid-wave. A reassignment is a `rebalance` event
   *(exists: `wall rebalance`, one knob per cycle)* recorded against the wave.
 
 ![Wave allocation and team quotas (mock)](images/fleet/desk-waves.png)
@@ -554,7 +570,8 @@ receiving session's.
 
 ### W4. Assigning and changing a wave
 
-1. The engineer sets the allocation. The desk rejects an allocation above the
+1. The repo's Patron engineer, as wave lead, sets the allocation. Other
+   engineers in the repo request changes from them. The desk rejects an allocation above the
    repo's role caps or above the team's remaining quota, and says which.
 2. Mid-wave, a change is recorded with `wall rebalance` *(exists)* and applies
    to the next run start; running agents are not stopped.
@@ -728,9 +745,9 @@ P0 and P3 are useful to a single engineer and can ship first.
 
 ## 15. Questions still open for the owner
 
-1. **Wave ownership.** Membership is settled: the same repo means the same
-   wave. Still open: who assigns and closes a wave that several engineers
-   share: the engineer who opened it, a named lead, or the repo's owner?
+1. **Wave ownership.** Settled: the same repo means the same wave, and the
+   repo's Patron engineer leads it (assigns, approves changes, closes).
+   Still open: who stands in when the Patron engineer is away?
 2. **Priority levels.** Settled: a priority can jump the queue (section 9.2).
    Still open: are the proposed levels and who may set them right, and should
    `urgent` need the repo owner's approval rather than only notifying them?
@@ -740,8 +757,9 @@ P0 and P3 are useful to a single engineer and can ship first.
    wave, a quarter, or indefinitely?
 5. **Serverless provider.** Which provider should the serverless reference
    deployment target first?
-6. **Agent names across sessions.** Keep names unique per session (the desk
-   shows `name@session`), or make them unique across the whole team?
+6. **Agent names across sessions.** Settled: unique across the whole team
+   (section 4). Still open: should a released name stay reserved for a
+   cool-off period before any other session may reuse it?
 7. **Cost attribution.** Should quota draws roll up to engineers only, or also
    to a cost centre per repo?
 8. **Who may declare an incident.** Any engineer with write access (proposed),
@@ -803,13 +821,16 @@ The Patron (2026-09-24):
    when they work in the same repository, however many sessions each runs; a
    repository has at most one open wave at a time, and engineers in
    different repositories never share one.
-6. **The engineer assigns each wave.** No automatic split across
+6. **The repository's Patron engineer leads its wave** and assigns it: role
+   slots, budget and window, changes to them, and closing it. No automatic split across
    repositories. Role caps in each repository stay as ceilings; `wall
    run-start` also refuses past the wave's allocation, counted across every
    session in the wave, unless an over-cap reason is recorded.
-7. **Repositories are independent.** Coordination covers people, budget,
+7. **Agent names are unique across the whole team.** The coordinator is
+   the name registry; keys remain the identity (DEC-0003).
+8. **Repositories are independent.** Coordination covers people, budget,
    environments and deploy targets, not code dependencies.
-8. **Test environments:** each engineer may hold several personal
+9. **Test environments:** each engineer may hold several personal
    environments; a repository may optionally have one or more shared
    environments, each covering one, several or all of its deploys. Shared
    environments and deploy targets are claimed, queued and released through
@@ -817,13 +838,13 @@ The Patron (2026-09-24):
    environment's queue is first come, first served, except that a claim with
    a priority jumps ahead; a jump never interrupts the current holder and is
    always attributed.
-9. **A customer-reported production issue overrides all work in its
+10. **A customer-reported production issue overrides all work in its
    repository** until the fix is in production: dispatch, leases, the wave's
    allocation, the merge queue, shared environments (which it may
    interrupt), runners, reviewer lanes and deploy locks all serve it first.
    It never removes a gate: the fix goes through the full process, all the
    way to production, with a person approving the production deploy.
-10. **Contended resources are metered team-wide:** CI minutes and runners,
+11. **Contended resources are metered team-wide:** CI minutes and runners,
    deploy targets, reviewer lanes and API quotas, each draw attributed to a
    session and an engineer.
 
