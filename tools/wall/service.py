@@ -46,6 +46,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -404,16 +405,154 @@ def manifest_compare(repo: Path | str, app: Path | str) -> dict:
                       % differing}
 
 
-def budget_headroom(repo: Path | str) -> None:
-    """Headroom on the budget-counted context docs. Not measured yet -- returns None.
+#: Where the register lives unless wall.json names another path
+#: (``budgeted_docs``): the template says copy it to the repo root.
+BUDGET_REGISTER = "BUDGETED_DOCS.md"
+
+#: Under this share of the budget left, a document warns (the template's
+#: <WARNING_THRESHOLD>, defaulted).
+BUDGET_WARN_PCT = 10.0
+
+#: Unit spellings -> (measured unit, multiplier on the stated number).
+#: Tokens are approximated at four characters each and marked approximate:
+#: the kit carries no tokenizer, and a converted number is an estimate.
+_BUDGET_UNITS = {
+    "character": ("characters", 1), "characters": ("characters", 1),
+    "char": ("characters", 1), "chars": ("characters", 1),
+    "byte": ("bytes", 1), "bytes": ("bytes", 1), "b": ("bytes", 1),
+    "kb": ("bytes", 1000), "kib": ("bytes", 1024),
+    "line": ("lines", 1), "lines": ("lines", 1),
+    "token": ("tokens", 1), "tokens": ("tokens", 1), "tok": ("tokens", 1),
+}
+
+_WHOLE_FILE = ("", "whole file", "whole", "file", "entire file", "all")
+
+
+def _register_rows(text: str) -> list[dict]:
+    """The register table's rows keyed by lower-cased header. Only the first
+    table whose header names both a document and a budget column is read."""
+    header, rows = None, []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            if header is not None and rows:
+                break
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if header is None:
+            low = [c.lower() for c in cells]
+            if any(c.startswith("document") for c in low) and "budget" in low:
+                header = low
+            continue
+        if all(set(c) <= set("-: ") for c in cells):
+            continue
+        rows.append(dict(zip(header, cells)))
+    return rows
+
+
+def _parse_budget(cell: str) -> tuple[float, str] | None:
+    m = re.match(r"^\s*~?\s*([\d][\d,_]*(?:\.\d+)?)\s*(k)?\s*([A-Za-z]+)\s*$",
+                 cell.replace("`", ""))
+    if not m:
+        return None
+    unit = _BUDGET_UNITS.get(m.group(3).lower())
+    if unit is None:
+        return None
+    value = float(m.group(1).replace(",", "").replace("_", ""))
+    if m.group(2):
+        value *= 1000
+    return value * unit[1], unit[0]
+
+
+def _measure(path: Path, unit: str) -> int:
+    if unit == "bytes":
+        return path.stat().st_size
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if unit == "lines":
+        return len(text.splitlines())
+    if unit == "tokens":
+        return -(-len(text) // 4)
+    return len(text)
+
+
+def budget_headroom(repo: Path | str) -> list[dict] | None:
+    """Headroom on every budget-counted context doc in the host's register.
 
     G10 in RECONCILIATION: the host repo's reviewer-prompt budget sat 53
     characters from a hard failure while three parked units each added rules to
-    the counted sections. The doctor is meant to report that headroom. The hook
-    is here and honest about being a stub: it returns None, and the doctor
-    renders None as "not measured", never as "fine".
+    the counted sections. This reads ``BUDGETED_DOCS.md`` (or wall.json's
+    ``budgeted_docs``), measures each registered document in the unit its
+    Budget cell declares -- characters, bytes (B / KB / KiB), lines, or tokens
+    (approximated at 4 characters each, and marked so) -- and returns one row
+    per document: ``{path, consumer, unit, budget, measured, headroom,
+    headroom_pct, approximate, status, detail}``.
+
+    ``status``: ``fail`` over budget, ``warn`` under 10% headroom, ``ok``
+    otherwise, ``unknown`` for a row that cannot be measured honestly (an
+    unfilled placeholder, an unrecognised unit, a section-scoped count).
+    Returns None when no register exists -- the doctor renders that as "not
+    measured", never as "fine".
     """
-    return None
+    repo = Path(repo).resolve()
+    rel = BUDGET_REGISTER
+    try:
+        cfg = json.loads((repo / ".wall" / "config" / "wall.json").read_text(
+            encoding="utf-8"))
+        if isinstance(cfg, dict) and isinstance(cfg.get("budgeted_docs"), str) \
+                and cfg["budgeted_docs"].strip():
+            rel = cfg["budgeted_docs"].strip()
+    except (OSError, ValueError):
+        pass
+    register = repo / rel
+    try:
+        text = register.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    out: list[dict] = []
+    for row in _register_rows(text):
+        doc_key = next((k for k in row if k.startswith("document")), None)
+        doc = (row.get(doc_key) or "").strip().strip("`").strip()
+        entry = {"path": doc, "consumer": row.get("consumer") or None,
+                 "unit": None, "budget": None, "measured": None, "headroom": None,
+                 "headroom_pct": None, "approximate": False,
+                 "status": "unknown", "detail": ""}
+        out.append(entry)
+        if not doc or "<" in doc:
+            entry["detail"] = "unfilled register row"
+            continue
+        counted = (row.get("what is counted") or "").strip().lower()
+        if counted not in _WHOLE_FILE:
+            entry["detail"] = ("counts %r, not the whole file -- not measured "
+                               "mechanically" % counted)
+            continue
+        parsed = _parse_budget(row.get("budget") or "")
+        if parsed is None:
+            entry["detail"] = ("budget %r has no recognised unit (characters, "
+                               "bytes, lines, tokens)" % (row.get("budget") or ""))
+            continue
+        budget, unit = parsed
+        entry.update(unit=unit, budget=budget, approximate=unit == "tokens")
+        target = (repo / doc).resolve()
+        if not target.is_relative_to(repo) or not target.is_file():
+            entry.update(status="warn",
+                         detail="registered but missing in this repo")
+            continue
+        try:
+            measured = _measure(target, unit)
+        except OSError as exc:
+            entry["detail"] = "could not read: %s" % exc
+            continue
+        headroom = budget - measured
+        pct = headroom / budget * 100.0 if budget else 0.0
+        status = ("fail" if headroom < 0 else
+                  "warn" if pct < BUDGET_WARN_PCT else "ok")
+        approx = "~" if unit == "tokens" else ""
+        entry.update(measured=measured, headroom=headroom,
+                     headroom_pct=round(pct, 1), status=status,
+                     detail="%s%d / %d %s, %s%d left (%.1f%%)%s" % (
+                         approx, measured, budget, unit, approx, headroom, pct,
+                         " -- OVER BUDGET" if status == "fail" else ""))
+    return out
 
 
 def doctor_checks(repo: Path | str, *, env: dict | None = None,
@@ -491,10 +630,26 @@ def doctor_checks(repo: Path | str, *, env: dict | None = None,
         checks.append({"name": "timer", "status": status, "detail": detail})
 
     headroom = budget_headroom(resolved)
-    checks.append({"name": "budget", "status": "unknown",
-                   "detail": "not measured (no budget-counted context doc wired yet)"}
-                  if headroom is None else
-                  {"name": "budget", "status": "ok", "detail": str(headroom)})
+    if headroom is None:
+        checks.append({"name": "budget", "status": "unknown",
+                       "detail": "not measured (no %s register in this repo)"
+                                 % BUDGET_REGISTER})
+    elif not headroom:
+        checks.append({"name": "budget", "status": "unknown",
+                       "detail": "not measured (the register lists no documents)"})
+    else:
+        rank = {"ok": 0, "unknown": 1, "warn": 2, "fail": 3}
+        worst = max((row["status"] for row in headroom), key=rank.get)
+        counts = {}
+        for row in headroom:
+            counts[row["status"]] = counts.get(row["status"], 0) + 1
+        checks.append({"name": "budget", "status": worst,
+                       "detail": "%d registered doc(s): %s" % (
+                           len(headroom), ", ".join(
+                               "%d %s" % (n, k) for k, n in sorted(counts.items())))})
+        for row in headroom:
+            checks.append({"name": "budget " + (row["path"] or "?"),
+                           "status": row["status"], "detail": row["detail"]})
 
     if app is not None:
         outcome = manifest_compare(resolved, app)

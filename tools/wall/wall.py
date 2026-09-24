@@ -4,7 +4,10 @@
 Local-only: no network calls anywhere in this file.
 
 Ledger and workflow, owned here: run-once, doctor, classify, agents, rebuild,
-diff-state, trace, why, answer, fast-track. `context` dispatches to
+diff-state, trace, why, answer, fast-track. The learning-loop records, each
+validated before it is written: run-start / run-end (role caps, the no-hooks
+terminal record), retro, rebalance, finding / story-filed / verify-request /
+verified (the diagnostics loop). `context` dispatches to
 `context_sync.py` (AGENTS.md masters and their generated tool copies).
 
 Plumbing, dispatched: install / register / unregister / verify / uninstall /
@@ -23,9 +26,11 @@ import argparse
 import fnmatch
 import json
 import os
+import re
 import subprocess
 import sys
-from datetime import datetime, timezone
+import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 HERE = Path(__file__).parent
@@ -135,7 +140,8 @@ def _fmt_secs(seconds: float) -> str:
 # both would report every drift twice.
 FLAG_KEYS = ("seq_gaps", "seq_duplicates", "orphan_runs", "duplicates",
              "state_drift_detail", "merged_but_open", "escalations",
-             "stale_claims", "fold_problems")
+             "stale_claims", "fold_problems", "over_cap", "dropped_findings",
+             "verify_overdue")
 
 
 def count_flags(integrity: dict) -> int:
@@ -254,11 +260,29 @@ def cmd_summary(a):
     except (OSError, json.JSONDecodeError):
         hb = None  # summary says: heartbeat MISSING — run `wall run-once`
     s = summary_mod.build_summary(snap, hb)
+    rebalances = ((snap.get("oversight") or {}).get("retro") or {}).get("rebalances") or []
+    latest = rebalances[-1] if rebalances else None
+    verify = snap.get("verify_waiting") or []
     if getattr(a, "as_json", False):
         from dataclasses import asdict
-        print(json.dumps(asdict(s), indent=1, sort_keys=True))
+        out = asdict(s)
+        out["latest_rebalance"] = latest
+        out["verify_waiting"] = len(verify)
+        print(json.dumps(out, indent=1, sort_keys=True))
     else:
         print(summary_mod.format_summary(s))
+        if latest:
+            print(f"latest rebalance: {latest.get('knob')} {latest.get('from')} -> "
+                  f"{latest.get('to')}  re-measure at {latest.get('horizon')}  "
+                  f"({latest.get('ts')})")
+        else:
+            print("latest rebalance: none recorded")
+        if verify:
+            overdue = sum(1 for v in verify if v.get("overdue"))
+            print(f"awaiting owner verification ({len(verify)}"
+                  f"{f', {overdue} overdue' if overdue else ''}):")
+            for v in verify:
+                print(f"  {v.get('item_id')}: {_short(v.get('what_changed'), 64)}")
     return 0
 
 
@@ -291,6 +315,16 @@ def cmd_doctor(a):
         for flag in (i.get("merged_but_open") or []):
             print(f"    reconcile   {flag['kind']:<26} {flag['item_id']}  "
                   f"{flag.get('detail', '')}")
+        for flag in (i.get("over_cap") or []):
+            print(f"    over cap    {flag['role']:<26} {flag['open']}/{flag['limit']}  "
+                  f"{', '.join(flag.get('run_ids') or [])}")
+        for flag in (i.get("dropped_findings") or []):
+            print(f"    dropped     {str(flag.get('finding_ref')):<26} "
+                  f"{flag.get('age_min')} min > {flag.get('sla_min')} min  "
+                  f"{_short(flag.get('signature') or '', 40)}")
+        for flag in (i.get("verify_overdue") or []):
+            print(f"    verify      {str(flag.get('item_id')):<26} "
+                  f"{flag.get('age_days')} days waiting on the owner")
 
     # The plumbing half: timer alive, heartbeat fresh, registry sane, app in
     # sync. `wall verify` calls the same function, so the two agree by
@@ -1072,6 +1106,649 @@ def cmd_audit_regime(a):
     return 0
 
 
+# ------------------------------------------------ runs, caps, learning loops
+#
+# The records below used to exist only as written procedure: an agent had to
+# hand-write the JSON and nothing checked it. Each command validates what the
+# governing document requires, refuses (exit 1) when the discipline says no,
+# and otherwise writes exactly the event EVENT_SCHEMA.md names.
+
+#: The closed vocabularies these commands enforce (EVENT_SCHEMA section 4,
+#: RETROSPECTIVES section 4, section 9).
+RUN_OUTCOMES = ("pass", "partial", "blocked", "timeout", "error", "human_required")
+ERROR_OUTCOMES = ("error", "timeout")
+ERROR_CLASSES = (
+    "test_failure", "lint_failure", "ci_failure", "merge_conflict",
+    "lease_denied", "missing_decision", "ambiguous_requirement",
+    "unspecified_edge_case", "undefined_interface", "dependency_unknown",
+    "tool_error", "model_error", "budget_exceeded", "human_required")
+RETRO_DIFF_KINDS = ("rule", "sop", "template", "failure_class", "rebalance",
+                    "design_candidate", "no_change")
+RETRO_SIGNAL_SOURCES = ("ledger", "wall", "checks", "ci")
+RETRO_INPUT_DISPOSITIONS = ("adopted", "queued", "declined")
+RETRO_MAX_DIFFS = 3
+FINDING_CLASSES = ("known_playbook", "unclassified")
+FINDING_ROUTES = ("auto_repaired", "story_filed", "escalated")
+VERIFY_VERDICTS = ("confirmed", "confirmed_with_findings")
+ZERO_TOKENS = {"in": 0, "out": 0, "cache_read": 0, "cache_write": 0}
+
+
+def default_session() -> str:
+    """The shard a Maestro-side record goes to: the harness session when the
+    environment names it (the SubagentStop hook matches open runs on it),
+    else a stable local name."""
+    return os.environ.get("WALL_SESSION_ID") or "s_maestro"
+
+
+def fresh_events(repo: Path) -> list[dict]:
+    """The merged ledger PLUS every shard line the courier has not swept yet.
+
+    A guard that reads only the last sweep misses the run somebody opened a
+    minute ago -- exactly the race a cap exists to catch -- so these commands
+    re-read the shards and union on event_id (courier.merge)."""
+    events_dir = repo / ".wall" / "events"
+    new = courier.read_shards(events_dir, {})[0] if events_dir.is_dir() else []
+    return courier.merge(repo / ".wall" / "derived" / "ledger.jsonl", new)
+
+
+def _open_runs_path(repo: Path) -> Path:
+    return repo / ".wall" / "registry" / "open_runs.json"
+
+
+def load_open_runs(repo: Path) -> tuple[dict, str]:
+    """`.wall/registry/open_runs.json` as {run_id: record}, plus the shape it
+    was written in (`map` or `list`) so a rewrite keeps it. Both shapes are
+    what the SubagentStop hook accepts. Raises ValueError on a file that
+    exists but does not parse -- overwriting it would lose the runs it holds."""
+    path = _open_runs_path(repo)
+    if not path.exists():
+        return {}, "map"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(data, dict) and isinstance(data.get("runs"), list):
+        return ({r["run_id"]: r for r in data["runs"]
+                 if isinstance(r, dict) and r.get("run_id")}, "list")
+    if not isinstance(data, dict):
+        raise ValueError("open_runs.json is not an object")
+    return {k: v for k, v in data.items() if isinstance(v, dict) and k}, "map"
+
+
+def save_open_runs(repo: Path, runs: dict, shape: str = "map") -> None:
+    payload = {"runs": list(runs.values())} if shape == "list" else runs
+    courier.atomic_write(_open_runs_path(repo),
+                         json.dumps(payload, indent=2, sort_keys=True) + "\n")
+
+
+def _coerce(value: str):
+    """A CLI number stays a number in the ledger, so trends can plot it."""
+    for cast in (int, float):
+        try:
+            return cast(value)
+        except ValueError:
+            pass
+    return value
+
+
+def _resolve_event(events: list[dict], ref: str, kind: str) -> tuple[dict | None, str]:
+    """An event of `kind` by its full event_id, or by a unique prefix of at
+    least 8 characters. Returns (event, problem)."""
+    of_kind = [e for e in events if e.get("event") == kind]
+    exact = [e for e in of_kind if e.get("event_id") == ref]
+    if exact:
+        return exact[0], ""
+    if len(ref) < 8:
+        return None, f"no {kind} with event_id {ref!r} (a prefix needs 8+ characters)"
+    hits = [e for e in of_kind if str(e.get("event_id", "")).startswith(ref)]
+    if len(hits) == 1:
+        return hits[0], ""
+    if hits:
+        return None, f"{ref!r} matches {len(hits)} {kind} events -- give more of the id"
+    return None, f"no {kind} with event_id {ref!r}"
+
+
+# ------------------------------------------------------------- run-start
+
+def open_runs_of_role(events: list[dict], registry: dict, role: str,
+                      now: float, stale_after_min: float) -> list[dict]:
+    """Open runs of one role: ledger run_starts with no terminal event and not
+    past deadline, plus registry rows written by hand that the ledger has no
+    run_start for (same rule, their `deadline` or `started`)."""
+    ledger_open = courier.open_runs(events, now, stale_after_min)
+    started, finished = courier._run_index(events)
+    out = [e for e in ledger_open if e.get("role") == role]
+    for rid, rec in registry.items():
+        if rid in started or rid in finished or rec.get("role") != role:
+            continue
+        due = courier.run_due_epoch({"deadline": rec.get("deadline"),
+                                     "ts": rec.get("started") or rec.get("ts")},
+                                    stale_after_min)
+        if due is None or due >= now:
+            out.append(dict(rec, run_id=rid))
+    return out
+
+
+def cmd_run_start(a):
+    """Write `run_start` and register the run (MAESTRO.md dispatch step 5),
+    refusing a run that would exceed `role_limits[role]`."""
+    repo = Path(a.repo).resolve()
+    config = load_config(repo)
+    if a.deadline_min <= 0:
+        print("--deadline-min must be a positive number of minutes", file=sys.stderr)
+        return 2
+    try:
+        registry, shape = load_open_runs(repo)
+    except (OSError, ValueError) as exc:
+        print(f"refusing: {_open_runs_path(repo)} is unreadable ({exc}) -- "
+              f"rewriting it would lose the runs it holds; fix or move it",
+              file=sys.stderr)
+        return 1
+    events = fresh_events(repo)
+    run_id = a.run_id or f"run_{uuid.uuid4().hex[:10]}"
+    started, _ = courier._run_index(events)
+    if run_id in started or run_id in registry:
+        print(f"refusing: run {run_id} is already on the ledger or registered",
+              file=sys.stderr)
+        return 1
+
+    now = datetime.now(timezone.utc)
+    stale = config.get("stale_after_min", 30)
+    limit = (config.get("role_limits") or {}).get(a.role)
+    live = open_runs_of_role(events, registry, a.role, now.timestamp(), stale)
+    over_cap = isinstance(limit, int) and len(live) + 1 > limit
+    reason = (a.over_cap_reason or "").strip()
+    if over_cap and not reason:
+        print(f"refusing: {len(live)} {a.role} run(s) already open against "
+              f"role_limits.{a.role} = {limit}:", file=sys.stderr)
+        for r in live:
+            print(f"  {r.get('run_id')}  {r.get('agent_key') or '-'}  "
+                  f"item {r.get('item_id') or '-'}  deadline "
+                  f"{r.get('deadline') or '(stale_after_min)'}", file=sys.stderr)
+        print("  close one (`wall run-end`), wait for a deadline, or pass "
+              "--over-cap-reason \"...\" to record an exception", file=sys.stderr)
+        return 1
+
+    item_id = a.item
+    trace_id = a.trace or items_mod.trace_ids_by_item(events).get(item_id)
+    name = a.name
+    if not name:
+        row = AgentRegistry(repo).resolve(a.key)
+        name = row["name"] if row else None
+    ts = items_mod.now_iso()
+    deadline = (now + timedelta(minutes=a.deadline_min)).isoformat(
+        timespec="milliseconds").replace("+00:00", "Z")
+    payload = {
+        "event": "run_start", "run_id": run_id, "parent_run_id": a.parent_run,
+        "agent_key": a.key, "agent_name": name, "role": a.role,
+        "item_id": item_id, "trace_id": trace_id, "model_requested": a.model,
+        "deadline": deadline, "deadline_min": a.deadline_min,
+        "scope": list(a.scope or []),
+        "decisions_in_context": list(a.decision or []),
+    }
+    if over_cap:
+        payload["over_cap"] = {"limit": limit, "open": len(live) + 1}
+        payload["over_cap_reason"] = reason
+    record = items_mod.append_event(repo, a.session, payload, ts=ts)
+    registry[run_id] = {
+        "run_id": run_id, "session_id": a.session, "agent_key": a.key,
+        "agent_name": name, "role": a.role, "item_id": item_id,
+        "trace_id": trace_id, "parent_run_id": a.parent_run,
+        "model_requested": a.model, "started": ts, "deadline": deadline,
+        "scope": list(a.scope or []),
+        "decisions_in_context": list(a.decision or []),
+    }
+    save_open_runs(repo, registry, shape)
+    cap = f"{len(live) + 1}/{limit}" if isinstance(limit, int) else "no cap configured"
+    print(f"run_start {run_id}  {a.role} {a.key} on {item_id}  deadline {deadline}  "
+          f"({cap}; seq {record['seq']} in {record['session_id']})")
+    if over_cap:
+        print(f"  OVER CAP, recorded: {reason}")
+    if trace_id is None:
+        print(f"  note: {item_id} has no trace on the ledger yet")
+    print(f"  registered in {_open_runs_path(repo).relative_to(repo)}; the "
+          f"SubagentStop hook (or `wall run-end --run {run_id}`) closes it")
+    return 0
+
+
+# --------------------------------------------------------------- run-end
+
+def cmd_run_end(a):
+    """The no-hooks path: write the terminal record the SubagentStop hook
+    would have written, and drop the run from open_runs.json."""
+    repo = Path(a.repo).resolve()
+    try:
+        registry, shape = load_open_runs(repo)
+    except (OSError, ValueError) as exc:
+        print(f"refusing: {_open_runs_path(repo)} is unreadable ({exc})",
+              file=sys.stderr)
+        return 1
+    events = fresh_events(repo)
+    started, finished = courier._run_index(events)
+    registered = registry.get(a.run)
+    start = started.get(a.run)
+    if registered is None and start is None:
+        print(f"refusing: no run {a.run!r} in open_runs.json or on the ledger",
+              file=sys.stderr)
+        return 1
+    if a.run in finished:
+        if registered is not None:
+            registry.pop(a.run)
+            save_open_runs(repo, registry, shape)
+        print(f"refusing: {a.run} already has a terminal event -- not writing a "
+              f"second one" + (" (removed its stale registry row)"
+                               if registered is not None else ""), file=sys.stderr)
+        return 1
+
+    reg = dict(start or {})
+    reg.update({k: v for k, v in (registered or {}).items() if v is not None})
+    try:
+        stated = json.loads((repo / ".wall" / "runs" / a.run / "outcome.json")
+                            .read_text(encoding="utf-8"))
+        stated = stated if isinstance(stated, dict) else {}
+    except (OSError, ValueError):
+        stated = {}
+    outcome = a.outcome or stated.get("outcome")
+    if outcome not in RUN_OUTCOMES:
+        print(f"pass --outcome one of {', '.join(RUN_OUTCOMES)} (no agent-written "
+              f"outcome.json supplies one)", file=sys.stderr)
+        return 2
+    error_class = a.error_class or stated.get("error_class")
+    if error_class is None and outcome in ERROR_OUTCOMES:
+        error_class = "model_error"
+    if error_class is not None and error_class not in ERROR_CLASSES:
+        print(f"error_class {error_class!r} is not in the closed list "
+              f"(EVENT_SCHEMA section 4)", file=sys.stderr)
+        return 2
+    tokens = stated.get("tokens")
+    tokens = ({k: tokens.get(k, 0) or 0 for k in ZERO_TOKENS}
+              if isinstance(tokens, dict) else dict(ZERO_TOKENS))
+    duration = a.duration_s if a.duration_s is not None else stated.get("duration_s")
+    began = items_mod.parse_ts(reg.get("started") or reg.get("ts"))
+    if duration is None and began is not None:
+        duration = int((datetime.now(timezone.utc) - began).total_seconds())
+    session = a.session or reg.get("session_id") or default_session()
+    payload = {
+        "trace_id": stated.get("trace_id") or reg.get("trace_id"),
+        "run_id": a.run,
+        "parent_run_id": reg.get("parent_run_id"),
+        "agent_key": stated.get("agent_key") or reg.get("agent_key"),
+        "agent_name": stated.get("agent_name") or reg.get("agent_name"),
+        "role": stated.get("role") or reg.get("role"),
+        "model_requested": reg.get("model_requested"),
+        "model_used": a.model_used or stated.get("model_used") or reg.get("model_used"),
+        "item_id": stated.get("item_id") or reg.get("item_id"),
+        "event": "run_error" if outcome in ERROR_OUTCOMES else "run_end",
+        "outcome": outcome,
+        "error_class": error_class,
+        "tokens": tokens,
+        "cost_usd": (a.cost_usd if a.cost_usd is not None
+                     else stated.get("cost_usd", 0) or 0),
+        "gh_minutes": stated.get("gh_minutes"),
+        "duration_s": duration,
+        "decisions_in_context": (stated.get("decisions_in_context")
+                                 or reg.get("decisions_in_context") or []),
+        "hook": {"source": "wall run-end", "resolution": "resolved",
+                 "agent_reported": bool(stated)},
+    }
+    record = items_mod.append_event(repo, session, payload)
+    if registered is not None:
+        registry.pop(a.run)
+        save_open_runs(repo, registry, shape)
+    print(f"{payload['event']} {a.run}  outcome={outcome}"
+          f"{f'  error={error_class}' if error_class else ''}  "
+          f"(seq {record['seq']} in {record['session_id']})")
+    return 0
+
+
+# ----------------------------------------------------------------- retro
+
+def pending_retro_inputs(events: list[dict]) -> list[dict]:
+    """Every `retro_input` after the last `retro_held` -- the inputs the next
+    retro is bound to address (RETROSPECTIVES section 1b)."""
+    pending: list[dict] = []
+    for e in events:
+        if e.get("event") == "retro_held":
+            pending = []
+        elif e.get("event") == "retro_input" and str(e.get("text") or "").strip():
+            pending.append(e)
+    return pending
+
+
+def validate_retro(payload: dict, pending: list[dict]) -> tuple[list[str], list[dict], list[dict]]:
+    """RETROSPECTIVES.md, mechanically. Returns (problems, unaddressed
+    pending inputs, the resolved `inputs_addressed` rows)."""
+    problems: list[str] = []
+    signals = payload.get("signals")
+    if not isinstance(signals, list) or not signals:
+        problems.append("signals: at least one measured signal is required -- "
+                        "a retro with no measurement is a retro built on how the "
+                        "wave felt")
+        signals = []
+    names = set()
+    for i, sig in enumerate(signals):
+        if not isinstance(sig, dict):
+            problems.append(f"signals[{i}]: not an object")
+            continue
+        if not str(sig.get("name") or "").strip():
+            problems.append(f"signals[{i}]: no name")
+        else:
+            names.add(sig["name"])
+        if sig.get("value") in (None, ""):
+            problems.append(f"signals[{i}] {sig.get('name')}: no value")
+        if sig.get("source") not in RETRO_SIGNAL_SOURCES:
+            problems.append(f"signals[{i}] {sig.get('name')}: source must be one of "
+                            f"{'/'.join(RETRO_SIGNAL_SOURCES)} -- signals come from "
+                            f"measurements, never an agent describing itself")
+
+    diffs = payload.get("diffs") or []
+    if not isinstance(diffs, list):
+        problems.append("diffs: must be a list")
+        diffs = []
+    if len(diffs) > RETRO_MAX_DIFFS:
+        problems.append(f"diffs: {len(diffs)} landed changes; at most "
+                        f"{RETRO_MAX_DIFFS} per retro -- queue the rest as wall items")
+    diff_paths = set()
+    for i, d in enumerate(diffs):
+        if not isinstance(d, dict):
+            problems.append(f"diffs[{i}]: not an object")
+            continue
+        kind = d.get("kind")
+        if kind not in RETRO_DIFF_KINDS:
+            problems.append(f"diffs[{i}]: kind {kind!r} is not one of "
+                            f"{', '.join(RETRO_DIFF_KINDS)}")
+        if not str(d.get("horizon") or "").strip():
+            problems.append(f"diffs[{i}]: no horizon -- when is it re-measured?")
+        if not str(d.get("why") or "").strip():
+            problems.append(f"diffs[{i}]: no why")
+        if not str(d.get("owner") or "").strip():
+            problems.append(f"diffs[{i}]: no owner -- an output without an owner "
+                            f"is not an output")
+        if kind != "no_change":
+            if not str(d.get("path") or "").strip():
+                problems.append(f"diffs[{i}]: no path -- outputs are diffs to artifacts")
+            else:
+                diff_paths.add(d["path"])
+        if d.get("signal") not in names:
+            problems.append(f"diffs[{i}]: signal {d.get('signal')!r} is not one of "
+                            f"this record's signals -- a change with no signal "
+                            f"attached is not adopted")
+
+    rows = payload.get("inputs") or []
+    if not isinstance(rows, list):
+        problems.append("inputs: must be a list")
+        rows = []
+    addressed: dict[str, dict] = {}
+    for i, row in enumerate(rows):
+        if not isinstance(row, dict):
+            problems.append(f"inputs[{i}]: not an object")
+            continue
+        hit, why = _resolve_event(pending, str(row.get("input") or ""), "retro_input")
+        if hit is None:
+            problems.append(f"inputs[{i}]: {why} among the pending inputs")
+            continue
+        disp = row.get("disposition")
+        if disp not in RETRO_INPUT_DISPOSITIONS:
+            problems.append(f"inputs[{i}]: disposition must be one of "
+                            f"{'/'.join(RETRO_INPUT_DISPOSITIONS)}")
+            continue
+        need = {"adopted": "diff", "queued": "item", "declined": "reason"}[disp]
+        if not str(row.get(need) or "").strip():
+            problems.append(f"inputs[{i}]: {disp} needs `{need}`")
+            continue
+        if disp == "adopted" and row["diff"] not in diff_paths:
+            problems.append(f"inputs[{i}]: adopted as diff {row['diff']!r}, which "
+                            f"is not a path in this record's diffs")
+            continue
+        addressed[hit["event_id"]] = {"input": hit["event_id"], "disposition": disp,
+                                      need: row[need]}
+    unaddressed = [e for e in pending if e.get("event_id") not in addressed]
+    return problems, unaddressed, list(addressed.values())
+
+
+def cmd_retro(a):
+    """Validate a wave-close retrospective and write `retro_held`."""
+    repo = Path(a.repo).resolve()
+    try:
+        payload = json.loads(Path(a.file).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        print(f"cannot read the retro file: {exc}", file=sys.stderr)
+        return 2
+    if not isinstance(payload, dict):
+        print("the retro file must be a JSON object: {signals, diffs, remeasured, "
+              "requeued, inputs}", file=sys.stderr)
+        return 2
+    events = fresh_events(repo)
+    pending = pending_retro_inputs(events)
+    problems, unaddressed, addressed = validate_retro(payload, pending)
+    if problems or unaddressed:
+        print(f"refusing retro {a.wave}:", file=sys.stderr)
+        for p in problems:
+            print(f"  {p}", file=sys.stderr)
+        for e in unaddressed:
+            print(f"  unaddressed Patron input {e['event_id']} ({e.get('by')}): "
+                  f"{_short(e.get('text'), 60)}\n      adopt it as a diff, queue it "
+                  f"as an item, or decline it with a reason -- silence is not one "
+                  f"of the three", file=sys.stderr)
+        return 1
+    requeued = payload.get("requeued")
+    record = items_mod.append_event(repo, a.session, {
+        "event": "retro_held", "wave": a.wave,
+        "signals": payload["signals"], "diffs": payload.get("diffs") or [],
+        "remeasured": payload.get("remeasured") or [],
+        "requeued": requeued if isinstance(requeued, int) else sum(
+            1 for r in addressed if r["disposition"] == "queued"),
+        "inputs_addressed": addressed, "by": a.by, "role": "maestro",
+    })
+    print(f"retro_held {a.wave}: {len(payload['signals'])} signal(s), "
+          f"{len(payload.get('diffs') or [])} diff(s), {len(addressed)} input(s) "
+          f"addressed  (seq {record['seq']} in {record['session_id']})")
+    print("  this closes the rebalance cycle; run `wall run-once` to refresh RETRO")
+    return 0
+
+
+# ------------------------------------------------------------- rebalance
+
+def _is_reversal(prev: dict, frm, to) -> bool:
+    return str(to) == str(prev.get("from")) and str(frm) == str(prev.get("to"))
+
+
+def cmd_rebalance(a):
+    """Record one executed rebalance (CAPACITY_REBALANCING section 4): one
+    knob per cycle, and a second reversal of a knob goes to the Adjudicator."""
+    repo = Path(a.repo).resolve()
+    signals = []
+    for raw in a.signal or []:
+        name, sep, value = raw.partition("=")
+        if not sep or not name.strip() or not value.strip():
+            print(f"--signal takes name=value, got {raw!r}", file=sys.stderr)
+            return 2
+        signals.append({"name": name.strip(), "value": _coerce(value.strip())})
+    if not signals:
+        print("refusing a rebalance with no --signal name=value: a knob turned "
+              "without a measurement attached is a hunch", file=sys.stderr)
+        return 2
+    frm, to = _coerce(a.from_value), _coerce(a.to_value)
+    if str(frm) == str(to):
+        print("--from and --to are the same value: nothing to rebalance",
+              file=sys.stderr)
+        return 2
+
+    events = fresh_events(repo)
+    history, since_retro, reset_at = [], [], -1
+    for e in events:
+        if e.get("event") == "retro_held":
+            since_retro = []
+        elif e.get("event") == "rebalance_applied":
+            since_retro.append(e)
+            if e.get("knob") == a.knob:
+                history.append(e)
+                if e.get("adjudication"):
+                    reset_at = len(history) - 1
+    # Reversals of this knob since the last adjudicated change of it.
+    window = history[reset_at + 1:] if reset_at >= 0 else history
+    prior = [window[i] for i in range(1, len(window))
+             if _is_reversal(window[i - 1], window[i].get("from"), window[i].get("to"))]
+    reversal = bool(history) and _is_reversal(history[-1], frm, to)
+    if reversal and prior and not a.adjudication:
+        qid = f"q_rebalance_{''.join(c if c.isalnum() else '_' for c in a.knob)}_{len(prior) + 1}"
+        folded = questions_mod.fold(events).questions
+        if qid not in folded:
+            text = (f"Rebalance oscillation on {a.knob}: {frm} -> {to} would reverse "
+                    f"it a second time. Keep, revert, or set a new value?")
+            items_mod.append_events(repo, a.session, [
+                {"event": "question_raised", "question_id": qid,
+                 "ambiguity_class": "rebalance_oscillation", "question": text,
+                 "role": "maestro", "knob": a.knob},
+                {"event": "question_escalated", "question_id": qid,
+                 "tier": "adjudicator", "role": "maestro",
+                 "reason": "two reversals of the same knob (CAPACITY_REBALANCING "
+                           "section 4) -- a ruling, not a third flip"},
+            ])
+        print(f"refusing: {a.knob} would be reversed a second time "
+              f"({frm} -> {to}). Routed to the Adjudicator as {qid}; once ruled, "
+              f"re-run with --adjudication <DEC-NNNN or ruling ref>.", file=sys.stderr)
+        return 1
+    reason = (a.reason or "").strip()
+    if since_retro and not reason:
+        last = since_retro[-1]
+        print(f"refusing: one knob per cycle -- {last.get('knob')} already moved "
+              f"({last.get('from')} -> {last.get('to')}) at {last.get('ts')} and no "
+              f"retro_held has closed the cycle since. Re-measure first, or pass "
+              f"--reason \"...\" to record why this cannot wait.", file=sys.stderr)
+        return 1
+
+    payload = {
+        "event": "rebalance_applied", "knob": a.knob, "from": frm, "to": to,
+        "signals": signals, "expected_effect": a.expect, "horizon": a.horizon,
+        "revert": {"knob": a.knob, "from": to, "to": frm},
+        "reversal": reversal, "by": a.by, "role": "maestro",
+    }
+    if reason:
+        payload["reason"] = reason
+    if a.adjudication:
+        payload["adjudication"] = a.adjudication
+    record = items_mod.append_event(repo, a.session, payload)
+    print(f"rebalance {a.knob}: {frm} -> {to}  re-measure at {a.horizon}  "
+          f"(seq {record['seq']} in {record['session_id']})")
+    print(f"  revert: wall rebalance --knob {a.knob} --from {to} --to {frm} ...")
+    return 0
+
+
+# ---------------------------------------------------- diagnostics loop
+
+_SIG_PATTERNS = (
+    (re.compile(r"\d{4}-\d{2}-\d{2}[T ][\d:.]+(?:Z|[+-]\d{2}:?\d{2})?"), "<ts>"),
+    (re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F-]{27,}\b"), "<id>"),
+    (re.compile(r"\b0x[0-9a-fA-F]+\b|\b[0-9a-fA-F]{8,}\b"), "<hex>"),
+    (re.compile(r"\d+"), "<n>"),
+)
+
+
+def normalize_signature(text: str) -> str:
+    """Timestamps, ids, hex and numbers collapsed, so a recurring error is ONE
+    signature (DIAGNOSTICS_LOOP section 1)."""
+    text = " ".join(str(text).split())
+    for pattern, repl in _SIG_PATTERNS:
+        text = pattern.sub(repl, text)
+    return text
+
+
+def cmd_finding(a):
+    """Record a `diagnostic_finding` (DIAGNOSTICS_LOOP stage three)."""
+    repo = Path(a.repo).resolve()
+    signature = normalize_signature(a.signature)
+    if not signature:
+        print("refusing an empty --signature", file=sys.stderr)
+        return 2
+    if a.route == "auto_repaired" and a.cls != "known_playbook":
+        print("refusing: only a known_playbook finding can be auto_repaired -- an "
+              "unclassified signature has no signed playbook to run", file=sys.stderr)
+        return 1
+    payload = {"event": "diagnostic_finding", "signature": signature,
+               "class": a.cls, "route": a.route, "snapshot_ref": a.snapshot_ref,
+               "role": a.role}
+    if a.playbook:
+        payload["playbook"] = a.playbook
+    record = items_mod.append_event(repo, a.session, payload)
+    print(f"diagnostic_finding {record['event_id']}  {a.cls} -> {a.route}  "
+          f"{_short(signature, 60)}")
+    if a.route == "story_filed":
+        print(f"  file the story, then: wall story-filed --finding "
+              f"{record['event_id']} --item <id>  (a dropped ball is flagged past "
+              f"sla_minutes.story_filed)")
+    return 0
+
+
+def cmd_story_filed(a):
+    """Join a finding to the item that carries it (`story_filed`)."""
+    repo = Path(a.repo).resolve()
+    events = fresh_events(repo)
+    finding, why = _resolve_event(events, a.finding, "diagnostic_finding")
+    if finding is None:
+        print(f"refusing: {why}", file=sys.stderr)
+        return 1
+    ref = finding["event_id"]
+    already = [e for e in events if e.get("event") == "story_filed"
+               and e.get("finding_ref") == ref]
+    if already:
+        print(f"refusing: finding {ref} already filed as "
+              f"{already[0].get('item_id')}", file=sys.stderr)
+        return 1
+    trace_id = items_mod.trace_ids_by_item(events).get(a.item)
+    record = items_mod.append_event(repo, a.session, {
+        "event": "story_filed", "finding_ref": ref, "item_id": a.item,
+        "trace_id": trace_id, "role": a.role})
+    print(f"story_filed {ref} -> {a.item}  (seq {record['seq']} in "
+          f"{record['session_id']})")
+    if finding.get("route") != "story_filed":
+        print(f"  note: the finding was routed {finding.get('route')}, not story_filed")
+    if trace_id is None:
+        print(f"  note: {a.item} is not on the ledger yet")
+    return 0
+
+
+def cmd_verify_request(a):
+    """Append to the owner-verification queue (`verify_requested`)."""
+    repo = Path(a.repo).resolve()
+    steps = [s.strip() for s in (a.steps or []) if s.strip()]
+    if not a.what.strip() or not steps:
+        print("refusing: --what and at least one --steps are required -- the owner "
+              "verifies by looking, and needs to know where", file=sys.stderr)
+        return 2
+    record = items_mod.append_event(repo, a.session, {
+        "event": "verify_requested", "item_id": a.item,
+        "what_changed": a.what.strip(), "verify_steps": steps, "role": a.role})
+    print(f"verify_requested {a.item}  ({len(steps)} step(s); seq {record['seq']} "
+          f"in {record['session_id']})")
+    print(f"  only the owner retires it: wall verified --item {a.item} "
+          f"--verdict confirmed|confirmed_with_findings")
+    return 0
+
+
+def cmd_verified(a):
+    """Record the owner's verification answer (`verified`). Human only."""
+    repo = Path(a.repo).resolve()
+    events = fresh_events(repo)
+    waiting = [v for v in courier.verify_queue(events) if v["item_id"] == a.item]
+    if not waiting:
+        print(f"refusing: no open verify_requested for {a.item}", file=sys.stderr)
+        return 1
+    note = (a.note or "").strip()
+    if a.verdict == "confirmed_with_findings" and not note:
+        print("refusing confirmed_with_findings without --note: the findings ARE "
+              "the record, and they feed stage three", file=sys.stderr)
+        return 2
+    payload = {"event": "verified", "item_id": a.item, "verdict": a.verdict,
+               "by": a.by, "role": "human", "source": "human"}
+    if note:
+        payload["note"] = note
+    record = items_mod.append_event(repo, a.session, payload)
+    print(f"verified {a.item}: {a.verdict}  ({len(waiting)} request(s) retired; "
+          f"seq {record['seq']} in {record['session_id']})")
+    if a.verdict == "confirmed_with_findings":
+        print("  the findings enter stage three: wall finding --signature \"...\" "
+              "--class unclassified --route story_filed --snapshot-ref <ref>")
+    return 0
+
+
 # -------------------------------------------------------------- fast-track
 
 def fast_track_gates(repo: Path, config: dict) -> tuple[list[dict], list[dict]]:
@@ -1392,6 +2069,130 @@ def main() -> int:
     s.add_argument("--by", default="engineer", help="who raised it")
     s.add_argument("--session", default="s_human", help="shard to append to")
     s.set_defaults(fn=cmd_retro_note)
+
+    agent_session = default_session()
+
+    s = sub.add_parser(
+        "run-start", help="write run_start and register the run; refuses past "
+                          "role_limits[role]",
+        description="MAESTRO.md dispatch step 5: write the run_start event and "
+                    "register the run in .wall/registry/open_runs.json so the "
+                    "SubagentStop hook can close it. Refuses (exit 1) when the "
+                    "role's open runs would exceed role_limits in wall.json.")
+    s.add_argument("--key", required=True, help="agent_key of the dispatched agent")
+    s.add_argument("--role", required=True, help="builder, reviewer, researcher, ...")
+    s.add_argument("--item", required=True, help="item_id the run works on")
+    s.add_argument("--deadline-min", type=int, required=True, dest="deadline_min",
+                   help="minutes until the run reclassifies as stale")
+    s.add_argument("--scope", action="append", default=[],
+                   help="path scope the run may write (repeatable)")
+    s.add_argument("--model", help="model_requested")
+    s.add_argument("--name", help="agent_name (default: from the roster)")
+    s.add_argument("--run-id", dest="run_id", help="default: a fresh run_<hex>")
+    s.add_argument("--parent-run", dest="parent_run", help="parent_run_id")
+    s.add_argument("--trace", help="trace_id (default: the item's trace)")
+    s.add_argument("--decision", action="append", default=[],
+                   help="DEC-NNNN in the prompt (repeatable; decisions_in_context)")
+    s.add_argument("--over-cap-reason", dest="over_cap_reason",
+                   help="open the run past the cap anyway; the reason is recorded")
+    s.add_argument("--session", default=agent_session,
+                   help="the dispatching session -- the hook matches open runs on "
+                        "it (default: $WALL_SESSION_ID or s_maestro)")
+    s.set_defaults(fn=cmd_run_start)
+
+    s = sub.add_parser(
+        "run-end", help="no-hooks path: write run_end/run_error, unregister the run",
+        description="Write the terminal record the SubagentStop hook would write "
+                    "(same shape; .wall/runs/<run_id>/outcome.json folded in) and "
+                    "remove the run from open_runs.json. Refuses a second "
+                    "terminal record.")
+    s.add_argument("--run", required=True, help="run_id")
+    s.add_argument("--outcome", choices=RUN_OUTCOMES,
+                   help="required unless the agent wrote outcome.json")
+    s.add_argument("--error-class", dest="error_class", choices=ERROR_CLASSES)
+    s.add_argument("--model-used", dest="model_used")
+    s.add_argument("--cost-usd", dest="cost_usd", type=float)
+    s.add_argument("--duration-s", dest="duration_s", type=int,
+                   help="default: now minus the run's start")
+    s.add_argument("--session", help="default: the session that registered the run")
+    s.set_defaults(fn=cmd_run_end)
+
+    s = sub.add_parser(
+        "retro", help="validate a wave-close retrospective and write retro_held",
+        description="RETROSPECTIVES.md, enforced. The file is JSON: "
+                    "{signals: [{role, name, value, prior?, source: "
+                    "ledger|wall|checks|ci}], diffs (max 3): [{kind: "
+                    + "|".join(RETRO_DIFF_KINDS) + ", path, why, owner, signal, "
+                    "horizon}], remeasured: [{path, verdict}], requeued?, "
+                    "inputs: [{input: <retro_input event_id>, disposition: "
+                    "adopted (+diff path) | queued (+item) | declined (+reason)}]}. "
+                    "Every pending Patron input must be addressed.")
+    s.add_argument("--wave", required=True, help="the wave this retro closes")
+    s.add_argument("--file", required=True, help="the retro record, JSON")
+    s.add_argument("--by", default="maestro")
+    s.add_argument("--session", default=agent_session)
+    s.set_defaults(fn=cmd_retro)
+
+    s = sub.add_parser(
+        "rebalance", help="record one executed rebalance (one knob per cycle)",
+        description="CAPACITY_REBALANCING.md section 4: signal values, knob, "
+                    "from -> to, expected effect, horizon; the from value is the "
+                    "one-step revert. Refuses a second knob before a retro_held "
+                    "closes the cycle (unless --reason), and a second reversal of "
+                    "the same knob (routed to the Adjudicator).")
+    s.add_argument("--knob", required=True, help="e.g. builders, researchers, pr_pacing")
+    s.add_argument("--from", dest="from_value", required=True, help="current value")
+    s.add_argument("--to", dest="to_value", required=True, help="new value")
+    s.add_argument("--signal", action="append", default=[],
+                   help="name=value that triggered it (repeatable, at least one)")
+    s.add_argument("--expect", required=True, help="the expected effect")
+    s.add_argument("--horizon", required=True, help="when it gets re-measured")
+    s.add_argument("--reason", help="override one-knob-per-cycle; recorded")
+    s.add_argument("--adjudication",
+                   help="the Adjudicator's ruling ref, to proceed past an oscillation")
+    s.add_argument("--by", default="maestro")
+    s.add_argument("--session", default=agent_session)
+    s.set_defaults(fn=cmd_rebalance)
+
+    s = sub.add_parser("finding", help="record a diagnostic_finding",
+                       description="DIAGNOSTICS_LOOP stage three. The signature is "
+                                   "normalized (timestamps, ids, hex, numbers "
+                                   "collapsed) before it is written.")
+    s.add_argument("--signature", required=True)
+    s.add_argument("--class", dest="cls", required=True, choices=FINDING_CLASSES)
+    s.add_argument("--route", required=True, choices=FINDING_ROUTES)
+    s.add_argument("--snapshot-ref", dest="snapshot_ref", required=True,
+                   help="branch/path of the snapshot it was read from")
+    s.add_argument("--playbook", help="the signed playbook a known signature maps to")
+    s.add_argument("--role", default="maestro")
+    s.add_argument("--session", default=agent_session)
+    s.set_defaults(fn=cmd_finding)
+
+    s = sub.add_parser("story-filed", help="join a finding to its item (story_filed)")
+    s.add_argument("--finding", required=True,
+                   help="the diagnostic_finding's event_id (or an 8+ char prefix)")
+    s.add_argument("--item", required=True, help="item_id of the filed story")
+    s.add_argument("--role", default="maestro")
+    s.add_argument("--session", default=agent_session)
+    s.set_defaults(fn=cmd_story_filed)
+
+    s = sub.add_parser("verify-request",
+                       help="append to the owner-verification queue")
+    s.add_argument("--item", required=True)
+    s.add_argument("--what", required=True, help="what changed, as the owner sees it")
+    s.add_argument("--steps", action="append", default=[],
+                   help="one exact step to verify it (repeatable)")
+    s.add_argument("--role", default="maestro")
+    s.add_argument("--session", default=agent_session)
+    s.set_defaults(fn=cmd_verify_request)
+
+    s = sub.add_parser("verified", help="the owner's verification answer (human only)")
+    s.add_argument("--item", required=True)
+    s.add_argument("--verdict", required=True, choices=VERIFY_VERDICTS)
+    s.add_argument("--note", help="required for confirmed_with_findings")
+    s.add_argument("--by", default="engineer")
+    s.add_argument("--session", default="s_human", help="shard to append to")
+    s.set_defaults(fn=cmd_verified)
 
     s = sub.add_parser("fast-track", help="classify, run local gates, stage")
     s.add_argument("--staged", action="store_true")

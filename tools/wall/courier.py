@@ -288,6 +288,144 @@ def merge(ledger_path: Path, new_events: list[dict]) -> list[dict]:
 
 # --------------------------------------------------------------- integrity
 
+TERMINAL_RUN_EVENTS = ("run_end", "run_error")
+
+#: Minutes a `diagnostic_finding` routed `story_filed` may wait for its
+#: `story_filed` before it reads as a dropped ball (`sla_minutes.story_filed`).
+DEFAULT_STORY_FILED_SLA_MIN = 60
+
+#: Days a `verify_requested` may wait for the owner before it is overdue
+#: (`verify_horizon_days`). Unverified items persist; overdue ones are named.
+DEFAULT_VERIFY_HORIZON_DAYS = 7
+
+
+def _run_index(events: list[dict]) -> tuple[dict, set]:
+    """(run_id -> its run_start, run_ids that have a terminal event)."""
+    started, finished = {}, set()
+    for e in events:
+        ev = e.get("event")
+        if ev == "run_start":
+            started[e.get("run_id")] = e
+        elif ev in TERMINAL_RUN_EVENTS:
+            finished.add(e.get("run_id"))
+    return started, finished
+
+
+def run_due_epoch(start: dict, stale_after_min: float = 30) -> float | None:
+    """When a run_start stops counting as in flight: its own `deadline` when
+    it carries a parseable one, else `stale_after_min` past its `ts`. None
+    when neither parses -- the caller decides what an undatable run means."""
+    due = items_mod.parse_ts(start.get("deadline"))
+    if due is not None:
+        return due.timestamp()
+    began = items_mod.parse_ts(start.get("ts"))
+    if began is None:
+        return None
+    return began.timestamp() + float(stale_after_min) * 60
+
+
+def open_runs(events: list[dict], now: float | None = None,
+              stale_after_min: float = 30) -> list[dict]:
+    """Run starts that are genuinely in flight: no terminal event, and not
+    past their deadline. An undatable start counts as open -- the cap errs
+    toward refusing, and the refusal names the run so it can be closed."""
+    now = time.time() if now is None else now
+    started, finished = _run_index(events)
+    out = []
+    for rid, e in started.items():
+        if rid in finished:
+            continue
+        due = run_due_epoch(e, stale_after_min)
+        if due is None or due >= now:
+            out.append(e)
+    return out
+
+
+def over_cap_flags(events: list[dict], role_limits: dict, now: float | None = None,
+                   stale_after_min: float = 30) -> list[dict]:
+    """One flag per role whose open runs exceed `role_limits[role]`.
+
+    `wall run-start` refuses to open a run past the cap, so this catches the
+    run_start written by hand, outside the command -- and keeps an overridden
+    cap visible, with the recorded reasons, for as long as it is exceeded."""
+    by_role: dict[str, list[dict]] = defaultdict(list)
+    for e in open_runs(events, now, stale_after_min):
+        by_role[str(e.get("role") or "unknown")].append(e)
+    flags = []
+    for role in sorted(by_role):
+        limit = (role_limits or {}).get(role)
+        if not isinstance(limit, int) or isinstance(limit, bool):
+            continue
+        runs = by_role[role]
+        if len(runs) > limit:
+            flags.append({
+                "role": role, "limit": limit, "open": len(runs),
+                "run_ids": sorted(str(r.get("run_id")) for r in runs),
+                "reasons": [r["over_cap_reason"] for r in runs
+                            if isinstance(r.get("over_cap_reason"), str)],
+                "detail": f"{len(runs)} open {role} runs against a cap of {limit}",
+            })
+    return flags
+
+
+def _age_min(ts, now: float) -> float | None:
+    dt = items_mod.parse_ts(ts)
+    return None if dt is None else (now - dt.timestamp()) / 60.0
+
+
+def dropped_findings(events: list[dict], sla_min: float = DEFAULT_STORY_FILED_SLA_MIN,
+                     now: float | None = None) -> list[dict]:
+    """A `diagnostic_finding` routed `story_filed` with no matching
+    `story_filed` past the SLA: a dropped ball (EVENT_SCHEMA section 9)."""
+    now = time.time() if now is None else now
+    filed = {e.get("finding_ref") for e in events if e.get("event") == "story_filed"}
+    flags = []
+    for e in events:
+        if e.get("event") != "diagnostic_finding" or e.get("route") != "story_filed":
+            continue
+        if e.get("event_id") in filed:
+            continue
+        age = _age_min(e.get("ts"), now)
+        if age is None or age <= sla_min:
+            continue
+        flags.append({"finding_ref": e.get("event_id"), "signature": e.get("signature"),
+                      "snapshot_ref": e.get("snapshot_ref"), "age_min": round(age, 1),
+                      "sla_min": sla_min,
+                      "detail": "routed story_filed; no story_filed names it"})
+    return flags
+
+
+def verify_queue(events: list[dict], horizon_days: float = DEFAULT_VERIFY_HORIZON_DAYS,
+                 now: float | None = None) -> list[dict]:
+    """Every `verify_requested` no later `verified` for the same item has
+    answered, oldest first, each marked `overdue` past the horizon. The queue
+    is append-only and persists across releases (DIAGNOSTICS_LOOP section 5)."""
+    now = time.time() if now is None else now
+    pending: dict[str, list[dict]] = defaultdict(list)
+    for e in events:
+        iid = e.get("item_id")
+        if not isinstance(iid, str) or not iid:
+            continue
+        if e.get("event") == "verify_requested":
+            pending[iid].append(e)
+        elif e.get("event") == "verified":
+            pending.pop(iid, None)  # the owner's answer retires every earlier ask
+    rows = []
+    for iid, reqs in pending.items():
+        for e in reqs:
+            age = _age_min(e.get("ts"), now)
+            rows.append({
+                "request_ref": e.get("event_id"), "item_id": iid,
+                "what_changed": e.get("what_changed") or "",
+                "verify_steps": e.get("verify_steps") or [],
+                "since": e.get("ts"),
+                "age_days": None if age is None else round(age / 1440.0, 1),
+                "overdue": age is not None and age > horizon_days * 1440.0,
+            })
+    rows.sort(key=lambda r: r["since"] or "")
+    return rows
+
+
 def check_integrity(events: list[dict], items: dict, stale_after_min: int = 30,
                     repo: Path | None = None) -> dict:
     # Both directions of the same property. `next_seq` is deliberately not
@@ -311,26 +449,21 @@ def check_integrity(events: list[dict], items: dict, stale_after_min: int = 30,
             seq_duplicates.append({"session_id": session, "seq": seq,
                                    "count": nums[seq]})
 
-    started, finished = {}, set()
-    for e in events:
-        ev = e.get("event")
-        if ev == "run_start":
-            started[e.get("run_id")] = e
-        elif ev in ("run_end", "run_error"):
-            finished.add(e.get("run_id"))
+    started, finished = _run_index(events)
     # A run_start with no terminal event is normal while the agent is still
     # working. It is only an orphan once it has blown its deadline — otherwise
-    # every in-flight builder would light up the integrity panel.
-    cutoff = time.time() - stale_after_min * 60
+    # every in-flight builder would light up the integrity panel. The deadline
+    # is the run's own (`wall run-start --deadline-min`) when it carries one,
+    # else `stale_after_min` past its start.
+    now = time.time()
     orphans = []
     for rid, e in started.items():
         if rid in finished:
             continue
-        try:
-            started_at = datetime.fromisoformat(e["ts"].replace("Z", "+00:00")).timestamp()
-        except (KeyError, ValueError):
+        due = run_due_epoch(e, stale_after_min)
+        if due is None:
             continue
-        if started_at < cutoff:
+        if due < now:
             orphans.append({"run_id": rid, "agent": e.get("agent_name"),
                             "started": e.get("ts"), "item_id": e.get("item_id")})
 
@@ -372,6 +505,9 @@ def check_integrity(events: list[dict], items: dict, stale_after_min: int = 30,
         "merged_but_open": items_mod.merged_but_open(events, disk_items),
         "escalations": [],     # populated in build_snapshot, once crew is known
         "stale_claims": [],    # populated by the Foreman pass
+        "over_cap": [],        # populated in build_snapshot, from role_limits
+        "dropped_findings": [],  # populated in build_snapshot, from sla_minutes
+        "verify_overdue": [],  # populated in build_snapshot, from verify_horizon_days
     }
 
 
@@ -484,6 +620,18 @@ def build_snapshot(repo: Path, events: list[dict], config: dict, shard_count: in
         folded_questions, items, list(agents.values()),
         config.get("sla_minutes", {}))
 
+    # Role caps, the diagnostics loop's dropped ball, and the owner's
+    # verification queue (EVENT_SCHEMA sections 7 and 9).
+    stale_min = config.get("stale_after_min", 30)
+    integrity["over_cap"] = over_cap_flags(events, config.get("role_limits", {}),
+                                           stale_after_min=stale_min)
+    sla = (config.get("sla_minutes") or {}).get("story_filed",
+                                                DEFAULT_STORY_FILED_SLA_MIN)
+    integrity["dropped_findings"] = dropped_findings(events, sla)
+    verify_waiting = verify_queue(events, config.get("verify_horizon_days",
+                                                     DEFAULT_VERIFY_HORIZON_DAYS))
+    integrity["verify_overdue"] = [v for v in verify_waiting if v["overdue"]]
+
     return {
         "schema_version": SCHEMA_VERSION,
         "generated_at": now_iso(),
@@ -498,6 +646,9 @@ def build_snapshot(repo: Path, events: list[dict], config: dict, shard_count: in
         "crew": sorted(agents.values(), key=lambda a: (a["role"], a["name"])),
         "board": {"arcs": sorted(arcs.values(), key=lambda a: a["arc_id"])},
         "waiting_on_you": sorted(asks.values(), key=lambda a: a["since"] or ""),
+        # The owner-verification queue (DIAGNOSTICS_LOOP section 5): the other
+        # thing the loop holds open for a human, beside the asks above.
+        "verify_waiting": verify_waiting,
         "questions": sorted(folded_questions.values(),
                             key=lambda q: (q.get("raised_at") or "", q["question_id"])),
         "budget": enrich_budget(config.get("budget", DEFAULT_BUDGET), events,

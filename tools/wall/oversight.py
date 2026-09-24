@@ -20,6 +20,9 @@ Event contracts (EVENT_SCHEMA.md section "Oversight"):
 * ``retro_input`` -- by, text (DEC-0027). A Patron note the NEXT retro must
   consume; pending inputs surface on the RETRO tab until a retro_held
   follows them.
+* ``rebalance_applied`` -- knob, from, to, signals, expected_effect, horizon
+  (CAPACITY_REBALANCING section 4). Folded into the RETRO view's
+  ``rebalances`` list, newest last.
 
 The FLOW fold (DEC-0027) invents no events: iterations are the segments
 between ``retro_held`` records, and velocity / sizing / quality / burndown
@@ -179,8 +182,22 @@ def fold_retro(events: list) -> dict:
     trend_rows = sorted(trends.values(), key=lambda t: (t["role"], t["name"]))
     for t in trend_rows:
         t["series"] = t["series"][-_TREND_POINTS:]
+    # Executed rebalances (CAPACITY_REBALANCING section 4), newest last: the
+    # capacity half of the same measured loop, each one a one-step revert.
+    rebalances = [{
+        "knob": _s(e.get("knob")) or None,
+        "from": e.get("from"), "to": e.get("to"),
+        "signals": [x for x in (e.get("signals") or []) if isinstance(x, dict)],
+        "expected_effect": _s(e.get("expected_effect")) or None,
+        "horizon": _s(e.get("horizon")) or None,
+        "reason": _s(e.get("reason")) or None,
+        "by": _s(e.get("by")) or None,
+        "ts": _s(e.get("ts")) or None,
+    } for e in events
+        if isinstance(e, dict) and e.get("event") == "rebalance_applied"]
     return {"held": len(retros), "latest": latest_view, "trends": trend_rows,
-            "pending_inputs": pending_inputs}
+            "pending_inputs": pending_inputs,
+            "rebalances": rebalances[-_TREND_POINTS:]}
 
 
 # --------------------------------------------------------------------- docs

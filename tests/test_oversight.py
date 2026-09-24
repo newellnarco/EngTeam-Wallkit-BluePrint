@@ -91,7 +91,7 @@ def _retro(wave, rework, **kw):
 def test_retro_empty_is_honest():
     r = oversight.fold_retro([])
     assert r == {"held": 0, "latest": None, "trends": [],
-                 "pending_inputs": []}
+                 "pending_inputs": [], "rebalances": []}
 
 
 def test_retro_trend_series_across_waves():

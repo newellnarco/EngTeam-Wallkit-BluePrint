@@ -238,6 +238,16 @@ shard → courier → wall path; the WAITING tab shows unverified items beside
 unanswered asks, because both are the same thing: the loop holding a slot
 open for a human.
 
+The writers are commands, each refusing what this document forbids: `wall
+finding` (normalizes the signature; an `unclassified` finding cannot be
+`auto_repaired`), `wall story-filed --finding <event_id> --item <id>`, `wall
+verify-request --item --what --steps`, and `wall verified --item --verdict
+confirmed|confirmed_with_findings` (the owner's answer, on the `s_human`
+shard like `wall answer`). The courier flags a finding routed `story_filed`
+with no `story_filed` past `sla_minutes.story_filed` (`dropped_findings`) and
+a verification waiting past `verify_horizon_days` (`verify_overdue`); the
+open queue rides the snapshot as `verify_waiting`.
+
 ## 9. Cross-references
 
 - INSTALL.md — the timer, the shipper, `doctor.json`

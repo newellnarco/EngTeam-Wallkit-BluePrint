@@ -13,8 +13,15 @@
     "researcher_first_run": 10,
     "escalate_to_architect": 30,
     "escalate_to_human": 60,
-    "question_open_escalate": 60
+    "question_open_escalate": 60,
+    "story_filed": 60
   },
+  "_sla_minutes": "story_filed: minutes a diagnostic_finding routed story_filed may wait for its story_filed before the courier flags it in dropped_findings.",
+  "verify_horizon_days": 7,
+  "_verify_horizon_days": "Days a verify_requested may wait for the owner's `wall verified` before the courier flags it in verify_overdue.",
+  "_role_limits": "Open runs per role. `wall run-start` refuses past the cap unless --over-cap-reason is given; the courier flags over_cap either way.",
+  "budgeted_docs": "BUDGETED_DOCS.md",
+  "_budgeted_docs": "The context-doc budget register `wall doctor` measures (service.budget_headroom). Absent file means 'not measured', never 'fine'.",
   "max_rework_cycles": 3,
   "ci_checkin_minutes": 10,
   "decisions_dir": "docs/decisions",
