@@ -45,6 +45,7 @@ These answers set the design. They are recorded in the proposed DEC-0036 (append
 | How sessions communicate | **A small shared service**, the coordinator. |
 | Where it runs | **Both options are laid out, and chosen at setup:** self-hosted or serverless. Same API, same trust model, same tests. Authentication is by GitHub identity in both. |
 | How agents are allocated | **The engineer assigns each wave.** No automatic split across repos. |
+| Shared-environment queue | **A priority can jump the queue.** Otherwise first come, first served. |
 | Who is in a wave | **The repo decides.** Engineers are in the same wave only when they work in the same repo, however many sessions each of them runs. Engineers in different repos are never in the same wave. |
 | Repo dependencies | **Independent repos.** Coordination is about shared people, budget and environments, not code dependencies. |
 | Contended CI/CD/CT resources | CI minutes and runners; test environments (**each engineer may have several personal environments; a repo may optionally have one or more shared environments, each covering one, several or all of that repo's deploys**); deploy targets; reviewer and API quotas. |
@@ -415,6 +416,22 @@ claim is taken before the deploy into it and released after the CT run, so a
 second session's deploy can never land in the middle of the first session's
 test run.
 
+**Queue order: a priority can jump the queue.** A shared environment's queue
+is first come, first served, except that a claim marked with a priority moves
+ahead of every claim without one (and ahead of lower priorities), keeping
+arrival order among equals. Proposed defaults, open to the owner:
+
+| Priority | Who may set it | Effect |
+|---|---|---|
+| `normal` | Anyone (the default) | Joins the back of the queue. |
+| `high` | The claim's engineer, with a reason | Goes ahead of every `normal` claim. |
+| `urgent` | The claim's engineer, with a reason; the repo's owner is notified | Goes to the front, ahead of `high`. |
+
+A jump never interrupts the current holder: it takes the next turn, so no test
+run is cut off halfway. Every jump is an attributed event (who, which claim,
+why, whom it passed), each passed session gets a `notice`, and the desk shows
+how often each engineer jumps so the habit stays visible.
+
 ### 9.3 Deploy targets
 
 | Rule | Detail |
@@ -490,8 +507,8 @@ receiving session's.
 
 ### W6. Using a shared test environment
 
-1. The session claims `staging` (or joins its queue). The desk shows the claim
-   and the queue.
+1. The session claims `staging` (or joins its queue, with a priority and a
+   reason if the work cannot wait). The desk shows the claim and the queue.
 2. It deploys into `staging` (taking the deploy lock), runs CT, reads results.
 3. It releases the claim. The next session in the queue is notified.
 4. A claim past its TTL without renewal is released and flagged; the holder's
@@ -632,8 +649,9 @@ P0 and P3 are useful to a single engineer and can ship first.
 1. **Wave ownership.** Membership is settled: the same repo means the same
    wave. Still open: who assigns and closes a wave that several engineers
    share: the engineer who opened it, a named lead, or the repo's owner?
-2. **Priority across repos.** When a shared environment has a queue, is it
-   first come first served, or does a repo or wave priority reorder it?
+2. **Priority levels.** Settled: a priority can jump the queue (section 9.2).
+   Still open: are the proposed levels and who may set them right, and should
+   `urgent` need the repo owner's approval rather than only notifying them?
 3. **Message routing to people.** Should `blocker` and `question` messages also
    reach engineers outside the desk (email, chat), and if so which?
 4. **Retention.** How long should the coordinator keep events: the length of a
@@ -707,7 +725,10 @@ The Patron (2026-09-24):
    environments; a repository may optionally have one or more shared
    environments, each covering one, several or all of its deploys. Shared
    environments and deploy targets are claimed, queued and released through
-   the coordinator; production requires a person's approval.
+   the coordinator; production requires a person's approval. A shared
+   environment's queue is first come, first served, except that a claim with
+   a priority jumps ahead; a jump never interrupts the current holder and is
+   always attributed.
 9. **Contended resources are metered team-wide:** CI minutes and runners,
    deploy targets, reviewer lanes and API quotas, each draw attributed to a
    session and an engineer.
