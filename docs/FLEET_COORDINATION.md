@@ -139,9 +139,12 @@ across machines and people, and mirrors a summary of each repo wall.
 the role's pool. With a coordinator configured, it asks the coordinator for a
 name that is not live anywhere on the team, and releases it there on `wall
 agents release`. The role pools grow to fit a team. If the coordinator is
-unreachable, the claim takes a provisional local name, flagged on the wall;
-on reconnect a colliding provisional name is renamed, and the key, which every
-event references, never changes.
+unreachable, the claim takes a provisional name that cannot collide with any
+other machine's: the pool name suffixed with the session's short id (for
+example `Desmond~7f3a`), flagged on the wall. Team-wide uniqueness therefore
+holds throughout the outage, not only after it. On reconnect the coordinator
+issues a plain team-unique name, and the key, which every event references,
+never changes.
 
 ---
 
@@ -172,7 +175,8 @@ retried call never double-claims.
 |---|---|
 | `POST /v1/sessions` · `POST /v1/sessions/{id}/heartbeat` · `DELETE /v1/sessions/{id}` | Check in, stay alive, check out. The heartbeat carries the repo wall's summary (the same fields `wall summary` prints). |
 | `POST /v1/leases` · `DELETE /v1/leases/{id}` | Claim or release paths. A claim that overlaps another session's live lease returns `409` with the holder, and the caller queues or re-scopes. |
-| `PUT /v1/waves/{repo}/{wave}` · `GET /v1/waves?repo=` | The engineer's allocation; sessions read it at run start. |
+| `PUT /v1/waves/{repo}/{wave}` · `GET /v1/waves?repo=` | The wave lead's allocation; sessions read it. |
+| `POST /v1/waves/{repo}/{wave}/slots` · `DELETE …/slots/{id}` | **Reserve a role slot atomically**: the coordinator checks the allocation and takes the slot in one transaction, so two sessions can never both take the last one. Returns a reservation id with a TTL; released at run end, or by the session if its local `run_start` write fails, and expired if the run or session goes silent. |
 | `POST /v1/environments/{id}/claims` · `DELETE …/claims/{claim}` | Claim a shared environment or join its queue; release it. |
 | `POST /v1/deploys/{target}/lock` · `DELETE …/lock` | Take and release a deploy lock. Production locks require an approval record. |
 | `POST /v1/quotas/{name}/draws` · `GET /v1/quotas` | Record a draw; read remaining headroom. |
@@ -184,8 +188,9 @@ retried call never double-claims.
 - **Identity is GitHub identity.** A person signs in to the desk with GitHub.
   A session authenticates with a token that GitHub issues to that engineer
   (a fine-grained personal token, or a short-lived token from a GitHub App the
-  team installs). The coordinator checks the token with GitHub and records the
-  login on every event.
+  team installs). The coordinator checks the token with GitHub and resolves the
+  login to the engineer's pseudonymous id; events carry that id, never the
+  login (see "History is kept indefinitely" below).
 - **Membership is the access rule.** Access requires membership of a
   configured GitHub organization or team. A session may act on a repo only if
   its engineer has write access to that repo, and the coordinator checks this
@@ -197,16 +202,17 @@ retried call never double-claims.
 - **Authority does not widen.** The coordinator can refuse (a lease, a claim,
   a lock, a run past allocation). It can never grant anything GitHub does not
   already allow: it cannot merge, cannot deploy, cannot approve.
-- **Everything is attributed.** Every event names engineer, session and
-  machine. The Warden reviews the coordinator like any other data use
+- **Everything is attributed.** Every event names the engineer (by
+  pseudonymous id), the session and the machine. The Warden reviews the coordinator like any other data use
   (DEC-0025), and its gate applies before the first team rollout.
 - **History is kept indefinitely.** Coordinator events are append-only and
   never expire: the team's record of who held what, when, and why stays
   complete, as each repo's ledger already does. Old events move to cheaper
   archive storage but stay readable. Two things make indefinite retention safe:
   - **People can be forgotten without losing the record.** Events refer to an
-    engineer through a stable pseudonymous id; the id-to-login mapping is a
-    separate table. Removing a person (for example under a data-protection
+    engineer only through a stable pseudonymous id and never store the login;
+    the id-to-login mapping is a separate table and the only place a login is
+    kept. The desk resolves ids to logins at display time. Removing a person (for example under a data-protection
     request) deletes their mapping row, and their events remain, attributed to
     an anonymous id. This is the only kind of deletion the coordinator allows.
   - **Nothing sensitive is kept in the first place** (the least-data rule
@@ -222,8 +228,8 @@ two sessions silently collide.
 | Action | Coordinator down |
 |---|---|
 | Build, test locally, write events, render the repo wall | Proceeds. |
-| Run start inside a wave already allocated | Proceeds against the last allocation read; flagged `coordinator_unreachable` on the wall. |
-| Lease a path already leased locally | Proceeds. A new cross-session lease on a path last seen held elsewhere is refused. |
+| Run start inside a wave | Proceeds only into a slot the session already holds (section 6.2: a reservation made before the outage and still inside its TTL, including one freed by the session's own finished run). Otherwise refused, or opened with `--over-cap-reason`, recorded and flagged `coordinator_unreachable`. |
+| Lease a path | Only leases the coordinator already granted and that are still inside their TTL stay usable. A new claim on any path another machine could hold waits as pending until the coordinator answers: a stale local view cannot prove a path is free. Paths only this session's own subagents share keep the local lease table, as today. |
 | Claim a shared environment, take a deploy lock | **Refused.** These are exactly the collisions the coordinator exists to prevent. |
 | Enqueue a PR | Proceeds; the merge queue is GitHub's, not the coordinator's. |
 | Messages | Queued locally in `.wall/outbox/` and sent on reconnect. |
@@ -267,11 +273,12 @@ sequenceDiagram
   D->>C: PUT /v1/waves/api-service/W-12
   S->>C: GET /v1/waves?repo=api-service
   S->>R: wall run-start --role builder ...
-  R->>C: count open runs for W-12 (all sessions)
-  alt within allocation
-    C-->>R: ok
-    R-->>S: run_start written
-  else past allocation
+  R->>C: POST /v1/waves/api-service/W-12/slots (role builder)
+  alt a slot is free (checked and taken in one transaction)
+    C-->>R: reserved slot_91 (TTL)
+    R-->>S: run_start written, carrying slot_91
+    Note over R,C: if the local write fails, R releases slot_91
+  else all slots taken
     C-->>R: refused: 5 of 5 builders in use
     R-->>S: exit 1, unless --over-cap-reason (recorded, flagged)
   end
@@ -286,8 +293,13 @@ sequenceDiagram
   engineers in different repos are never in the same wave. The desk shows who
   is using which slots.
 - `wall run-start` *(exists)* already refuses past `role_limits`. With a
-  coordinator configured it also refuses past the wave's allocation, counting
-  open runs across **every** session in the wave. `--over-cap-reason` still
+  coordinator configured it also refuses past the wave's allocation, counted
+  across **every** session in the wave. The check is not a count followed by
+  a write: run-start asks the coordinator to reserve a role slot, and the
+  coordinator validates the allocation and takes the slot in one atomic step,
+  so concurrent sessions cannot both pass. The reservation is released at run
+  end, released by run-start itself if writing `run_start` fails, and expires
+  with a TTL if the run or its session stops heartbeating. `--over-cap-reason` still
   opens the run, still records the reason, and the courier still flags
   `over_cap`, now at the team level too (the "5 / 4 over" row below).
 - Token and CI budgets are soft limits: the desk shows burn against them and
