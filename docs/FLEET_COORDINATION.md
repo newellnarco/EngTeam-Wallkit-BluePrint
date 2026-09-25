@@ -176,7 +176,7 @@ retried call never double-claims.
 | `POST /v1/sessions` · `POST /v1/sessions/{id}/heartbeat` · `DELETE /v1/sessions/{id}` | Check in, stay alive, check out. The heartbeat carries the repo wall's summary (the same fields `wall summary` prints). |
 | `POST /v1/leases` · `DELETE /v1/leases/{id}` | Claim or release paths. A claim that overlaps another session's live lease returns `409` with the holder, and the caller queues or re-scopes. |
 | `PUT /v1/waves/{repo}/{wave}` · `GET /v1/waves?repo=` | The wave lead's allocation; sessions read it. |
-| `POST /v1/waves/{repo}/{wave}/slots` · `DELETE …/slots/{id}` | **Reserve a role slot atomically**: the coordinator checks the allocation and takes the slot in one transaction, so two sessions can never both take the last one. Returns a reservation id with a TTL; released at run end, or by the session if its local `run_start` write fails, and expired if the run or session goes silent. |
+| `POST /v1/waves/{repo}/{wave}/slots` · `DELETE …/slots/{id}` | **Reserve a role slot atomically**: the coordinator checks the allocation and takes the slot in one transaction, so two sessions can never both take the last one. Returns a reservation id with a TTL; released at run end, or by the session if its local `run_start` write fails, and expired if the run or session goes silent. A release the coordinator does not receive (section 5.4) changes nothing on its side: the slot stays counted as held until the TTL ends. |
 | `POST /v1/environments/{id}/claims` · `DELETE …/claims/{claim}` | Claim a shared environment or join its queue; release it. |
 | `POST /v1/deploys/{target}/lock` · `DELETE …/lock` | Take and release a deploy lock. Production locks require an approval record. |
 | `POST /v1/quotas/{name}/draws` · `GET /v1/quotas` | Record a draw; read remaining headroom. |
@@ -211,10 +211,20 @@ retried call never double-claims.
   archive storage but stay readable. Two things make indefinite retention safe:
   - **People can be forgotten without losing the record.** Events refer to an
     engineer only through a stable pseudonymous id and never store the login;
-    the id-to-login mapping is a separate table and the only place a login is
-    kept. The desk resolves ids to logins at display time. Removing a person (for example under a data-protection
-    request) deletes their mapping row, and their events remain, attributed to
-    an anonymous id. This is the only kind of deletion the coordinator allows.
+    machines and sessions are random ids too. The id-to-login mapping, and the
+    machine-id-to-hostname mapping, are separate tables and the only places a
+    login or hostname is kept. The desk resolves ids at display time. The
+    retained events are therefore **pseudonymised, not anonymous**: the stable
+    id, session, machine and times still tie them together, and repo ledgers
+    and git history can link them back to a person.
+  - **A removal request is handled in two steps.** First, always: delete the
+    person's mapping rows, so the coordinator no longer holds anything that
+    resolves their id. Second, when the Warden rules that the applicable law
+    requires more: redact that person's events in place. The pseudonymous,
+    machine and session ids become `removed`, and what was held, when and why
+    stays. The record stays complete as a record of the team's work; it just
+    no longer says who did it. These are the only two changes the coordinator
+    ever makes to a retained event.
   - **Nothing sensitive is kept in the first place** (the least-data rule
     above), so indefinite retention never means keeping secrets or customer
     data indefinitely. Incident records carry the ticket id, never the
@@ -228,7 +238,7 @@ two sessions silently collide.
 | Action | Coordinator down |
 |---|---|
 | Build, test locally, write events, render the repo wall | Proceeds. |
-| Run start inside a wave | Proceeds only into a slot the session already holds (section 6.2: a reservation made before the outage and still inside its TTL, including one freed by the session's own finished run). Otherwise refused, or opened with `--over-cap-reason`, recorded and flagged `coordinator_unreachable`. |
+| Run start inside a wave | Proceeds only into a slot the session already holds (section 6.2: a reservation made before the outage and still inside its TTL, including one the session's own finished run has released locally). Otherwise refused, or opened with `--over-cap-reason`, recorded and flagged `coordinator_unreachable`. |
 | Lease a path | Only leases the coordinator already granted and that are still inside their TTL stay usable. A new claim on any path another machine could hold waits as pending until the coordinator answers: a stale local view cannot prove a path is free. Paths only this session's own subagents share keep the local lease table, as today. |
 | Claim a shared environment, take a deploy lock | **Refused.** These are exactly the collisions the coordinator exists to prevent. |
 | Enqueue a PR | Proceeds; the merge queue is GitHub's, not the coordinator's. |
@@ -299,7 +309,21 @@ sequenceDiagram
   coordinator validates the allocation and takes the slot in one atomic step,
   so concurrent sessions cannot both pass. The reservation is released at run
   end, released by run-start itself if writing `run_start` fails, and expires
-  with a TTL if the run or its session stops heartbeating. `--over-cap-reason` still
+  with a TTL if the run or its session stops heartbeating.
+- **A release is final only when the coordinator has it.** Online, the
+  release at run end removes the reservation at once and the slot is free for
+  anyone. Offline, the session cannot tell the coordinator, so it keeps the
+  reservation locally: it may start another run of the same role into it until
+  the TTL ends, and the release waits in `.wall/outbox/`. The coordinator
+  still counts the slot as held, so reusing it never exceeds the allocation.
+  After the TTL the reservation is gone on both sides.
+- **Reconnect reconciles reservations before anything else is sent.** The
+  session sends every queued release, re-heartbeats each reservation an open
+  run still uses, and releases the rest. A run still open on a reservation
+  the coordinator has already expired asks for a fresh one; if the wave is
+  full, the run keeps going but is recorded over cap with the reason
+  `coordinator_unreachable` and flagged `over_cap`. A run is never stopped
+  because of an outage. `--over-cap-reason` still
   opens the run, still records the reason, and the courier still flags
   `over_cap`, now at the team level too (the "5 / 4 over" row below).
 - Token and CI budgets are soft limits: the desk shows burn against them and
@@ -641,7 +665,13 @@ receiving session's.
 
 Section 5.4 applies. The repo walls keep working, the desk shows the
 coordinator lamp cold, environment and deploy claims are refused, messages
-queue locally, and on reconnect the outbox drains and presence is re-sent.
+queue locally, and on reconnect the session, in order:
+
+1. reconciles its slot reservations (section 6.2): it sends queued releases,
+   re-heartbeats the ones open runs still use, and asks for a fresh one for
+   any run whose reservation expired, recording it over cap if the wave is full;
+2. drains the rest of the outbox;
+3. re-sends presence, and swaps any provisional `~` name for a team-unique one.
 
 ### W9. A new engineer or machine joins
 
@@ -795,7 +825,9 @@ P0 and P3 are useful to a single engineer and can ship first.
    systems the first release supports.
 4. **Retention.** Settled: indefinitely (section 5.3). Still open: confirm
    pseudonymous ids with a removable mapping as the way to honour a
-   person's removal request without breaking the record.
+   person's removal request without breaking the record, and when the
+   second step (redacting the person's events in place, section 5.3) is
+   required.
 5. **Serverless provider.** Which provider should the serverless reference
    deployment target first?
 6. **Agent names across sessions.** Settled: unique across the whole team
@@ -872,7 +904,9 @@ The Patron (2026-09-24):
    the name registry; keys remain the identity (DEC-0003).
 8. **The coordinator keeps its history indefinitely**, append-only, with
    engineers referenced by pseudonymous ids so a person can be removed
-   without deleting the record.
+   without deleting the record. The events are pseudonymised, not
+   anonymous. A removal request deletes the person's mapping rows and, when
+   the Warden rules the law requires it, redacts their events in place.
 9. **Repositories are independent.** Coordination covers people, budget,
    environments and deploy targets, not code dependencies.
 10. **Test environments:** each engineer may hold several personal
