@@ -1,0 +1,171 @@
+<!doctype html>
+<!--
+  MOCK of the proposed team desk (docs/FLEET_COORDINATION.md, proposed DEC-0036).
+  Static, no network, fictional data. Rendered to docs/images/fleet/desk-*.png.
+  Not served by any command yet: nothing here is built.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team desk (mock)</title>
+<style>
+:root{--bg:#f4f5f7;--panel:#fff;--line:#e3e5e9;--ink:#15181d;--dim:#5b616b;--faint:#5f6670;
+  --accent:#8a5a00;--ok:#2e6b3f;--warn:#9a6700;--bad:#b3261e;--chip:#f0f1f4;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans)}
+.wrap{max-width:1400px;margin:0 auto;padding:22px 42px 40px}
+header{display:flex;align-items:baseline;justify-content:space-between;border-bottom:2px solid var(--line);padding-bottom:10px}
+h1{font-size:22px;margin:0}h1 span{font-weight:400;color:var(--dim)}
+.meta{font:12px var(--mono);color:var(--dim)}.lamp{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--ok);margin:0 5px}
+.mockbar{background:#fff4d6;border:1px solid #e8cf8a;color:#6b4a00;font:12px var(--mono);padding:6px 10px;margin:12px 0 0;border-radius:4px}
+nav{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-top:6px}
+nav a{padding:12px 16px;color:var(--dim);text-decoration:none;letter-spacing:.06em;font-size:14px}
+nav a.on{color:var(--ink);border-bottom:2px solid var(--accent)}nav a small{font:10px var(--mono);margin-left:5px;color:var(--faint)}
+section{background:var(--panel);border:1px solid var(--line);margin-top:16px}
+section>h2{font-size:15px;margin:0;padding:12px 16px;border-bottom:1px solid var(--line)}
+section>h2 span{font-weight:400;color:var(--dim);font-size:13px;margin-left:8px}
+.gauges{display:grid;grid-template-columns:repeat(5,1fr)}
+.g{padding:14px 16px;border-right:1px solid var(--line)}.g:last-child{border-right:0}
+.g h4{margin:0;font-weight:400;font-size:13px}.g .big{font:28px var(--mono)}.g .foot{font:11px var(--mono);color:var(--dim)}
+table{width:100%;border-collapse:collapse}th{text-align:left;font-weight:400;color:var(--dim);font-size:12px;background:#fafbfc}
+th,td{padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}td.n{font-family:var(--mono);text-align:right}
+.chip{display:inline-block;font:11px var(--mono);padding:1px 7px;border:1px solid var(--line);border-radius:3px;background:var(--chip)}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.k{font:11px var(--mono);color:var(--faint)}
+.bar{height:6px;background:var(--chip);border-radius:3px;overflow:hidden;margin-top:6px}.bar i{display:block;height:100%;background:var(--accent)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}.two section{margin-top:16px}
+.view{display:none}.view.on{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Team desk <span>all repos, all sessions</span></h1>
+  <div class="meta">coordinator<span class="lamp"></span>connected 3s ago &nbsp;·&nbsp; 4 repos · 3 engineers · 6 sessions · 5 machines</div>
+</header>
+<div class="mockbar">MOCK: proposed in docs/FLEET_COORDINATION.md (proposed DEC-0036). Fictional data. Nothing on this page is built yet.</div>
+<nav id="nav">
+  <a href="#overview" data-v="overview">OVERVIEW</a>
+  <a href="#waves" data-v="waves">WAVES<small>2</small></a>
+  <a href="#envs" data-v="envs">ENVIRONMENTS<small>5</small></a>
+  <a href="#queue" data-v="envs">MERGE QUEUE<small>3</small></a>
+  <a href="#messages" data-v="overview">MESSAGES<small>2</small></a>
+  <a href="#quotas" data-v="waves">QUOTAS</a>
+</nav>
+
+<!-- ============================ OVERVIEW ============================ -->
+<div class="view" id="v-overview">
+<section>
+  <h2>Now<span>the whole team, right now</span></h2>
+  <div class="gauges">
+    <div class="g"><h4>Agents working</h4><div class="big">14</div><div class="foot">of 18 allocated this wave</div></div>
+    <div class="g"><h4>Waiting on people</h4><div class="big">3</div><div class="foot">2 questions · 1 verification</div></div>
+    <div class="g"><h4>Merge queue</h4><div class="big">3</div><div class="foot">2 repos · oldest 14 min</div></div>
+    <div class="g"><h4>Environments claimed</h4><div class="big">4</div><div class="foot">of 5 · 1 shared queued</div></div>
+    <div class="g"><h4>Integrity flags</h4><div class="big warn">2</div><div class="foot">web-client: over_cap, stale session</div></div>
+  </div>
+</section>
+<section>
+  <h2>Repos<span>one row per repo; each links to that repo's full wall</span></h2>
+  <table>
+    <tr><th>Repo</th><th>Sessions</th><th>Engineers</th><th class="n">Agents</th><th class="n">Waiting</th><th class="n">In queue</th><th>Main CI</th><th>Flags</th><th>Last sweep</th></tr>
+    <tr><td><b>api-service</b><div class="k">wall → /r/api-service/</div></td><td>2 <span class="k">(2 machines)</span></td><td>@engineer-a, @engineer-b</td><td class="n">7 / 8</td><td class="n">1</td><td class="n">2</td><td><span class="ok">● green</span></td><td><span class="chip">clean</span></td><td class="k">41 s ago</td></tr>
+    <tr><td><b>web-client</b><div class="k">wall → /r/web-client/</div></td><td>2</td><td>@engineer-b, @engineer-c</td><td class="n">5 / 4</td><td class="n">2</td><td class="n">1</td><td><span class="warn">● running</span></td><td><span class="chip warn">over_cap</span> <span class="chip warn">stale session</span></td><td class="k">1 m ago</td></tr>
+    <tr><td><b>billing-worker</b><div class="k">wall → /r/billing-worker/</div></td><td>1</td><td>@engineer-a</td><td class="n">2 / 4</td><td class="n">0</td><td class="n">0</td><td><span class="ok">● green</span></td><td><span class="chip">clean</span></td><td class="k">38 s ago</td></tr>
+    <tr><td><b>infra-config</b><div class="k">wall → /r/infra-config/</div></td><td>1</td><td>@engineer-c</td><td class="n">0 / 2</td><td class="n">0</td><td class="n">0</td><td><span class="bad">● red</span></td><td><span class="chip">clean</span></td><td class="k">2 m ago</td></tr>
+  </table>
+</section>
+<section>
+  <h2>Sessions<span>who is working where; a session is one Maestro on one machine in one repo</span></h2>
+  <table>
+    <tr><th>Session</th><th>Engineer</th><th>Machine</th><th>Repo</th><th>Wave</th><th class="n">Agents</th><th>Leased surface</th><th>Heartbeat</th></tr>
+    <tr><td class="k">ses_7f3a01</td><td>@engineer-a</td><td>laptop-a</td><td>api-service</td><td>W-12</td><td class="n">4</td><td class="k">src/orders/, tests/orders/</td><td class="ok">12 s</td></tr>
+    <tr><td class="k">ses_91c2e4</td><td>@engineer-b</td><td>cloud-3</td><td>api-service</td><td>W-12</td><td class="n">3</td><td class="k">src/auth/</td><td class="ok">20 s</td></tr>
+    <tr><td class="k">ses_0b77d9</td><td>@engineer-a</td><td>desktop-a</td><td>billing-worker</td><td>W-4</td><td class="n">2</td><td class="k">worker/retry/</td><td class="ok">9 s</td></tr>
+    <tr><td class="k">ses_c410aa</td><td>@engineer-b</td><td>laptop-b</td><td>web-client</td><td>W-7</td><td class="n">3</td><td class="k">app/checkout/</td><td class="ok">31 s</td></tr>
+    <tr><td class="k">ses_5e02f8</td><td>@engineer-c</td><td>laptop-c</td><td>web-client</td><td>W-7</td><td class="n">2</td><td class="k">app/search/</td><td class="warn">7 m · stale</td></tr>
+    <tr><td class="k">ses_e81d30</td><td>@engineer-c</td><td>laptop-c</td><td>infra-config</td><td>—</td><td class="n">0</td><td class="k">—</td><td class="ok">44 s</td></tr>
+  </table>
+</section>
+<section id="messages">
+  <h2>Messages<span>typed, acknowledged, and copied into each repo's ledger</span></h2>
+  <table>
+    <tr><th>When</th><th>Kind</th><th>From</th><th>To</th><th>Text</th><th>State</th></tr>
+    <tr><td class="k">10:42</td><td><span class="chip">handoff</span></td><td>ses_91c2e4 (api-service)</td><td>ses_7f3a01</td><td>auth token refresh landed in the queue; rebase src/orders/ callers after it merges</td><td class="ok">acked</td></tr>
+    <tr><td class="k">10:37</td><td><span class="chip warn">lease conflict</span></td><td>coordinator</td><td>ses_5e02f8, ses_c410aa</td><td>app/shared/ requested by both; granted to ses_c410aa, ses_5e02f8 queued</td><td class="warn">open</td></tr>
+  </table>
+</section>
+</div>
+
+<!-- ============================ WAVES + QUOTAS ============================ -->
+<div class="view" id="v-waves">
+<section>
+  <h2>Wave allocation<span>the engineer assigns each wave; run-start refuses past the allocation</span></h2>
+  <table>
+    <tr><th>Wave</th><th>Repo</th><th>Assigned by</th><th class="n">Builders</th><th class="n">Reviewers</th><th class="n">Researchers</th><th class="n">In use</th><th>Window</th><th>Budget</th></tr>
+    <tr><td>W-12</td><td>api-service</td><td>@engineer-a</td><td class="n">5</td><td class="n">2</td><td class="n">1</td><td class="n">7 / 8</td><td class="k">09:00–13:00</td><td class="k">tokens 18M · CI 240 min</td></tr>
+    <tr><td>W-7</td><td>web-client</td><td>@engineer-b</td><td class="n">3</td><td class="n">1</td><td class="n">0</td><td class="n ">5 / 4 <span class="warn">over</span></td><td class="k">10:00–12:00</td><td class="k">tokens 9M · CI 120 min</td></tr>
+    <tr><td>W-4</td><td>billing-worker</td><td>@engineer-a</td><td class="n">2</td><td class="n">1</td><td class="n">1</td><td class="n">2 / 4</td><td class="k">09:30–17:00</td><td class="k">tokens 6M · CI 90 min</td></tr>
+  </table>
+</section>
+<section id="quotas">
+  <h2>Quotas<span>shared by the whole team; each draw is attributed to a session and engineer</span></h2>
+  <div class="gauges">
+    <div class="g"><h4>Model tokens (team)</h4><div class="big">31M</div><div class="foot">of 60M today · 52% left</div><div class="bar"><i style="width:48%"></i></div></div>
+    <div class="g"><h4>CI minutes (month)</h4><div class="big">1.9k</div><div class="foot">of 3.0k · runs out in 9 d</div><div class="bar"><i style="width:63%"></i></div></div>
+    <div class="g"><h4>Self-hosted runners</h4><div class="big">3</div><div class="foot">of 4 busy · 2 jobs waiting</div><div class="bar"><i style="width:75%"></i></div></div>
+    <div class="g"><h4>Hosted reviewer lane</h4><div class="big">11</div><div class="foot">of 16 reviews / hour</div><div class="bar"><i style="width:69%"></i></div></div>
+    <div class="g"><h4>GitHub API</h4><div class="big">3.1k</div><div class="foot">of 5k / hour · coordinator caches reads</div><div class="bar"><i style="width:62%"></i></div></div>
+  </div>
+</section>
+</div>
+
+<!-- ============================ ENVIRONMENTS + QUEUE ============================ -->
+<div class="view" id="v-envs">
+<section>
+  <h2>Test environments<span>personal ones are many and private; shared ones are claimed, queued and released</span></h2>
+  <table>
+    <tr><th>Environment</th><th>Kind</th><th>Repo scope</th><th>Deploys</th><th>Held by</th><th>Since</th><th>Queue</th><th>CT</th></tr>
+    <tr><td><b>api-a-1</b></td><td><span class="chip">personal</span></td><td>api-service</td><td class="k">api</td><td>@engineer-a · ses_7f3a01</td><td class="k">09:04</td><td>—</td><td class="ok">● 214 pass</td></tr>
+    <tr><td><b>api-b-2</b></td><td><span class="chip">personal</span></td><td>api-service</td><td class="k">api, worker</td><td>@engineer-b · ses_91c2e4</td><td class="k">09:40</td><td>—</td><td class="ok">● 214 pass</td></tr>
+    <tr><td><b>web-c-1</b></td><td><span class="chip">personal</span></td><td>web-client</td><td class="k">web</td><td>@engineer-c · ses_5e02f8</td><td class="k">10:02</td><td>—</td><td class="warn">● 3 fail</td></tr>
+    <tr><td><b>staging</b></td><td><span class="chip warn">shared</span></td><td>api-service, web-client</td><td class="k">all deploys</td><td>@engineer-b · ses_c410aa</td><td class="k">10:31 · TTL 45 m</td><td>ses_7f3a01</td><td class="ok">● e2e 58 pass</td></tr>
+    <tr><td><b>perf</b></td><td><span class="chip warn">shared</span></td><td>billing-worker</td><td class="k">worker</td><td>free</td><td class="k">—</td><td>—</td><td class="k">idle</td></tr>
+  </table>
+</section>
+<section id="queue">
+  <h2>Merge queue<span>the platform merges; sessions enqueue. Required checks run on the combined result.</span></h2>
+  <table>
+    <tr><th>Pos</th><th>Repo</th><th>PR</th><th>Session</th><th>Engineer</th><th>Checks on merge group</th><th>Waiting</th></tr>
+    <tr><td class="n">1</td><td>api-service</td><td>#412 auth token refresh</td><td class="k">ses_91c2e4</td><td>@engineer-b</td><td class="warn">● running 4/6</td><td class="k">14 m</td></tr>
+    <tr><td class="n">2</td><td>api-service</td><td>#415 order export streaming</td><td class="k">ses_7f3a01</td><td>@engineer-a</td><td class="k">queued behind #412</td><td class="k">6 m</td></tr>
+    <tr><td class="n">1</td><td>web-client</td><td>#233 checkout address form</td><td class="k">ses_c410aa</td><td>@engineer-b</td><td class="ok">● green, merging</td><td class="k">2 m</td></tr>
+  </table>
+</section>
+<section>
+  <h2>Deploy targets<span>one deploy at a time per target; production needs a person</span></h2>
+  <table>
+    <tr><th>Target</th><th>Repo</th><th>Lock</th><th>Last deploy</th><th>Approval</th></tr>
+    <tr><td><b>preview-*</b></td><td>web-client</td><td class="k">per PR, no lock</td><td class="k">#233 · 10:44</td><td class="k">none</td></tr>
+    <tr><td><b>staging</b></td><td>api-service</td><td>ses_c410aa (with env claim)</td><td class="k">main@8c1e2f · 10:31</td><td class="k">none</td></tr>
+    <tr><td><b>production</b></td><td>api-service</td><td class="k">free</td><td class="k">v2.14.0 · yesterday</td><td class="warn">@engineer-a required</td></tr>
+  </table>
+</section>
+</div>
+</div>
+<script>
+(function(){
+  var views={overview:1,waves:1,envs:1};
+  function show(){
+    var h=(location.hash||'#overview').slice(1), v=views[h]?h:({queue:'envs',messages:'overview',quotas:'waves'}[h]||'overview');
+    document.querySelectorAll('.view').forEach(function(e){e.classList.toggle('on',e.id==='v-'+v);});
+    document.querySelectorAll('nav a').forEach(function(a){a.classList.toggle('on',a.getAttribute('href')==='#'+h||(!views[h]&&a.dataset.v===v&&a.getAttribute('href')==='#'+v));});
+    if(!views[h]){var t=document.getElementById(h); if(t){t.setAttribute('tabindex','-1'); t.scrollIntoView(); t.focus({preventScroll:true});}} else {window.scrollTo(0,0);}
+  }
+  window.addEventListener('hashchange',show); show();
+})();
+</script>
+</body>
+</html>

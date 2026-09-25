@@ -627,6 +627,8 @@ The loop runs: running system → redacted snapshots shipped unconditionally →
 
 For more than one adopting repo (`FLEET.md`): verdicts are exit codes (0 in sync, 1 diverged and acted on, 2 UNKNOWN, which is never a pass). One hash-pinned, byte-identical shared block. Delivery by draft PR. Every inbound item is adopted, reworded or declined with a reason.
 
+**Proposed, not built: fleet coordination** (`FLEET_COORDINATION.md`, proposed DEC-0036). One machine already sweeps many repos (DEC-0010), but each repo serves its own wall on one port, and a team breaks the one-session assumptions: two sessions in one repo on different machines cannot see each other's leases, open runs or roster, can race merges, and overwrite each other's `wall-events` telemetry. The proposal adds two tiers above the unchanged repo wall. A **machine desk** serves every registered repo from one local server and needs no service. A **team tier** adds a shared coordinator (self-hosted or serverless, chosen at setup, GitHub identity) holding presence, cross-machine leases, wave allocations the engineer assigns (engineers share a wave only when they work in the same repo, however many sessions each runs, and the repo's Patron engineer leads it), shared test environments (first come, first served unless a priority jumps the queue) and deploy locks, a team-wide quota ledger, and typed, acknowledged messages between sessions. Merges move to the platform merge queue: a Maestro enqueues and never merges. A customer-reported production issue overrides all work in its repo until the fix is in production, without skipping any gate. It ships in six phases (P0 machine desk to P5 incident override); the design lists the questions still open for the owner.
+
 ### 7.18 Deployment targets (P)
 
 Docker, VMs and Kubernetes (`DEPLOYMENT_TARGETS.md`). The invariants: one sweeper per checkout; the unauthenticated server is never exposed; one writer for the telemetry branch; applying a manifest counts as consent.
@@ -1005,6 +1007,7 @@ The first edition of this guide listed fourteen places where the docs and the co
 - **First install over same-named files.** `fresh` and `adopt` still overwrite a differing host file under `docs/` or `tools/wall/` on the *first* install (a re-run is protected by the manifest). Blocking there would make `adopt` refuse on any host with a same-named doc; it deserves its own decision.
 - **The demo** cannot be regenerated until its source is committed.
 - **The DESIGN tab** waits for its data contract (DEC-0026).
+- **More than one session, machine or engineer.** Today each repo serves its own wall (a second `wall serve` needs its own `--port`), and sessions in the same repo on different machines cannot see each other's leases, runs or roster. The fix is proposed in `FLEET_COORDINATION.md` (proposed DEC-0036) and is not built.
 
 ### Things you may not have considered
 
@@ -1012,7 +1015,7 @@ The first edition of this guide listed fourteen places where the docs and the co
 - **Access control for the repo itself.** The kit's segregation of duties is only as strong as GitHub permissions and branch protection. Require your review on the default branch, and restrict who can push to `wall-events`.
 - **Provider-side spend caps.** Budgets are advisory, so set hard limits at the model provider and in GitHub billing.
 - **Session sandboxing.** Run agent sessions in a container or VM with scoped tokens. Don't run them on a machine holding production credentials.
-- **Multiple humans.** The kit models one Patron. With a team, decide who answers WAITING items, who can `ack-doc`, who can `verified`, and who can write `OWNER_DECISIONS`. Record that as a DEC.
+- **Multiple humans.** The kit models one Patron. With a team, decide who answers WAITING items, who can `ack-doc`, who can `verified`, and who can write `OWNER_DECISIONS`. Record that as a DEC. The team model, with GitHub identity per session and one Patron engineer per repo leading its wave, is proposed in `FLEET_COORDINATION.md` (proposed DEC-0036).
 - **Continuity.** If the one machine with the timer dies, the wall stops but no work is lost (state is in git). Document how to re-register on a new machine.
 - **Model changes.** Model names are pinned in role frontmatter. When models change, update the tiering DEC and re-measure token-per-unit costs, rather than silently swapping.
 - **Licensing and data residency** of the model provider, for regulated data.
@@ -1226,6 +1229,7 @@ Every document the kit ships, and what it is for. A new document is added here i
 | `docs/EVENT_SCHEMA.md` | The ledger contract — read before the first real run |
 | `docs/FAST_TRACK.md` | Doc-only routing (generator sources are code), and the CI meter economics that go with it |
 | `docs/FLEET.md` | More than one adopting repository: exit-code verdicts, the spin-off exchange, one byte-identical artifact, dispositions |
+| `docs/FLEET_COORDINATION.md` | **Proposed, not built.** A team of engineers with many sessions, machines and repos: the machine desk, the coordinator, wave allocation, cross-session messages, the platform merge queue, test environments, deploy locks, team quotas, workflows and screenshots (proposed DEC-0036). Its mock desk is `docs/fleet/desk-mock.html`; screenshots in `docs/images/fleet/` |
 | `docs/GIT_HOOKS.md` | The free local gate: hooks as step 0, named escape hatches instead of `--no-verify`, line-ending pinning, baseline ratchets |
 | `docs/INSTALL.md` | Machine-wide timer, serving, platform specifics, the full CLI table (`tests/test_cli_table.py`) |
 | `docs/ITEM_AUTHORING.md` | Arcs, stories, bugs — how the Architect writes them, how research enriches them |
@@ -1278,6 +1282,20 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 ## Appendix C. Change log
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
+
+### 2026-09-24: fleet coordination proposed
+
+- **Proposed, not built:** `docs/FLEET_COORDINATION.md` and its proposed DEC-0036 design the team tier: a machine desk serving every registered repo from one server, a shared coordinator (self-hosted or serverless, GitHub identity), waves the engineer assigns, cross-machine leases, typed acknowledged messages between sessions, the platform merge queue in place of the Maestro's merge, personal and shared test environments, deploy locks and team-wide quotas. Includes workflows, diagrams, real screenshots of the wall and a mock of the desk.
+- **Owner ruling folded into the proposal:** wave membership follows the repo. Engineers are in the same wave only when they work in the same repo, however many sessions each runs; a repo has one open wave at a time.
+- **Owner ruling folded into the proposal:** the repo's Patron engineer leads its shared wave: assigns the allocation, approves changes, closes it.
+- **Owner ruling folded into the proposal:** agent names are unique across the whole team; the coordinator is the name registry and keys stay the identity.
+- **Owner ruling folded into the proposal:** the coordinator keeps its history indefinitely, append-only, with engineers referenced by pseudonymous ids so a person can be removed without deleting the record.
+- **Owner rulings folded into the proposal:** the shared-environment priority levels are `normal`, `high` and `urgent`, and `urgent` needs the lead Patron engineer's approval; `blocker` and `question` messages and incidents also reach each engineer by email and chat, both where both are configured.
+- **Owner ruling folded into the proposal:** a priority can jump a shared test environment's queue (otherwise first come, first served). A jump never interrupts the current holder, and every jump is attributed and shown on the desk.
+- **Owner ruling folded into the proposal:** a production issue reported by a customer overrides all work in its repo (dispatch, leases, allocation, merge queue, shared environments, runners, reviewer lanes, deploy locks) until the fix is in production, and the fix still goes through the full process with a person approving the production deploy. `FLEET_COORDINATION.md` section 9.5 and workflow W11.
+- **Design review fixes (hosted review):** coordinator events carry pseudonymous ids, never logins; provisional agent names during an outage are session-suffixed so they stay team-unique; an outage allows only still-valid coordinator-granted leases and keeps new cross-machine claims pending; wave slots are reserved atomically at the coordinator, released on a failed write and expired by TTL; the rollout is six phases (P0 to P5); the desk mock's small labels meet 4.5:1 contrast and its shared-view tabs scroll to their section.
+- **Second review round (hosted review):** retained coordinator events are described as pseudonymised, not anonymous; a removal request deletes the person's mapping rows and, when the Warden rules the law requires it, redacts their events in place. A slot released while the coordinator is down stays held at the coordinator, and reusable by the same session, until its TTL ends. On reconnect the session reconciles its reservations first: it re-heartbeats those open runs use and drops any stale queued release for them, then sends the remaining releases, and takes a fresh reservation (or an over-cap record) for any run whose reservation expired.
+- **`INSTALL.md` no longer claims a cross-repo rollup exists.** It said the rollup "comes free"; it was never built. It now says so and points to the proposal.
 
 ### 2026-09-24: operational gaps closed; this guide made canonical
 
