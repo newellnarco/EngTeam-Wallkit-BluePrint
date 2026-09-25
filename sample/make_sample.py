@@ -440,7 +440,7 @@ def main(root: Path = ROOT):
             "allow": ["**/*.md", "docs/**/*.docx", "MANIFEST.sha256"],
             "deny": ["frontend/src/**", "backend/**/*.py", "**/*.bat", "**/*.ps1",
                      ".github/workflows/**", "tools/**", ".wall/config/**",
-                     "**/CLAUDE.md"],
+                     "**/AGENTS.md", "**/CLAUDE.md"],
             "significant": ["docs/architecture/**", "docs/decisions/**"],
         },
     }, indent=2), encoding="utf-8")

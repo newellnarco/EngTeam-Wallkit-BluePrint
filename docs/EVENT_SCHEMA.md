@@ -110,12 +110,47 @@ the first time a name is recycled.
 
 | Event | Written by | Notes |
 |---|---|---|
-| `run_start` | Maestro, before dispatch | Carries `item_id`, deadline, scopes |
-| `run_end` | SubagentStop hook | Written whether or not the agent wrote one |
-| `run_error` | SubagentStop hook | Crash, timeout, tool failure |
+| `run_start` | Maestro, before dispatch (`wall run-start`) | Carries `item_id`, deadline, scopes |
+| `run_end` | SubagentStop hook (`wall run-end` where no hook runs) | Written whether or not the agent wrote one |
+| `run_error` | SubagentStop hook (`wall run-end` where no hook runs) | Crash, timeout, tool failure |
 
 The hook owns the terminal event. An agent that forgets to log is a bug you
 cannot prompt away; a hook that fires on termination is guaranteed.
+
+### `run_start` and the open-runs registry
+
+`wall run-start --key K --role R --item ID --deadline-min N [--scope PATH ...]
+[--model M] [--session S]` writes:
+
+```json
+{"event": "run_start", "run_id": "run_0142", "parent_run_id": "run_0139",
+ "agent_key": "bld_a41f09", "agent_name": "Desmond", "role": "builder",
+ "item_id": "ST-106", "trace_id": "tr_st106", "model_requested": "claude-opus-5",
+ "deadline": "2026-09-19T14:33:22.441Z", "deadline_min": 30,
+ "scope": ["backend/ledger/"], "decisions_in_context": ["DEC-0043"]}
+```
+
+and registers the same run in `.wall/registry/open_runs.json` as
+`{"<run_id>": {run_id, session_id, agent_key, agent_name, role, item_id,
+trace_id, parent_run_id, model_requested, started, deadline, scope,
+decisions_in_context}}` -- the fields the SubagentStop hook resolves a stop
+against (`started` is the `run_start` ts; `session_id` is the dispatching
+session, which is what the hook filters on). A file already written in the
+`{"runs": [...]}` shape keeps that shape.
+
+**Role caps.** A run is *open* while its `run_start` has no terminal event and
+is not past its `deadline` (or, for a record without one, `stale_after_min`
+past its `ts`). `wall run-start` refuses (exit 1) when opening the run would
+put more than `role_limits[role]` open runs on that role; `--over-cap-reason
+"..."` opens it anyway and records `over_cap: {limit, open}` plus
+`over_cap_reason` on the event. The courier's `over_cap` flag (section 7)
+catches runs written by hand, outside the command.
+
+**No hooks.** `wall run-end --run <run_id> [--outcome O] [--error-class C]`
+writes the terminal record in exactly the hook's shape (folding in
+`.wall/runs/<run_id>/outcome.json` when the agent left one), with
+`hook.source: "wall run-end"`, into the session that registered the run, and
+removes the run from `open_runs.json`. It refuses a second terminal record.
 
 ### `hook` — how the terminal record came to exist
 
@@ -250,7 +285,8 @@ overlap means `blocked`, whatever the builder hoped.
 | Event | Notes |
 |---|---|
 | `warden_ruling` | One Warden verdict. Carries `gate` (`architecture` \| `data_use` \| `delivery_audit` \| `playbook` \| `tech_eval`), `subject`, `verdict`, and where applicable `tier` + `obligation` (the citable rule the verdict rests on). The POSTURE tab folds the LATEST ruling per (gate, subject); a ruling with no subject or verdict is counted malformed, never dropped silently |
-| `retro_held` | One wave-close retrospective (RETROSPECTIVES.md). Carries `wave`, `signals` `[{role, name, value, prior?}]` (numeric values feed the trend series), `diffs` `[{path, why, horizon?}]`, `remeasured` `[{path, verdict}]`, `requeued`. The RETRO tab shows the latest in full and every signal's series across waves |
+| `retro_held` | One wave-close retrospective (RETROSPECTIVES.md). Carries `wave`, `signals` `[{role, name, value, prior?, source}]` (numeric values feed the trend series; `source` is `ledger` \| `wall` \| `checks` \| `ci`), `diffs` `[{kind, path, why, owner, signal, horizon}]` (at most three; `kind` from the closed list `rule` \| `sop` \| `template` \| `failure_class` \| `rebalance` \| `design_candidate` \| `no_change`), `remeasured` `[{path, verdict}]`, `requeued`, `inputs_addressed` `[{input, disposition, diff\|item\|reason}]` (one per pending `retro_input`). Written by `wall retro --wave W --file retro.json`, which refuses a record that breaks those rules or leaves a pending input unaddressed. The RETRO tab shows the latest in full and every signal's series across waves |
+| `rebalance_applied` | One executed rebalance (CAPACITY_REBALANCING section 4): `knob`, `from`, `to`, `signals` `[{name, value}]`, `expected_effect`, `horizon`, `revert` `{knob, from, to}` (the one-step revert), `reversal` (bool), and `reason` / `adjudication` when an override was used. Written by `wall rebalance`, which refuses a second knob before a `retro_held` closes the cycle (unless `--reason`) and a second reversal of the same knob (routed to the Adjudicator as a `question_raised` + `question_escalated` to tier `adjudicator`, until `--adjudication REF`). Folded into the RETRO view's `rebalances`; `wall summary` reports the latest |
 | `doc_reviewed` | A human acknowledged a document of record AT a sha: `path`, `sha`, `by`. The DOCS tab compares the acked sha against the file's current hash — an ack at a stale sha does not make a changed document current, which is the point of carrying the sha |
 | `doc_feedback` | The review's OTHER answer (DEC-0027): not signed off. Carries `path`, `sha`, `by`, `text` (the correction / remap / discussion). The doc reads **feedback-open** — outranking every readable state — until a NEWER `doc_reviewed` lands; the text routes to the Architect as a finding. Written by `wall ack-doc <path> --feedback "..."` |
 | `retro_input` | A Patron note the NEXT retrospective must consume (DEC-0027): `by`, `text`. Pending inputs surface on the RETRO tab until a `retro_held` follows them, and RETROSPECTIVES.md binds that retro to address each one. Written by `wall retro-note --text "..."` |
@@ -379,6 +415,9 @@ otherwise have to notice.
 | `merged_but_open` | A shipped item that something still claims is open — see below |
 | `escalations` | The five WORKFLOW.md §4 invariants: blocked-without-question, unassigned past SLA, assigned-with-no-run, capacity wasted, open past threshold |
 | `stale_claims` | An agent reading `working` whose run blew its deadline. Evidence outranks self-report |
+| `over_cap` | Open runs of a role exceed `role_limits[role]` (one flag per role, with the run ids and any recorded `over_cap_reason`). `wall run-start` refuses this; the flag catches runs written by hand |
+| `dropped_findings` | A `diagnostic_finding` routed `story_filed` with no `story_filed` naming it past `sla_minutes.story_filed` (default 60) -- section 9 |
+| `verify_overdue` | A `verify_requested` no `verified` has answered, older than `verify_horizon_days` (default 7). The whole open queue rides the snapshot as `verify_waiting`, beside `waiting_on_you` -- section 9 |
 
 `state_drift_checked` is a separate boolean. When `.wall/items/` does not exist
 yet, drift is **not checked** rather than reported as zero — a check that has
@@ -437,6 +476,19 @@ within the SLA is a dropped ball, flagged like an unassigned question; a
 `verify_requested` older than the configured horizon surfaces on the WAITING
 tab beside unanswered asks — the loop holding a slot open for a human is
 visible, never silent.
+
+Writers, each validating before it appends:
+
+| Command | Writes | Refuses |
+|---|---|---|
+| `wall finding --signature S --class C --route R --snapshot-ref REF [--playbook P]` | `diagnostic_finding` (signature normalized: timestamps, ids, hex, numbers collapsed) | `auto_repaired` on an `unclassified` finding -- no signed playbook to run |
+| `wall story-filed --finding <event_id> --item ID` | `story_filed` (plus the item's `trace_id`) | an unknown finding; a second story for the same finding |
+| `wall verify-request --item ID --what "..." --steps "..." [--steps ...]` | `verify_requested` | no steps |
+| `wall verified --item ID --verdict V [--note "..."]` | `verified` on the `s_human` shard, `by`, `source: human` | no open request for the item; `confirmed_with_findings` without `--note` |
+
+The checks: `dropped_findings` (SLA `sla_minutes.story_filed`, default 60
+minutes) and `verify_overdue` (horizon `verify_horizon_days`, default 7), both
+in section 7. A `verified` retires every earlier request for its item.
 
 
 ## Regime lifecycle events (DEC-0030)

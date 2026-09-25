@@ -23,7 +23,7 @@ README = KIT / "README.md"
 OPEN_QUESTIONS = KIT / "docs" / "OPEN_QUESTIONS.md"
 
 EXPECTED_TEMPLATES = [
-    "CLAUDE.md.template",
+    "AGENTS.md.template",
     "RULES.md.template",
     "FAILURE_PATTERNS.md.template",
     "KNOWN_ISSUES.md.template",
@@ -91,7 +91,8 @@ def test_template_body_is_generic(name):
     not appear as a path somebody is expected to have.
     """
     body = read(TEMPLATES / name)
-    for bad in ("C:\\Dev", "newellnarco", "backend/max3", "MAX3"):
+    # Source-deployment names are guarded kit-wide by test_no_product_names.
+    for bad in ("C:\\Dev", "newellnarco"):
         assert bad not in body, f"{name} leaks host-specific detail: {bad}"
 
 
@@ -165,9 +166,11 @@ def test_decision_seed_set_present():
     # 29 the sibling fold-in (Patron, 2026-09-22); 30 the regime lifecycle
     # (Patron, 2026-09-22); 31 the NIST + FDA regimes (Patron, 2026-09-22);
     # 32 the DOCS read-and-verdict popup (Patron, 2026-09-22); 33 the
-    # failure library and known-issues intake (Patron, 2026-09-22).
+    # failure library and known-issues intake (Patron, 2026-09-22); 34 the
+    # hand-run diagnostic only while no closed loop exists (Patron, 2026-09-23);
+    # 35 a second CI trigger path as a project choice (Patron, 2026-09-23).
     # The equality still guards against holes and strays.
-    expected = [f"DEC-{n:04d}.md" for n in range(1, 34)]
+    expected = [f"DEC-{n:04d}.md" for n in range(1, 36)]
     assert names == expected, f"decision seed set drifted: {names}"
 
 

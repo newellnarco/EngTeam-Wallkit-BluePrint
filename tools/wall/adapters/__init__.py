@@ -9,10 +9,10 @@ stories and bugs from the first sweep.
 An adapter never edits the source. It only appends events, and appending twice
 changes nothing -- see `board_import.import_board`.
 
-    from adapters import import_board, PROFILE_MAX3
-    import_board(repo, "docs/project/board_state.json", PROFILE_MAX3)
+    from adapters import import_board, PROFILE_SLUG_KEYED
+    import_board(repo, "docs/project/board_state.json", PROFILE_SLUG_KEYED)
 
-    python3 -m adapters.board_import --repo . --source <path> --profile max3
+    python3 -m adapters.board_import --repo . --source <path> --profile slug-keyed
 
 The re-exports below are resolved lazily (PEP 562). Importing the submodule
 eagerly here would leave it in `sys.modules` before `python3 -m
@@ -29,8 +29,8 @@ from typing import Any
 _EXPORTS = (
     "IMPORT_ACTOR",
     "PROFILE_GENERIC",
-    "PROFILE_MAX3",
     "PROFILES",
+    "PROFILE_SLUG_KEYED",
     "WALL_KINDS",
     "WALL_STATUSES",
     "import_board",

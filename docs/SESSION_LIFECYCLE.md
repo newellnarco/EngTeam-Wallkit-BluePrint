@@ -17,8 +17,8 @@ run is indistinguishable from a run that never started.
 
 In order. Each step exists because skipping it produced a measured failure.
 
-1. **Read the root context documents.** The host's `CLAUDE.md` (or equivalent
-   entry point), `RULES.md`, `FAILURE_PATTERNS.md`, `SHIP_CHECKLIST.md`,
+1. **Read the root context documents.** The host's `AGENTS.md` (or its generated
+   `CLAUDE.md`, or equivalent entry point), `RULES.md`, `FAILURE_PATTERNS.md`, `SHIP_CHECKLIST.md`,
    `BEST_PRACTICES.md` — whatever the adoption mapped them to (README adoption
    runbook). These are the standing rules; a session that has not read them
    will re-learn one the expensive way.
@@ -51,10 +51,15 @@ In order. Each step exists because skipping it produced a measured failure.
 6. **Read the waiting tab.** Answers the engineer left via `wall answer` since
    the last session unpark items — those resume first, because a human already
    paid for those answers.
-7. **Verify the single PR slot.** If a previous session left an open PR on the
-   designated branch, this session adopts it (drive it to done per the
-   transplant procedure's tail) or asks — it never opens a second one beside
-   it, and never pushes while that PR's checks are running.
+7. **Adopt the open PRs.** Concurrent PRs on disjoint leased surfaces are the
+   default (DEC-0016). Every PR a previous session left open is adopted (driven
+   to done per the transplant procedure's tail) or asked about — never
+   abandoned, and never pushed to while its checks are running. A new PR opens
+   beside them only when its leased surface is disjoint from every open PR's;
+   merges stay serialized through the Maestro, one at a time. A host whose
+   standing rules mandate a single designated branch runs single-slot mode:
+   there, a leftover open PR is adopted or asked about and no second one is
+   opened beside it.
 8. **Vet the handoff against ground truth before acting on any of it.** The
    previous session's wave report and any handoff document are *claims*, not
    evidence — written by a session that could not see what happened after it

@@ -53,6 +53,12 @@ to be able to install its own hooks.
   remains the authoritative gate and a local gate that blocks on its own
   breakage teaches people to bypass it.
 
+Agent context copies are the common derived artifact (`docs/CONTEXT_FILES.md`):
+the pre-commit runs `python tools/wall/context_sync.py sync` and re-stages the
+regenerated `CLAUDE.md` copies (a refusal warns, never blocks), and the
+pre-push runs `python tools/wall/context_sync.py check`, which exits 1 only on
+a definite finding - a missing, stale, edited or hand-written copy.
+
 The economics are the point: the cheapest check is the one that never spends a
 metered minute, and a hosted reviewer raising something the local gate would
 have caught is a registered process failure (`docs/FAST_TRACK.md`).

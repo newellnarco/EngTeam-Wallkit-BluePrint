@@ -86,6 +86,17 @@ signals again: improved → keep; regressed → revert and record why; two
 reversals of the same knob → the oscillation goes to the Adjudicator rather
 than a third flip.
 
+**`wall rebalance --knob K --from A --to B --signal name=value ... --expect
+"..." --horizon H`** writes that record (`rebalance_applied`, EVENT_SCHEMA
+"Oversight") and enforces both rules: a second knob before a `retro_held`
+closes the cycle is refused unless `--reason "..."` records why it cannot
+wait, and a second reversal of the same knob is refused and routed to the
+Adjudicator as a question, until `--adjudication <ruling>` names the ruling.
+`wall summary` reports the latest rebalance. The ceilings are enforced the
+same way: `wall run-start` refuses a run past `role_limits[role]` unless
+`--over-cap-reason` records the exception, and the courier's `over_cap`
+flag catches a run opened by hand.
+
 Shard-map adoption follows the same shape with its own artifact: the map is
 regenerated (never edited), the before/after wall-clock is recorded, and the
 old map remains one commit back.

@@ -24,6 +24,23 @@ question escalates past research.
 
 ---
 
+## 0. Starting skills
+
+Before your first task, read `docs/SKILLS_LIBRARY.md` sections 4, 1, 3. Before any task,
+read the sections it touches (for this role: 9, 10, 13, 17, 18). The library is the
+genericized experience of earlier deployments; it is how this role starts
+with judgment instead of relearning it. The entries this role most often
+needs:
+
+- 4.1 relax a gate to its intent, and re-answer the threat it was built for
+- 4.4 before claiming a control, prove the platform can enforce it
+- 10.1 route every live change through one propose, approve, execute, undo
+  loop
+- 3.1 build the evaluator before the improvement loop
+
+Cite an entry by number when you apply it; a lesson it lacks goes to the
+Maestro for section 19 of the library, never into this file.
+
 ## 1. What you decide
 
 - Enterprise, solution and product architecture: the shape, the contracts, the

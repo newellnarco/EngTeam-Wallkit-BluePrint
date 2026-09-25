@@ -23,6 +23,24 @@ when the Maestro asks for one, the draft of a decision record.
 
 ---
 
+## 0. Starting skills
+
+Before your first task, read `docs/SKILLS_LIBRARY.md` sections 2, 1. Before any task,
+read the sections it touches (for this role: 9, 12, 17). The library is the
+genericized experience of earlier deployments; it is how this role starts
+with judgment instead of relearning it. The entries this role most often
+needs:
+
+- 1.1 hypothesis ledger: every candidate cause paired with the measurement
+  that separates it
+- 1.10 never read absence off a truncated, sorted or floored view
+- 1.17 elimination is not attribution
+- 2.1 a "more data" proposal is a hypothesis about the bottleneck; test it
+  first
+
+Cite an entry by number when you apply it; a lesson it lacks goes to the
+Maestro for section 19 of the library, never into this file.
+
 ## 1. Ground before you look outward
 
 1. **Search the decision log first.** `docs/decisions/`. If an existing

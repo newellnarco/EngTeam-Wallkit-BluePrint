@@ -14,95 +14,99 @@ The question sets that fill the root templates. Each template gets two layers:
 The mechanics are PRODUCT_INTAKE.md's: derive first with evidence, batch the
 rest per template onto the human queue, land every answer in the filled
 document (and as a `DEC-NNNN` where it is a ruling). The worked examples
-below come from the reference deployment ("a local-first AI resident" —
-MAX3), with contrasts from three sibling project shapes so the questions read
+below come from the reference deployment ("a local-first AI resident"),
+with contrasts from three sibling project shapes so the questions read
 as a method, not a questionnaire about one product:
 
-| Shape | Example | What it stresses |
+| Shape | Cited as | What it stresses |
 |---|---|---|
-| Local-first resident app | MAX3 | Privacy defaults, one-box ops, voice latency, a deployed tree beside the repo |
-| Network/security appliance | REEF (netsniff) | Captured traffic is sensitive by nature; privileged capture access; passive-vs-active posture |
-| Research collective / knowledge repo | MRC | Provenance and citation discipline; licensing of gathered material; multiple contributors |
-| Feed/ingestion product | feedhacker | Third-party terms and rate limits; schema drift; dedup; retention of pulled content |
+| Local-first resident app | resident app | Privacy defaults, one-box ops, voice latency, a deployed tree beside the repo |
+| Network/security appliance | appliance | Captured traffic is sensitive by nature; privileged capture access; passive-vs-active posture |
+| Research collective / knowledge repo | research repo | Provenance and citation discipline; licensing of gathered material; multiple contributors |
+| Feed/ingestion product (a browser extension) | feed product | Third-party terms and rate limits; schema drift; dedup; retention of pulled content |
 
 ---
 
-## 1. CLAUDE.md.template — the entry point
+## 1. AGENTS.md.template — the entry point
 
 **Required:**
 
-- Q1.1 What is this project, in one sentence a new session acts on? *(MAX3:
+- Q1.1 What is this project, in one sentence a new session acts on? *(Resident app:
   "a local-first, multi-user, voice-first AI Resident that runs as a single
   Python process on one workstation.")*
-- Q1.2 What is it explicitly NOT? *(MAX3: not a SaaS, not multi-tenant, not a
+- Q1.2 What is it explicitly NOT? *(Resident app: not a SaaS, not multi-tenant, not a
   general agent framework — three refusals that killed whole classes of bad
   PRs before they were written.)*
-- Q1.3 Where is the canonical truth when documents disagree? *(MAX3: the
+- Q1.3 Where is the canonical truth when documents disagree? *(Resident app: the
   design document is canonical; the entry point is a derived reference and
   says so — "if they conflict, this file is wrong; flag it.")*
-- Q1.4 Where do the rules live, and what is the reading order? *(MAX3: a
+- Q1.4 Where do the rules live, and what is the reading order? *(Resident app: a
   STOP block at the top: standing rules first, then failure registry, then
   checklist — in that order, before any work.)*
-- Q1.5 Who is the owner and what is the working cadence? *(MAX3: a solo
+- Q1.5 Who is the owner and what is the working cadence? *(Resident app: a solo
   developer, part-time — which sizes waves and explains the autonomy level.)*
 
 **LLM probes:**
 
 - Any predecessor system? Name it and the relationship, or a session will
-  conflate them. *(MAX3: HAL, "the predecessor on disk — not the movie
+  conflate them. *(Resident app: HAL, "the predecessor on disk — not the movie
   reference"; a probe nobody would have thought to ask for.)*
-- Standing naming/voice directives? *(MAX3: "always 'our AI Resident',
+- Standing naming/voice directives? *(Resident app: "always 'our AI Resident',
   never 'an AI assistant'" — a user direction that binds all copy; the probe
   is "is there any phrase I must always or never use?")*
-- Session-start ritual beyond reading? *(MAX3: verify platform identity,
+- Session-start ritual beyond reading? *(Resident app: verify platform identity,
   run the fleet exchange; probe: "what must a session do before its first
   edit that a README would not say?")*
+- Which agent tools does the team run, and which directories carry truths of
+  their own? The first sets `context.targets` (default: a generated
+  `CLAUDE.md`); the second names the nested `AGENTS.md` files
+  (docs/CONTEXT_FILES.md). Probe: "which rule here is only true under one
+  directory?"
 - Shape contrasts: an appliance's entry point names the capture boundary and
-  the lab-vs-live distinction first (REEF); a research repo names the
-  citation rule first (MRC); a feed product names the upstreams and their
-  terms first (feedhacker).
+  the lab-vs-live distinction first; a research repo names the citation rule
+  first; a feed product names the upstreams and their terms first.
 
 ## 2. RULES.md.template — the hard rules (Part 1 is the engineer's)
 
 **Required:**
 
 - Q2.1 What is the deployment/privacy stance? Local-first, cloud-first, or
-  mixed — and what may never leave the machine/boundary? *(MAX3: local-first
+  mixed — and what may never leave the machine/boundary? *(Resident app: local-first
   as hard rule 1; cloud is fallback with provenance marked and confidence
   capped.)*
-- Q2.2 Dependency policy: licenses allowed, who approves a new one? *(MAX3:
+- Q2.2 Dependency policy: licenses allowed, who approves a new one? *(Resident app:
   OSS-only with license named per dependency, every new dep listed in the
   drop notes.)*
 - Q2.3 Honesty/stub discipline: how does unfinished work present itself?
-  *(MAX3: stubs carry a visible marker and return honest fake data — the
+  *(Resident app: stubs carry a visible marker and return honest fake data — the
   no-silent-stub rule the kit generalized into its honesty rules.)*
 - Q2.4 What data does the system hold about people, and what is the default
-  visibility? *(MAX3: multi-user, default-private per user, memory is a hint
+  visibility? *(Resident app: multi-user, default-private per user, memory is a hint
   never an authority.)*
 - Q2.5 Autonomy boundary: what may the crew do unasked, what needs the
-  engineer, and is there an override window? *(MAX3: act-and-audit with a
+  engineer, and is there an override window? *(Resident app: act-and-audit with a
   30-second override window replacing an approval queue — a written,
   reversible autonomy grant.)*
-- Q2.6 The meta-rule: who may change these rules, and how? *(MAX3: only the
+- Q2.6 The meta-rule: who may change these rules, and how? *(Resident app: only the
   user, in writing. Non-negotiable in every shape.)*
 - Q2.7 Reversibility: what must always be undoable, and what is the rollback
-  artifact? *(MAX3: every applied optimisation ships with a rollback recipe.)*
+  artifact? *(Resident app: every applied optimisation ships with a rollback recipe.)*
 
 **LLM probes:**
 
 - "What would make you rip a merged change out on sight?" — each answer is a
-  hard rule not yet written. *(This is how MAX3's confidence+provenance rule
+  hard rule not yet written. *(This is how the resident app's confidence+provenance rule
   reads in interview form.)*
 - "Which regulatory frames touch this?" — routes to the Warden's corpus
-  (COMPLIANCE_POSTURE.md). *(REEF: intercepted traffic may be legally
+  (COMPLIANCE_POSTURE.md). *(Appliance: intercepted traffic may be legally
   sensitive per jurisdiction — the probe is mandatory for an appliance.
-  feedhacker: scraping terms + copyright of pulled content. MRC: licensing
-  of collected research. MAX3: household members' biometric/voice data.)*
-- "Is there a resource the product must never contend with?" *(MAX3: the
+  Feed product: scraping terms + copyright of pulled content. Research repo:
+  licensing of collected research. Resident app: household members' biometric/voice data.)*
+- "Is there a resource the product must never contend with?" *(Resident app: the
   voice loop's latency budget — background work yields, encoded as a hard
   rule with a contention gate. An appliance's equivalent: never drop
   packets; a feed product's: never hammer an upstream past its limits.)*
-- "What counts as identity in your data model?" *(MAX3: correlation IDs on
+- "What counts as identity in your data model?" *(Resident app: correlation IDs on
   every event; the probe generalizes to 'what joins your audit trail'.)*
 - "How does the crew adopt a tool, server or skill it discovered?" — the
   answer is a default-deny gate or it is a standing incident
@@ -117,7 +121,7 @@ as a method, not a questionnaire about one product:
   narrowest interface → return a **machine-readable undo artifact** whose
   reversal is its own gated endpoint). Never autonomous by default; an
   auto-mode, if ever added, is a per-rule owner choice, still logged and
-  undoable. *(REEF's standing incident: an armed auto-resolve executor
+  undoable. *(The appliance's standing incident: an armed auto-resolve executor
   severed the whole LAN once — taking down the network AND the tool that
   would have undone it — and no revert brought it back.)*
 - "Does any component sit on a trust boundary with privileged access?" — the
@@ -127,7 +131,7 @@ as a method, not a questionnaire about one product:
   an inbound shell on the perimeter is the exact attack pattern such a
   system exists to detect. A need that seems to require a shell is the
   signal to add a named action and revisit the decision record, not to work
-  around it. *(REEF: ADR-grade, "root RCE on the perimeter".)*
+  around it. *(Appliance: ADR-grade, "root RCE on the perimeter".)*
 
 ## 3. FAILURE_PATTERNS.md.template — the registry
 
@@ -138,20 +142,20 @@ as a method, not a questionnaire about one product:
   memory: "name the last three things that bit you twice." Each becomes an
   entry with symptom, root cause, and the check that would have caught it.
 - Q3.2 Which platforms/environments does this ship to? Every platform pair
-  is a failure-class family. *(MAX3: Windows PowerShell 5.1 vs 7 cmdlet
+  is a failure-class family. *(Resident app: Windows PowerShell 5.1 vs 7 cmdlet
   drift, CRLF smudge rules, cp1252 mojibake — a whole family the registry
   carries because the box is Windows and CI is Linux.)*
 
 **LLM probes:**
 
 - First-run/install classes: "what breaks on a clean machine that works on
-  yours?" *(MAX3: model files not shipped with the wheel, fetched at
+  yours?" *(Resident app: model files not shipped with the wheel, fetched at
   install; parse-time `%ERRORLEVEL%` in batch scripts.)*
 - Shape-specific seeds to offer: appliance — privileged capture setup,
-  interface naming drift, pcap rotation filling disks (REEF); feed product —
-  upstream schema drift, rate-limit bans, dedup collisions (feedhacker);
-  research repo — dead-link rot, citation-format drift (MRC); resident app —
-  device/driver churn, audio-stack regressions (MAX3).
+  interface naming drift, pcap rotation filling disks; feed product —
+  upstream schema drift, rate-limit bans, dedup collisions; research repo —
+  dead-link rot, citation-format drift; resident app — device/driver churn,
+  audio-stack regressions.
 - "Does any tool integration have a quota?" — quota exhaustion mid-run is a
   registered class everywhere it exists.
 
@@ -160,20 +164,20 @@ as a method, not a questionnaire about one product:
 **Required:**
 
 - Q4.1 What does "shipped" mean here — merged? deployed to a box? tagged?
-  *(MAX3: merged AND live on the deployed tree one auto-pull later, so the
+  *(Resident app: merged AND live on the deployed tree one auto-pull later, so the
   checklist includes the deployed-manifest comparison — `wall verify --app`
   exists because of this answer.)*
 - Q4.2 What are the non-CI gates? Docs updated in the same PR? Screenshots
-  for UI changes? Board/status flips? *(MAX3: docs discipline — every
+  for UI changes? Board/status flips? *(Resident app: docs discipline — every
   user-visible change updates its doc in the same PR; screenshot discipline
   for panels; board fragment rides the PR.)*
-- Q4.3 Who may throw a drop back, on what grounds? *(MAX3: the user has
+- Q4.3 Who may throw a drop back, on what grounds? *(Resident app: the user has
   explicit permission to bounce any drop that skipped a checklist item.)*
 
 **LLM probes:**
 
 - "How do you read a green?" — pin the exact rule for interpreting checks.
-  *(MAX3's measured lesson: a scoped draft run can read green without being
+  *(The resident app's measured lesson: a scoped draft run can read green without being
   the full pyramid; the checklist's step 0 is HOW to read CI, not just
   'CI green'.)*
 - "Is there a step everyone does from memory?" — that step is the next
@@ -201,7 +205,7 @@ as a method, not a questionnaire about one product:
 
 - Q5.1 Stack and idiom anchors: which existing files exemplify "how we write
   it here"? (The body's rules cite them.)
-- Q5.2 Which graders read this, through what mechanism? *(MAX3: three
+- Q5.2 Which graders read this, through what mechanism? *(Resident app: three
   graders, one body — the session via the entry point, one hosted reviewer
   via its knowledge base, another via its own instruction files — with the
   measured directory-scoping trap written down so a rule is verified to
@@ -212,7 +216,7 @@ as a method, not a questionnaire about one product:
 **LLM probes:**
 
 - Mine the diff history: "the same fix shape three times" is a candidate
-  rule. *(MAX3 grew rules like 'never read a variable inside a paren block
+  rule. *(The resident app grew rules like 'never read a variable inside a paren block
   without delayed expansion' from exactly this mining.)*
 - "Which reviewer comment do you keep making by hand?" — that comment is a
   rule that belongs in the body, where every grader makes it for you.
@@ -228,7 +232,7 @@ as a method, not a questionnaire about one product:
 
 - Q6.1 Which documents feed model prompts, and through what loader? (Entry
   point, standards file, reviewer instruction files, role sheets.)
-- Q6.2 Each one's hard limit and the measuring command. *(MAX3: a hosted
+- Q6.2 Each one's hard limit and the measuring command. *(Resident app: a hosted
   reviewer's 110K-token instruction cap — discovered when reviews started
   failing with the entry-point file at ~80% of it; and a 44,000-character
   harvested-prompt budget that once sat 53 characters from failure. Both
@@ -247,7 +251,7 @@ as a method, not a questionnaire about one product:
 - "Who may raise a ceiling, and what must be filed when one is raised
   twice?" — never to green a failing check; compress first, and a second
   raise within days files the durable alternative (curated exports or
-  retrieval) as a work item (template rule 6). *(MAX3's second raise in
+  retrieval) as a work item (template rule 6). *(The resident app's second raise in
   three days came only after the tripping rule was compressed and the
   retrieval item filed.)*
 - "Which counted documents feed a GENERATOR rather than a session?" — every
@@ -262,7 +266,7 @@ as a method, not a questionnaire about one product:
 **Required:**
 
 - Q7.1 Which change kinds exist HERE? Walk the seeded 13 and strike or add:
-  what does this repo ship that changes a user-visible surface? *(MAX3: a new
+  what does this repo ship that changes a user-visible surface? *(Resident app: a new
   panel obligates the README views table + a design doc + the screenshot
   script + the status registry — four surfaces from one change kind.)*
 - Q7.2 For each kind, which doc surfaces must move in the same change? Name
@@ -283,9 +287,9 @@ as a method, not a questionnaire about one product:
   what compares the surfaces where they land?" (TESTING_STANDARDS §8.6 —
   the one-fact-two-paths class no per-surface check can see).
 - Shape contrasts: an appliance maps config-surface changes to its install/
-  upgrade notes (REEF); a research repo maps article changes to its catalog
-  and index (MRC); an extension maps permission changes to store listings
-  and privacy notes (feedhacker).
+  upgrade notes; a research repo maps article changes to its catalog and
+  index; a browser extension maps permission changes to store listings and
+  privacy notes.
 
 ## 8. OWNER_DECISIONS.md.template — what is off on purpose
 
@@ -293,7 +297,7 @@ as a method, not a questionnaire about one product:
 
 - Q8.1 What is currently switched off, deferred or retired **on purpose**?
   Walk the surfaces that look broken and separate the three states: working,
-  broken, and off-by-decision. *(REEF: a capture feature left disabled on a
+  broken, and off-by-decision. *(Appliance: a capture feature left disabled on a
   production appliance reads as a defect to every reviewer who meets it.)*
 - Q8.2 For each one: the **reason**, in a sentence somebody could disagree
   with. "Not now" is not a reason; "it pages the owner at 3am for a condition
@@ -302,7 +306,7 @@ as a method, not a questionnaire about one product:
   the decision. Both Q8.2 and Q8.3 are required, and an entry missing either is
   ignored loudly rather than applied.
 - Q8.4 Which entries cover a subject some other surface still **promises**?
-  *(feedhacker: a retired feature that the help text still describes. The sweep
+  *(Feed product: a retired feature that the help text still describes. The sweep
   for those promises lands with the entry, not after it.)*
 
 **LLM probes:**
@@ -318,9 +322,8 @@ as a method, not a questionnaire about one product:
 - "Is there anything here that a new reviewer always flags and you always wave
   off?" — that is the registry's first entry, in the owner's own words.
 - Shape contrasts: an appliance defers hardware-dependent checks it cannot run
-  in the lab (REEF); a research repo defers link-rot sweeps over an archive it
-  does not control (MRC); a feed product disables an upstream whose terms
-  changed (feedhacker).
+  in the lab; a research repo defers link-rot sweeps over an archive it does
+  not control; a feed product disables an upstream whose terms changed.
 
 ## 9. REVIEWER_LANES.md.template — the review-lane register
 
@@ -373,7 +376,7 @@ as a method, not a questionnaire about one product:
   items, required in configuration where the tool supports it; a lane that
   writes into author-owned surfaces is effectively silent.
 - Shape contrasts: a repo may deliberately run **no** AI review lane at all
-  (feedhacker) — that is a recorded posture with a reason, not an empty file.
+  (the feed product does) — that is a recorded posture with a reason, not an empty file.
 
 *(`EVAL_RECORD.md.template` deliberately has no section here: it is filled
 per evaluation via `docs/TECH_EVALUATION.md`, not at adoption time.)*
@@ -424,7 +427,7 @@ prevent (`docs/FLEET.md` §3).
   says loudly that every file it reads is honest, and nothing about WHICH
   files it reads, so the standing question for every new rule-bearing file
   (a skill, a prompt, a config) is "what reads this, and what would go red
-  if it were softened?" *(MRC: a whole class was deleted from a reviewer
+  if it were softened?" *(Research repo: a whole class was deleted from a reviewer
   config while every suite stayed green — the file was open in the suite for
   other clauses, and outside the scan for that one.)*
 - "Are requirements written about outcomes or about existence?" A
@@ -471,7 +474,7 @@ prevent (`docs/FLEET.md` §3).
   source: review threads, CI logs, scanner output, chat, the engineer's
   memory. Every source whose findings exist only in that source is a leak.
   Each open one becomes an entry now, before anything else is fixed.
-  *(MRC: a finding sat unanswered on a merged pull request for weeks until a
+  *(Research repo: a finding sat unanswered on a merged pull request for weeks until a
   sweep of every PR found it.)*
 - Q12.2 What is already found but not guarded? Mine the open issues, TODO and
   FIXME comments with owners, and review comments marked "later". Group them
@@ -484,11 +487,11 @@ prevent (`docs/FLEET.md` §3).
   go red is family A in the template, and the cheapest one to find.
 - "What did you decide NOT to fix, and why?" Every answer is a Declined row
   with its reason; a declined issue with no recorded reason comes back as a
-  new finding. *(REEF carries a whole section of deliberate non-fixes.)*
+  new finding. *(The appliance carries a whole section of deliberate non-fixes.)*
 - Shape-specific seeds: appliance — findings that need the real hardware to
-  reproduce (REEF's "needs the real box" list); research repo — review-bot
-  findings on prose and citations (MRC); resident app — per-machine driver
-  and device findings (MAX3).
+  reproduce (its "needs the real box" list); research repo — review-bot
+  findings on prose and citations; resident app — per-machine driver and
+  device findings.
 
 ## Using this document
 
@@ -530,7 +533,7 @@ sheet** — a one-page muscle-memory surface with the three-or-four commands
 actually run daily, an exact-symptom → exact-fix table keyed to
 failure-registry classes, a don't-do list, and the start/end-of-session
 rituals; deliberately redundant with the deep documents it links. One
-adoption carries the specimen (MAX3); per rule 2 it graduates when a second
+adoption, the resident app, carries the specimen; per rule 2 it graduates when a second
 adoption needs it or the engineer names it wanted.
 
 This is the failure-registry discipline applied to the template set itself:

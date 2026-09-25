@@ -227,7 +227,7 @@ A `blocked` builder releases its slot. A `partial` builder keeps it.
 
 ## Integrator -- Opus 5
 
-**Not a seat. A hat a Builder wears when the PR slot frees.** *(Not in the
+**Not a seat. A hat a Builder wears to take a finished unit to its own PR (DEC-0016).** *(Not in the
 original outline; added from the first wave -- lesson G11.)*
 
 Between "built in a worktree" and "merged" there is a distinct job: rebase onto
@@ -243,8 +243,10 @@ role sheet (`.claude/agents/integrator.md`) plus an order form
 assumes it. The procedure is WORKFLOW section 9.
 
 Authority stops in exactly the same place as the Builder's: **reports green,
-never merges, never flips ready** (G12). The Integrator consumes the single PR
-slot, not a builder slot, which is why it is a hat and not a cap line.
+never merges, never flips ready** (G12). The Integrator drives its own unit's
+PR -- one PR per unit, concurrent on disjoint leased surfaces, with merges
+serialized by the Maestro (DEC-0016) -- and takes no builder slot, which is
+why it is a hat and not a cap line.
 
 ---
 
@@ -304,14 +306,22 @@ one thing that must be reproducible byte for byte.
 {"role_limits": {"builder": 4, "reviewer": 2, "researcher": 6}}
 ```
 
-Singletons — Foreman, Maestro, Architect, Adjudicator — are enforced by the
-registry, not by the cap table. Researcher cap should track builders + 2; if the
+Singletons are not in the cap table, and they are not all enforced the same way:
+
+- **Registry-enforced** (`SINGLETON_ROLES` in `tools/wall/agents.py`, checked
+  at claim time and by audit): architect, adjudicator, warden.
+- **Foreman** — one per repo, enforced by a lock file with a heartbeat and a
+  TTL, not by the registry.
+- **Maestro** — the invoking session itself; it is never claimed, so there is
+  nothing for the registry to count.
+ Researcher cap should track builders + 2; if the
 builder cap moves, move it too.
 
 **Integrator is absent from the cap table on purpose.** It is a hat a Builder
-puts on, and the thing it consumes is the single PR slot, which is already
-serialized. Giving it its own cap would imply two transplants can run at once;
-they cannot.
+puts on, and it drives one unit's own PR. PRs may be open concurrently on
+disjoint leased surfaces (DEC-0016), but merges are serialized by the Maestro,
+so the rebase-and-merge turn is already one at a time; a cap of its own would
+add nothing.
 
 Courier is a script and has no cap. It is listed on the agent grid as a non-LLM
 row -- runs and last-run time, zero tokens -- because an invisible bookkeeper is

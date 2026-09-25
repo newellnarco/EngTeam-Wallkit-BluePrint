@@ -20,10 +20,11 @@ Three properties it has to hold:
   the id, which holds the title, how its statuses and types map onto the wall's
   vocabulary. Supporting a new tracker is a dict, not a subclass.
 
-Two profiles ship: `PROFILE_GENERIC` (the documented shape) and `PROFILE_MAX3`
-(MAX3's `docs/project/board_state.json`).
+Two profiles ship: `PROFILE_GENERIC` (the documented shape) and
+`PROFILE_SLUG_KEYED` (a `board_state.json` keyed on a stable slug, with arcs
+from a grouping field and no per-item timestamp).
 
-    python3 -m adapters.board_import --repo . --source board_state.json --profile max3
+    python3 -m adapters.board_import --repo . --source board_state.json --profile slug-keyed
 
 Run it from `tools/wall/`, so that `adapters` is an importable package.
 Stdlib only. No network. No model calls.
@@ -73,7 +74,7 @@ UNASSIGNED_ARC_TITLE = "Unassigned"
 
 _ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
-#: Placeholders trackers write where they mean "nothing". MAX3's board uses
+#: Placeholders trackers write where they mean "nothing". A slug-keyed board uses
 #: `--` in its `pr` column; carrying that through would put a literal `--` on
 #: the wall as if it were a PR reference.
 NULL_TOKENS = frozenset({"", "-", "--", "---", "n/a", "na", "none", "null", "tbd", "?"})
@@ -135,29 +136,29 @@ PROFILE_GENERIC: dict[str, Any] = {
 }
 
 
-PROFILE_MAX3: dict[str, Any] = {
-    "name": "max3",
+PROFILE_SLUG_KEYED: dict[str, Any] = {
+    "name": "slug-keyed",
     "items_path": ["items"],
     "source_updated_field": "updated",
 
-    # MAX3 keys the board on a stable slug (`brain:fibonacci-sequences`) and
-    # that slug is what every other MAX3 tool refers to, so it becomes the
-    # item id verbatim rather than being renumbered into something new.
+    # This board is keyed on a stable slug (`brain:fibonacci-sequences`) and
+    # that slug is what every other tool of the source project refers to, so
+    # it becomes the item id verbatim rather than being renumbered.
     "id_field": "key",
     "title_field": "title",
     "status_field": "status",
     "type_field": "type",
-    # No per-item timestamp on the MAX3 board; the document-level `updated`
+    # No per-item timestamp on a slug-keyed board; the document-level `updated`
     # carries the whole file's last touch, which is the honest answer.
     "updated_field": None,
-    # `arch` is MAX3's arc family -- PR-COG, DUCK-MIG, QA-LIVE.
+    # `arch` is the board's arc family -- PR-COG, DUCK-MIG, QA-LIVE.
     "arc_id_field": "arch",
     "arc_title_field": None,
     "assignee_field": None,
     "estimate_field": "size",
     "actual_field": None,
     "parent_field": None,
-    # `detail` is MAX3's long-form item prose (design notes, as-builts --
+    # `detail` is the board's long-form item prose (design notes, as-builts --
     # routinely kilobytes). It rides through verbatim: the wall's STORIES tab
     # renders it behind a per-row toggle, and dropping it would violate the
     # adoption requirement that every item's detail survives the new wall.
@@ -170,7 +171,7 @@ PROFILE_MAX3: dict[str, Any] = {
         "in_progress": "in_progress",
         "shipped": "shipped",
         "done": "done",
-        # MAX3's "Deferred" is not "blocked by a dependency" -- it is a
+        # The board's "Deferred" is not "blocked by a dependency" -- it is a
         # deliberate parking. It maps to blocked so it reads as not-moving,
         # and carries the reason so the board does not lie about why.
         "deferred": "blocked",
@@ -186,7 +187,7 @@ PROFILE_MAX3: dict[str, Any] = {
         "bug": "bug", "bug_fix": "bug", "fix": "bug", "defect": "bug",
     },
     "default_kind": "story",
-    # MAX3's board has no arc rows -- arcs come from the `arch` grouping field,
+    # A slug-keyed board has no arc rows -- arcs come from the `arch` grouping field,
     # so this heuristic only has to separate bugs from stories.
     "kind_from_id": [("fix", "bug"), ("bug", "bug"), ("qa", "bug")],
 }
@@ -194,7 +195,7 @@ PROFILE_MAX3: dict[str, Any] = {
 
 PROFILES: dict[str, dict[str, Any]] = {
     "generic": PROFILE_GENERIC,
-    "max3": PROFILE_MAX3,
+    "slug-keyed": PROFILE_SLUG_KEYED,
 }
 
 

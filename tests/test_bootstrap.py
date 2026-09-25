@@ -139,14 +139,18 @@ def test_upgrade_is_verbatim_and_leaves_host_config_alone(tmp_path, capsys):
     drifted.write_text("# local fork — drift with a byline\n", encoding="utf-8")
 
     capsys.readouterr()
-    assert run("upgrade", repo) == 0
+    assert run("upgrade", repo) == 1  # the drift is named, not laundered
     out = capsys.readouterr().out
     assert "update  wall/summary.py" in out
+    assert "MODIFIED   tools/wall/summary.py" in out
     assert "decisions/index.md" in out or "DECISIONS first" in out
     assert drifted.read_text(encoding="utf-8").startswith("# local fork"), (
         "a dry run must not re-vendor")
 
-    assert run("upgrade", repo, "--apply") == 0
+    assert run("upgrade", repo, "--apply") == 1
+    assert drifted.read_text(encoding="utf-8").startswith("# local fork"), (
+        "a locally modified kit file was overwritten without --force")
+    assert run("upgrade", repo, "--apply", "--force") == 0
     assert (drifted.read_text(encoding="utf-8")
             == (KIT / "tools" / "wall" / "summary.py")
             .read_text(encoding="utf-8")), "re-vendor is VERBATIM"
@@ -216,7 +220,7 @@ def test_remove_purge_state_deletes_the_ledger_only_when_said(tmp_path):
 def test_mcp_config_uses_the_validated_interpreter(tmp_path):
     """DEC-0022: preflight validates THIS interpreter, so the generated
     config must launch the same one — "python3" does not exist on a
-    stock Windows install (host-review finding, MAX3 PR #1662).
+    stock Windows install (host-review finding).
     Mutation: hard-code a spelled interpreter name again."""
     bs.emit_mcp_configs(tmp_path, ["claude-code"], apply=True)
     cfg = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
@@ -232,6 +236,12 @@ def test_upgrade_prunes_kit_owned_strays_and_never_docs(tmp_path):
     assert run("fresh", repo, "--apply") == 0
     stale = repo / "tools" / "wall" / "retired_module.py"
     stale.write_text("# dropped upstream\n", encoding="utf-8")
+    # an earlier kit shipped it: its bytes are on the manifest, so the
+    # prune is verified (an unrecorded stray is test_bootstrap_manifest's)
+    stamp_path = repo / ".wall" / "config" / "kit_source.json"
+    stamp = json.loads(stamp_path.read_text(encoding="utf-8"))
+    stamp["files"]["tools/wall/retired_module.py"] = bs._sha256(stale)
+    stamp_path.write_text(json.dumps(stamp), encoding="utf-8")
     host_doc = repo / "docs" / "HOST_NOTE.md"
     host_doc.write_text("host-authored\n", encoding="utf-8")
     assert run("upgrade", repo) == 0
@@ -271,7 +281,7 @@ def test_templates_is_owned_file_by_file_never_as_a_tree(tmp_path):
     its web views there. So the kit never prunes it on upgrade, and a
     remove deletes exactly the filenames the kit vendored, keeping the
     host's files and the directory holding them (host-review finding,
-    Gemini on MAX3 PR #1662). Mutation: put 'templates' back into
+    Gemini). Mutation: put 'templates' back into
     KIT_OWNED_PREFIXES and both halves fail."""
     repo = tmp_path / "webapp"
     assert run("fresh", repo, "--apply") == 0

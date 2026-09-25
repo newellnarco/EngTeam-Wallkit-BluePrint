@@ -21,6 +21,13 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:  # POSIX
+    import fcntl
+    msvcrt = None
+except ImportError:  # Windows
+    fcntl = None
+    import msvcrt
+
 ROLE_PREFIX = {
     "foreman": "frm", "maestro": "mst", "architect": "arc", "adjudicator": "adj",
     "builder": "bld", "integrator": "itg", "reviewer": "rev", "warden": "wrd",
@@ -98,6 +105,55 @@ def _confusable(candidate: str, live: set[str]) -> bool:
     return any(n[:2].lower() == candidate[:2].lower() for n in live)
 
 
+def _try_lock(fd: int) -> bool:
+    try:
+        if fcntl is not None:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        else:
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        return True
+    except OSError:
+        return False
+
+
+def acquire_lock(lock: Path, timeout: float = 10.0, what: str = "file") -> int:
+    """Take an exclusive lock on `lock` and return the open descriptor that
+    holds it (pass it to `release_lock`). The lock is an OS advisory lock
+    (flock on POSIX, msvcrt.locking on Windows) held on the open file, never
+    the file's existence: the kernel frees it when the holder closes it or
+    dies, so there is no stale age to guess, no waiter ever breaks a lock,
+    and a holder can only ever release its own. The lock file itself is
+    left in place and is harmless when no one holds it.
+    Raises TimeoutError when a live holder keeps it past `timeout` seconds."""
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(lock), os.O_RDWR | os.O_CREAT, 0o644)
+    deadline = time.time() + timeout
+    while not _try_lock(fd):
+        if time.time() > deadline:
+            os.close(fd)
+            raise TimeoutError(f"{what} locked: {lock}")
+        time.sleep(0.05)
+    return fd
+
+
+def release_lock(fd: int | None) -> None:
+    """Release a lock taken by `acquire_lock`. Only the holder has the
+    descriptor, so it cannot release anyone else's lock. Idempotent on None."""
+    if fd is None:
+        return
+    try:
+        if fcntl is not None:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        else:
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+    except OSError:
+        pass
+    finally:
+        os.close(fd)
+
+
 class AgentRegistry:
     def __init__(self, repo: Path):
         self.repo = repo
@@ -143,27 +199,11 @@ class AgentRegistry:
     # -------------------------------------------------------------- locking
 
     def _acquire(self, timeout: float = 10.0):
-        self.lock.parent.mkdir(parents=True, exist_ok=True)
-        deadline = time.time() + timeout
-        while True:
-            try:
-                fd = os.open(str(self.lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                os.write(fd, str(os.getpid()).encode())
-                os.close(fd)
-                return
-            except FileExistsError:
-                try:
-                    if time.time() - self.lock.stat().st_mtime > timeout:
-                        self.lock.unlink(missing_ok=True)
-                        continue
-                except OSError:
-                    pass
-                if time.time() > deadline:
-                    raise TimeoutError(f"registry locked: {self.lock}")
-                time.sleep(0.05)
+        self._lock_fd = acquire_lock(self.lock, timeout, what="registry")
 
     def _release_lock(self):
-        self.lock.unlink(missing_ok=True)
+        fd, self._lock_fd = getattr(self, "_lock_fd", None), None
+        release_lock(fd)
 
     # ------------------------------------------------------------- the api
 

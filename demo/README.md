@@ -37,24 +37,37 @@ renders, exactly the way the courier folds real event shards. Visitors can:
 - switch between the dark and light themes
 - reset the demo
 
-Dark is the default theme. Theme tokens are embedded verbatim from
-`frontend/theme/theme.css`, so the demo tracks the real design system.
+Dark is the default theme. Theme tokens were embedded verbatim from
+`frontend/theme/theme.css` when the bundle was made. They are a copy, not a
+link: a later change to that stylesheet does not reach the demo (see Source).
 
-## Source
+## Source -- not in this repository; the demo cannot be regenerated yet
 
-Built from `newellnarco/EngTeam-Wallkit-BluePrint@main`. See `github.md` in the
-project for the screen-to-source map. The editable source is
-`Wallkit Demo.dc.html`; re-bundle after any change.
+`wallkit-demo.html` is a **vendored build artefact**. Its editable source (a
+file named `Wallkit Demo.dc.html`) and the bundler that produced the
+self-contained file were never committed here, and no generator for the demo
+ships with the kit. It was built against this repository's `main` at the
+time; the screen-to-source map it was built with (`github.md`) lived beside
+that source and is not here either. This returns nothing:
 
-**That source is not in this repository, and this file says so rather than
-pretending otherwise.** `Wallkit Demo.dc.html` has never been committed here
-(`git log --all --diff-filter=A --name-only --pretty=format: -- '*.dc.html'`
-returns nothing -- the pathspec matters, because without it the command lists
-every commit that added any file and proves nothing about this one), and no
-bundler ships with the kit, so the re-bundle instruction above cannot
-currently be followed by anyone working from a clone. Until the source and its bundler are committed,
-`wallkit-demo.html` is a **vendored artefact**: the layout fixes recorded under
-"Embed in a page" were applied to the bundle directly, by editing the inline
-styles the page carries in plain text, and verified by rendering rather than by
-rebuilding. A future re-bundle from the real source will silently discard them
-unless the same three changes are made there too.
+```
+git log --all --diff-filter=A --name-only --pretty=format: -- '*.dc.html'
+```
+
+The pathspec matters: without it the command lists every commit that added any
+file and proves nothing about this one.
+
+What that means in practice:
+
+- **It cannot be regenerated from a clone.** There is no source to edit and no
+  build command to run. Treat the HTML file itself as the source of record.
+- **Changes are made to the bundle directly.** The layout fixes recorded under
+  "Embed in a page" were applied by editing the inline styles the page carries
+  in plain text, and verified by rendering in headless Chromium, not by
+  rebuilding.
+- **Nothing keeps it in sync.** The event script, the wall tabs and the theme
+  tokens are copies taken when the bundle was made; changes to the courier,
+  the wall template or `frontend/theme/theme.css` do not reach the demo.
+- **If the source is ever committed,** re-apply the three layout fixes there
+  too -- a re-bundle from the older source would silently discard them -- and
+  replace this section with the real build command.

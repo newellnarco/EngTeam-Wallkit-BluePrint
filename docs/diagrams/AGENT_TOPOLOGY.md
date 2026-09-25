@@ -20,7 +20,10 @@ derived rather than asked.
 ## 1. Nodes and edges
 
 The rendered, blueprint-themed vector of this diagram (crisp at any zoom):
-[`assets/agent-topology.svg`](assets/agent-topology.svg).
+[`assets/agent-topology.svg`](assets/agent-topology.svg). The SVG predates the
+validated `wall` CLI writers (run-start and the role-cap check, retro,
+rebalance, the diagnostics records, the courier's new flags); the mermaid
+source below is authoritative.
 
 ```mermaid
 %%{init: {"theme":"base","themeVariables":{
@@ -42,6 +45,7 @@ flowchart TB
         HOOK_SS["SessionStart hook<br/><i>detect-only: registry, heartbeat age,<br/>marker version. Never installs</i>"]
         HOOK_ST["SubagentStop hook<br/><i>terminal run events; never blocks;<br/>honest orphans (agent_key null)</i>"]
         HOOK_TU["ToolUse hook<br/><i>provenance on records</i>"]
+        CLI["wall CLI writers<br/><i>run-start (role cap refused in code) / run-end,<br/>retro, rebalance, finding / story-filed,<br/>verify-request / verified — each validated</i>"]
     end
 
     subgraph POOL["Subagent pool (parallel, single-shot, leased)"]
@@ -51,13 +55,13 @@ flowchart TB
         BLD["Builders (N, parallel)<br/><i>disjoint path scopes via leases</i>"]
         RES["Researchers (N, parallel)<br/><i>one question each, network-gated</i>"]
         REV["Reviewer<br/><i>cold diff read, read-only tools</i>"]
-        ITG["Integrator (hat on a Builder)<br/><i>the ONLY sequential lane:<br/>one transplant at a time</i>"]
+        ITG["Integrator (hat on a Builder)<br/><i>one unit's transplant per hat;<br/>merges serialized by the Maestro (DEC-0016)</i>"]
         FORE["Foreman<br/><i>judgment over anomalies only;<br/>bookkeeping is code, not cognition</i>"]
     end
 
     subgraph MECH["Mechanical plane (parallel to everything, zero model calls)"]
         TIMER["Machine timer<br/><i>one per machine, every 2 min</i>"]
-        COURIER["Courier (script)<br/><i>merge shards, integrity checks,<br/>render wall, heartbeat</i>"]
+        COURIER["Courier (script)<br/><i>merge shards, integrity checks,<br/>render wall, heartbeat; flags over_cap,<br/>dropped_findings, verify_overdue</i>"]
         SERVER["Wall server<br/><i>127.0.0.1 only, 4-file allowlist</i>"]
         SHIPPER["Shipper (script)<br/><i>shards to isolated branch,<br/>isolated index, never the working tree</i>"]
     end
@@ -83,6 +87,11 @@ flowchart TB
     HOOK_ST -.->|"run_end / orphan events"| LEDGER
     HOOK_TU -.->|"provenance"| LEDGER
 
+    MAESTRO -->|"run-start first<br/>(role cap check)"| CLI
+    MAESTRO -->|"retro / rebalance /<br/>finding / verify-request"| CLI
+    ENG -->|"verified / retro-note"| CLI
+    CLI -.->|"validated events"| LEDGER
+    CLI -.->|"open runs"| REG
     MAESTRO -->|"dispatch briefs<br/>(lease check first)"| BLD
     MAESTRO -->|"finding-route"| RES
     MAESTRO -->|"findings for ruling"| ARCH
@@ -131,6 +140,8 @@ solid edges are **work handoffs** (somebody does).
 | Researchers | **Parallel** (N, cap tracks builders + 2) | Each holds one question; answers serialize later through the decision writer |
 | Courier / timer / server / shipper | **Parallel to everything** | Zero model calls, read-mostly; the observability plane never takes the control plane's locks |
 | Hooks | **Parallel** (fire per event) | Never block; a hook that can block a run becomes a second control plane |
+| `wall run-start` per role | **Capped** (`role_limits[role]` open runs) | Refused in code (exit 1) past the cap unless an over-cap reason is recorded; the courier flags `over_cap` on a run written by hand |
+| Rebalances | **Sequential** (one knob per cycle) | `wall rebalance` refuses a second knob before the next `retro_held` unless `--reason` records why; a second reversal of the same knob goes to the Adjudicator |
 | Warden sign-off | **Sequential gate** per in-scope arc | An in-scope design cannot dispatch stories past an unrecorded sign-off; routine arcs get act-and-audit instead |
 | Question answering | **Sequential** through Maestro | One writer for decisions is what makes "no answer contradicts another" enforceable |
 | Decision writes (`DEC-NNNN`) | **Sequential** (Maestro only) | Same single-writer rule |
@@ -164,13 +175,14 @@ sequenceDiagram
     participant R as Researcher
     participant I as Integrator
     participant V as Reviewer
-    participant P as PR slot / CI
+    participant P as PR / CI
 
     Note over E,M: INTAKE (once, then only injections)<br/>effort variables + product Q&A —<br/>derived from the repo first, asked second
     E->>M: answers / injected constraints
     M->>A: design brief (product brief + decisions attached)
     A->>M: arc + stories, criteria citable
     par builders in parallel worktrees
+        M->>M: wall run-start (role cap check; refused past the cap)
         M->>B: dispatch (lease check, DECs attached)
         B->>M: question_raised (blocks AC-3)
         M->>R: finding-route (decision log missed)
@@ -180,7 +192,7 @@ sequenceDiagram
         M->>B: re-dispatch with DEC-NNNN attached
         B->>M: unit complete (criteria mapped, gates green)
     end
-    Note over M,I: INTEGRATION — strictly one unit at a time
+    Note over M,I: INTEGRATION — PRs concurrent on disjoint surfaces,<br/>merges strictly one at a time (DEC-0016)
     M->>I: transplant order
     I->>P: rebase, safety proof, gates LAST, draft PR
     P->>M: checks (read conclusions, not claims)
@@ -188,6 +200,7 @@ sequenceDiagram
     V->>M: pass
     M->>P: flip ready + merge (Maestro alone)
     M->>M: bookkeeping AT merge (G9), item shipped
+    Note over M: WAVE CLOSE — wall retro (validated retro_held),<br/>then one wall rebalance per cycle (a second needs --reason)
 ```
 
 ## 4. Concern → mechanism map
@@ -205,8 +218,8 @@ with no mechanism is a wish:
 | **Logging** | Append-only event ledger, sharded per session, byte-reproducible merge; three-plane logging (LOGGING_AND_AUDIT.md); run records with prompts/diffs/tool calls |
 | **Auditing** | `wall trace` (causal timeline per trace_id), `wall why` (decisions in effect and who saw them), `decisions_in_context` on every run record, `model_requested` vs `model_used` recorded separately |
 | **Reversibility** | Append-only ledger (nothing rewritten); decisions superseded, never edited; transplant step 0 records rollback anchors; force-push only behind the safety proof with `--force-with-lease`; consent print before any system mutation |
-| **Checks and balances** | The authority matrix: Foreman never assigns, Maestro never edits ledgers, Architect never reads code for correctness, Reviewer is the only one who does, Integrator alone force-pushes, Maestro alone merges; evidence outranks rhetoric in the tiebreak order; rework capped at 3 cycles then up the ladder |
-| **Extensible quality** | Failure registry graduation path (bug class → FAILURE_PATTERNS + SHIP_CHECKLIST in the same change); budgeted-docs ratchet; testkit measure/rebalance loop; every real review finding leaves a prevention behind |
+| **Checks and balances** | The authority matrix: Foreman never assigns, Maestro never edits ledgers, Architect never reads code for correctness, Reviewer is the only one who does, Integrator alone force-pushes, Maestro alone merges; evidence outranks rhetoric in the tiebreak order; rework capped at 3 cycles then up the ladder; role caps refused in code at `wall run-start` |
+| **Extensible quality** | Failure registry graduation path (bug class → FAILURE_PATTERNS + SHIP_CHECKLIST in the same change); budgeted-docs ratchet; testkit measure/rebalance loop; every real review finding leaves a prevention behind; `wall retro` / `wall rebalance` / `wall finding` validate the learning-loop records before writing them, and the courier flags dropped findings and overdue verifications |
 | **Autonomy with minimal input** | Startup questions answered config-first (a question with an on-disk answer is not asked); the human queue reserved for the six classes no agent may answer; intake derives from the repo before asking; injections mid-flight ride the amendment path without stopping the wave |
 
 ## 5. Cross-references

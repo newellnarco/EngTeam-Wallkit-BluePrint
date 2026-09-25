@@ -617,6 +617,12 @@ button.chip--why:hover { background: var(--surface-hover); }
 .flag-row .k { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--status-alert); flex: none; min-width: 130px; }
 .flag-row .k.ok { color: var(--status-good); }
 .flag-row .v { color: var(--text-secondary); font-size: var(--text-sm); }
+.flag-row .k.absent { color: var(--text-muted); }
+/* An owner-verification row past verify_horizon_days: marked, not hidden. */
+.ask.overdue { border-left: 3px solid var(--status-alert); }
+.ask .steps { margin: var(--space-1) 0; padding-left: var(--space-5); font-size: var(--text-sm); color: var(--text-secondary); }
+.overdue-tag { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--status-alert);
+  border: 1px solid var(--status-alert); border-radius: var(--radius-sm); padding: 0 var(--space-1); margin-left: var(--space-2); }
 
 footer {
   margin-top: var(--space-5); padding-top: var(--space-3);
@@ -747,6 +753,10 @@ footer {
     <div class="panel">
       <h2>Waiting on you<span class="sub">work is parked until these are answered</span></h2>
       <div id="asks"></div>
+    </div>
+    <div class="panel">
+      <h2>Verify<span class="sub">owner verification queue: only the owner retires a request (DIAGNOSTICS_LOOP.md)</span></h2>
+      <div id="verifyWaiting"></div>
     </div>
   </section>
 
@@ -971,7 +981,7 @@ footer {
     {id:'board',   label:'STORIES', count:function(){ return allItems().length; }},
     {id:'crew',    label:'CREW',  count:function(d){ return (d.crew||[]).length; }},
     {id:'ledger',  label:'LEDGER',  count:function(){ return null; }},
-    {id:'waiting', label:'WAITING', count:function(d){ return (d.waiting_on_you||[]).length; }, hot:true},
+    {id:'waiting', label:'WAITING', count:function(d){ return (d.waiting_on_you||[]).length + (d.verify_waiting||[]).length; }, hot:true},
     {id:'retro',   label:'RETRO',   count:function(d){ return ov(d).retro && ov(d).retro.held || null; }},
     {id:'posture', label:'POSTURE', count:function(d){ var p=ov(d).posture; return p && p.blocked && p.blocked.length || null; }, hot:true},
     {id:'docs',    label:'DOCS',    count:function(d){ var x=ov(d).docs; return x && x.needs_review || null; }, hot:true},
@@ -1496,18 +1506,38 @@ footer {
 
   function paintIntegrity(){
     var i = D.integrity || {};
+    function plural(n, one, many){ return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+    // [label, snapshot key, sentence for a non-zero count]. A key the snapshot
+    // does not carry is a check this sweep did not run: it reads "not
+    // measured", never "clean" -- an absent signal is shown as absent.
     var checks = [
-      ['sequence gaps', (i.seq_gaps||[]).length, function(n){ return n + ' missing event' + (n===1?'':'s') + ' — a write was lost'; }],
-      ['unfinished runs', (i.orphan_runs||[]).length, function(n){ return n + ' run' + (n===1?'':'s') + ' started with no result recorded'; }],
-      ['state drift', i.state_drift||0, function(n){ return n + ' item' + (n===1?'':'s') + ' on disk disagree with the ledger'; }],
-      ['duplicate items', (i.duplicates||[]).length, function(n){ return n + ' possible duplicate' + (n===1?'':'s') + ' on the board'; }],
-      ['stale claims', (i.stale_claims||[]).length, function(n){ return n + ' item' + (n===1?'':'s') + ' claimed in progress with no commits'; }],
-      ['merged but open', (i.merged_but_open||[]).length, function(n){ return n + ' item' + (n===1?'':'s') + ' still open on a merged PR'; }]
+      ['sequence gaps', 'seq_gaps', function(n){ return plural(n, 'missing event') + ' — a write was lost'; }],
+      ['unfinished runs', 'orphan_runs', function(n){ return plural(n, 'run') + ' started with no result recorded'; }],
+      ['state drift', 'state_drift', function(n){ return plural(n, 'item') + ' on disk disagree with the ledger'; }],
+      ['duplicate items', 'duplicates', function(n){ return plural(n, 'possible duplicate') + ' on the board'; }],
+      ['stale claims', 'stale_claims', function(n){ return plural(n, 'item') + ' claimed in progress with no commits'; }],
+      ['merged but open', 'merged_but_open', function(n){ return plural(n, 'item') + ' still open on a merged PR'; }],
+      ['over cap', 'over_cap', function(n, rows){
+        return plural(n, 'role') + ' past role_limits: ' + rows.map(function(f){
+          return (f.role || '?') + ' ' + (f.open != null ? f.open : '?') + '/' + (f.limit != null ? f.limit : '?') +
+            ((f.reasons && f.reasons.length) ? ' (recorded: ' + f.reasons.join('; ') + ')' : ' (no reason recorded)');
+        }).join(', '); }],
+      ['dropped findings', 'dropped_findings', function(n){
+        return plural(n, 'finding') + ' routed story_filed with no story_filed past the SLA — wall story-filed --finding <ref> --item <id>'; }],
+      ['verify overdue', 'verify_overdue', function(n, rows){
+        return plural(n, 'verification request') + ' past verify_horizon_days (' + rows.map(function(v){
+          return v.item_id || '?'; }).join(', ') + ') — the owner answers on the WAITING tab'; }]
     ];
     $('integrity').innerHTML = checks.map(function(c){
-      var n = c[1];
-      return '<div class="flag-row"><span class="k' + (n ? '' : ' ok') + '">' + esc(c[0]) + '</span>' +
-        '<span class="v">' + (n ? esc(c[2](n)) : 'clean') + '</span></div>';
+      var present = Object.prototype.hasOwnProperty.call(i, c[1]) && i[c[1]] != null;
+      var val = present ? i[c[1]] : null;
+      var rows = Array.isArray(val) ? val : [];
+      var n = Array.isArray(val) ? val.length : (Number(val) || 0);
+      var cls = !present ? ' absent' : (n ? '' : ' ok');
+      var text = !present ? 'not measured — this snapshot carries no ' + c[1] + ' check'
+                          : (n ? c[2](n, rows) : 'clean');
+      return '<div class="flag-row" data-flag="' + esc(c[1]) + '"><span class="k' + cls + '">' + esc(c[0]) + '</span>' +
+        '<span class="v">' + esc(text) + '</span></div>';
     }).join('');
   }
 
@@ -1515,17 +1545,48 @@ footer {
 
   function paintWaiting(){
     var asks = D.waiting_on_you || [];
+    var verifying = D.verify_waiting || [];
     if (!asks.length){
-      $('asks').innerHTML = '<div class="empty">Nothing needs you. The crew is unblocked.</div>';
+      $('asks').innerHTML = verifying.length
+        ? '<div class="empty">No questions are waiting. ' + verifying.length + ' verification request' + (verifying.length === 1 ? '' : 's') + ' below still need the owner.</div>'
+        : '<div class="empty">Nothing needs you. The crew is unblocked.</div>';
+    } else {
+      $('asks').innerHTML = asks.map(function(a){
+        var mins = (Date.now() - Date.parse(a.since)) / 60000;
+        return '<div class="ask">' +
+          '<span class="age' + (mins < 15 ? ' calm' : '') + '">' + ago(a.since) + '</span>' +
+          '<div class="body"><p class="q">' + esc(a.question) + '</p>' +
+          '<span class="from">' + esc(a.agent) + ' · ' + esc(a.item_id) +
+          ' · <span class="cmd">wall answer ' + esc(a.ask_id) + '</span></span></div></div>';
+      }).join('');
+    }
+    paintVerify();
+  }
+
+  // The owner-verification queue (courier `verify_waiting`). Its answer is a
+  // `verified` record, never a question answer: the command is `wall
+  // verified`, and an overdue request is marked, not hidden.
+  function paintVerify(){
+    if (!Object.prototype.hasOwnProperty.call(D, 'verify_waiting') || !Array.isArray(D.verify_waiting)){
+      $('verifyWaiting').innerHTML = '<div class="empty">Not measured — this snapshot carries no <span class="cmd">verify_waiting</span> queue (re-run the courier).</div>';
       return;
     }
-    $('asks').innerHTML = asks.map(function(a){
-      var mins = (Date.now() - Date.parse(a.since)) / 60000;
-      return '<div class="ask">' +
-        '<span class="age' + (mins < 15 ? ' calm' : '') + '">' + ago(a.since) + '</span>' +
-        '<div class="body"><p class="q">' + esc(a.question) + '</p>' +
-        '<span class="from">' + esc(a.agent) + ' · ' + esc(a.item_id) +
-        ' · <span class="cmd">wall answer ' + esc(a.ask_id) + '</span></span></div></div>';
+    var rows = D.verify_waiting;
+    if (!rows.length){
+      $('verifyWaiting').innerHTML = '<div class="empty">No verification requests open. A builder asks with <span class="cmd">wall verify-request</span>.</div>';
+      return;
+    }
+    $('verifyWaiting').innerHTML = rows.map(function(v){
+      var steps = (v.verify_steps || []);
+      var age = v.age_days == null ? 'age not recorded' : v.age_days + ' d waiting';
+      return '<div class="ask' + (v.overdue ? ' overdue' : '') + '" data-verify="' + esc(v.item_id) + '">' +
+        '<span class="age' + (v.overdue ? '' : ' calm') + '">' + ago(v.since) + '</span>' +
+        '<div class="body"><p class="q">' + esc(v.item_id) + ' — ' + (v.what_changed ? esc(v.what_changed) : '<span class="cmd">what changed: none recorded</span>') +
+        (v.overdue ? '<span class="overdue-tag">OVERDUE</span>' : '') + '</p>' +
+        (steps.length ? '<ol class="steps">' + steps.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>'
+                      : '<p class="q"><span class="cmd">verify steps: none recorded</span></p>') +
+        '<span class="from">' + esc(age) + (v.overdue ? ' · past verify_horizon_days' : '') +
+        ' · <span class="cmd">wall verified --item ' + esc(v.item_id) + ' --verdict confirmed|confirmed_with_findings</span></span></div></div>';
     }).join('');
   }
 
@@ -1544,14 +1605,14 @@ footer {
   function paintRetro(){
     var r = ov(D).retro;
     if (!r || (!r.held && !(r.pending_inputs||[]).length)){
-      $('retroBody').innerHTML = '<div class="empty">No retrospective recorded yet — the wave close writes a <span class="cmd">retro_held</span> event (RETROSPECTIVES.md, SESSION_LIFECYCLE §3 step 6). A Patron note for it: <span class="cmd">wall retro-note --text "..."</span></div>';
+      $('retroBody').innerHTML = '<div class="empty">No retrospective recorded yet — the wave close writes a <span class="cmd">retro_held</span> event with <span class="cmd">wall retro</span> (RETROSPECTIVES.md, SESSION_LIFECYCLE §3 step 6). A Patron note for it: <span class="cmd">wall retro-note --text "..."</span></div>' + rebalanceHtml(r);
       return;
     }
     if (!r.held){
       var ph = '<h3>Patron inputs awaiting the first retro</h3>' + (r.pending_inputs||[]).map(function(i){
         return '<div class="ask"><span class="age">input</span><div class="body"><p class="q">' + esc(i.text) + '</p><span class="from">' + esc(i.by) + '</span></div></div>';
       }).join('');
-      $('retroBody').innerHTML = ph;
+      $('retroBody').innerHTML = ph + rebalanceHtml(r);
       return;
     }
     var h = '<p class="q">' + r.held + ' retro' + (r.held === 1 ? '' : 's') + ' held';
@@ -1580,7 +1641,33 @@ footer {
         return '<div class="ask"><div class="body"><p class="q">' + esc(t.role) + ' · ' + esc(t.name) + ' <span class="cmd">' + spark(t.series) + '</span> ' + esc(String(last)) + '</p></div></div>';
       }).join('');
     }
-    $('retroBody').innerHTML = h;
+    $('retroBody').innerHTML = h + rebalanceHtml(r);
+  }
+
+  // Executed rebalances (`rebalance_applied`, CAPACITY_REBALANCING.md §4),
+  // newest first. Every field the record should carry is printed; one it does
+  // not carry reads "none recorded", never a blank or a guess.
+  function rebalanceHtml(r){
+    var none = '<span class="cmd">none recorded</span>';
+    var head = '<h3>Rebalances applied</h3>';
+    if (!r || !Array.isArray(r.rebalances)){
+      return head + '<div class="empty">Not measured — this snapshot carries no rebalance record (re-run the courier).</div>';
+    }
+    if (!r.rebalances.length){
+      return head + '<div class="empty">No rebalance applied yet — <span class="cmd">wall rebalance</span> writes <span class="cmd">rebalance_applied</span>, one knob per cycle.</div>';
+    }
+    return head + r.rebalances.slice().reverse().map(function(b){
+      var val = function(x){ return (x === null || x === undefined || x === '') ? none : esc(String(x)); };
+      var sig = (b.signals || []).length
+        ? b.signals.map(function(x){ return esc(String(x.name == null ? '?' : x.name)) + '=' + esc(String(x.value == null ? '?' : x.value)); }).join(' · ')
+        : none;
+      return '<div class="ask" data-rebalance="' + esc(b.knob || '') + '"><span class="age calm">' + ago(b.ts) + '</span><div class="body">' +
+        '<p class="q"><span class="cmd">' + (b.knob ? esc(b.knob) : 'knob not recorded') + '</span> ' + val(b['from']) + ' → ' + val(b.to) + '</p>' +
+        '<p class="q">signals: ' + sig + '</p>' +
+        '<p class="q">expected effect: ' + val(b.expected_effect) + ' · re-measure: ' + val(b.horizon) + '</p>' +
+        '<span class="from">written ' + (b.ts ? esc(b.ts) : 'at an unrecorded time') + (b.by ? ' · by ' + esc(b.by) : '') +
+        (b.reason ? ' · reason: ' + esc(b.reason) : '') + '</span></div></div>';
+    }).join('');
   }
 
   var LAST_FOCUS = null;
@@ -1855,7 +1942,8 @@ footer {
       {label:'Items on the board', big: items.length, foot:''},
       {label:'In flight', big: work.length, foot:'in progress, review, blocked, triage'},
       {label:'Agents working', big: working.length, foot:''},
-      {label:'Waiting on you', big:(D.waiting_on_you||[]).length, foot:'answer on the WAITING tab'},
+      {label:'Waiting on you', big:(D.waiting_on_you||[]).length + (D.verify_waiting||[]).length,
+       foot:'answer or verify on the WAITING tab'},
       {label:'Integrity flags', big:nflags, foot: nflags ? 'details on the CREW tab' : 'clean'}
     ];
     $('mainStats').innerHTML = stats.map(function(s){

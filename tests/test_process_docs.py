@@ -451,7 +451,7 @@ ADOPT_SKILL = KIT / ".claude" / "skills" / "adopt" / "SKILL.md"
 
 def test_template_intake_covers_every_template_with_both_layers():
     t = _text(TEMPLATE_INTAKE)
-    for name in ("CLAUDE.md.template", "RULES.md.template",
+    for name in ("AGENTS.md.template", "RULES.md.template",
                  "FAILURE_PATTERNS.md.template", "SHIP_CHECKLIST.md.template",
                  "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template",
                  "DOCS_MAP.md.template", "OWNER_DECISIONS.md.template",
@@ -468,7 +468,10 @@ def test_template_intake_covers_every_template_with_both_layers():
 
 def test_template_intake_uses_the_four_project_shapes():
     t = _text(TEMPLATE_INTAKE)
-    for shape in ("MAX3", "REEF", "MRC", "feedhacker"):
+    for shape in ("| Local-first resident app | resident app |",
+                  "| Network/security appliance | appliance |",
+                  "| Research collective / knowledge repo | research repo |",
+                  "| Feed/ingestion product (a browser extension) | feed product |"):
         assert shape in t, f"intake missing shape {shape}"
 
 
@@ -479,7 +482,7 @@ def test_template_intake_graduates_its_own_probes():
 
 
 def test_every_template_points_at_its_question_set():
-    for name in ("CLAUDE.md.template", "RULES.md.template",
+    for name in ("AGENTS.md.template", "RULES.md.template",
                  "FAILURE_PATTERNS.md.template", "SHIP_CHECKLIST.md.template",
                  "BEST_PRACTICES.md.template", "BUDGETED_DOCS.md.template",
                  "DOCS_MAP.md.template", "OWNER_DECISIONS.md.template",
@@ -1145,7 +1148,7 @@ def test_capability_trust_doc_is_default_deny_and_wired():
 
 
 def test_derived_and_published_surfaces_section():
-    """DEC-0029 (MRC's production classes): both-ways regeneration, the
+    """DEC-0029 (the research-publishing repo's production classes): both-ways regeneration, the
     orphan, the tautology trap, no build clock, one-fact-two-paths."""
     ts = _text(KIT / "docs" / "TESTING_STANDARDS.md")
     assert "proven in BOTH directions" in ts and "**orphan**" in ts

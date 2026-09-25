@@ -19,7 +19,7 @@ QUESTIONS      Required questions + LLM probes to fill this well:
 # BUDGETED_DOCS.md
 
 > Any document that feeds a model prompt declares a budget and carries its last
-> measured headroom. Referenced by `CLAUDE.md` and by `SHIP_CHECKLIST.md`
+> measured headroom. Referenced by `AGENTS.md` and by `SHIP_CHECKLIST.md`
 > section G.
 
 ---

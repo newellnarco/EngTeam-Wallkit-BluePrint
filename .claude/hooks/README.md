@@ -60,18 +60,31 @@ is resolved in precedence order:
 
 1. `run_id` in the payload, if the harness supplies one.
 2. `WALL_RUN_ID` in the environment.
-3. `.wall/registry/open_runs.json` -- the runs the Maestro registered at
+3. A `wall run-end` marker (`.wall/runs/<run_id>/ended.json`) for this
+   session: the run's terminal record already exists, so the hook consumes the
+   marker and writes **nothing** -- one terminal record per run, never a second
+   synthetic one. Markers older than six hours are ignored.
+4. `.wall/registry/open_runs.json` -- the runs the Maestro registered at
    dispatch, filtered to this session and to runs with no terminal event yet.
    One match is used directly; several means the oldest is used and the record
    is marked `inferred_oldest`.
-4. None of the above: a synthetic id marked `unresolved`. The real run then
+5. None of the above: a synthetic id marked `unresolved`. The real run then
    shows as an orphan in the integrity panel, which is the honest outcome --
    better a visible hole than a confident wrong attribution.
 
-**So the Maestro must register each dispatch.** Write `open_runs.json` as either
-`{"<run_id>": {...}}` or `{"runs": [{...}]}`; both are accepted. Useful fields:
-`run_id`, `session_id`, `agent_key`, `agent_name`, `role`, `item_id`,
-`trace_id`, `parent_run_id`, `model_requested`, `started`.
+**So the Maestro must register each dispatch, with `wall run-start`** (`--key
+--role --item --deadline-min`). It writes `run_start`, registers the run in
+`open_runs.json` under a lock, and refuses a run past `role_limits[role]`
+unless `--over-cap-reason` is recorded. Hand-written rows are still read, as
+either `{"<run_id>": {...}}` or `{"runs": [{...}]}`, with the fields `run_id`,
+`session_id`, `agent_key`, `agent_name`, `role`, `item_id`, `trace_id`,
+`parent_run_id`, `model_requested`, `started` -- but a hand-written run past the
+cap shows on the wall as `over_cap`.
+
+**Without hooks, the no-hooks path is `wall run-end --run <run_id> --outcome
+<outcome>`.** It writes the same terminal record this hook would, drops the run
+from `open_runs.json`, and leaves the marker in step 3, so a hook installed
+later (or firing anyway) cannot write a second terminal record for the same run.
 
 An agent may leave its own semantic half at `.wall/runs/<run_id>/outcome.json`
 (`outcome`, `error_class`, `tokens`, `cost_usd`, `duration_s`,

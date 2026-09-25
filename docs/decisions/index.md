@@ -36,11 +36,13 @@ Format and front-matter contract: `docs/WALL_STANDARDS.md` section 6.
 | [DEC-0026](DEC-0026.md) | active | Three oversight dashboards on the wall; the DESIGN tab waits for its data contract | observability | 2026-09-21 |
 | [DEC-0027](DEC-0027.md) | active | Assimilation authors the context, the Patron's review governs it, and FLOW measures the work | adoption | 2026-09-21 |
 | [DEC-0028](DEC-0028.md) | active | The compliance register: blueprints, Patron selection, challenged both ways, attested control by control | compliance | 2026-09-21 |
-| [DEC-0029](DEC-0029.md) | active | The sibling fold-in: MAX3/REEF/MRC method graduates into the kit, agnostically | process | 2026-09-22 |
+| [DEC-0029](DEC-0029.md) | active | The sibling fold-in: the reference deployment's and the sibling shapes' methods graduate into the kit, agnostically | process | 2026-09-22 |
 | [DEC-0030](DEC-0030.md) | active | Regime lifecycle: scan recommends, Patron decides, Warden audits — on the ledger | compliance | 2026-09-22 |
 | [DEC-0031](DEC-0031.md) | active | Two regimes join the register: NIST, and FDA-regulated software | compliance | 2026-09-22 |
 | [DEC-0032](DEC-0032.md) | active | The DOCS tab reads the document and takes the verdict | wall / oversight / queue | 2026-09-22 |
 | [DEC-0033](DEC-0033.md) | active | The kit ships its failure library and a known-issues intake | templates / registry | 2026-09-22 |
+| [DEC-0034](DEC-0034.md) | active | The owner runs a diagnostic by hand only while no closed loop exists | diagnostics / owner asks | 2026-09-23 |
+| [DEC-0035](DEC-0035.md) | active | A second CI trigger path is a project's choice, paired with one collapsing group | ci / triggers | 2026-09-23 |
 
 ---
 

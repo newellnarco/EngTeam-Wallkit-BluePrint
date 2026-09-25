@@ -109,6 +109,7 @@ path (ITEM_AUTHORING.md), and the story is not "look into X". It carries:
 | Field | Content |
 |---|---|
 | **Evidence** | The normalized signature, the snapshot excerpt, its age, the occurrence count |
+| **Hypotheses** | Every candidate cause considered, the measurement that separates it from the others, and the verdict -- refuted ones stay on the record (`SKILLS_LIBRARY.md` section 1) |
 | **Root cause** | The chained five-whys read (a level naming a person or a moment of inattention is not a cause) |
 | **Solution design** | The Researcher's output, routed the normal way: findings → research → design written to the wall — never code from the researcher |
 | **Prevention** | The rule + regression test + checklist line that retires the class, authored in the same arc |
@@ -167,7 +168,13 @@ Three rules make the discipline real:
 1. **Any sentence of the form "run this on the machine" must name the
    channel that cannot carry it** — or the sentence is a defect in the plan,
    not a task for the owner. The one legitimate owner ask is *verification
-   by looking* (section 5), because seeing is the point.
+   by looking* (section 5), because seeing is the point. The single
+   exception (DEC-0034): **while no closed loop ships telemetry and logs
+   from the environment back to the repository**, one hand-run diagnostic
+   may be asked -- it names the missing loop, and building that loop is
+   filed as a P1 item in the same breath. Once the loop exists, a
+   diagnostic question is answered from it or the loop is extended; it is
+   never handed to the owner.
 2. **Automate the result back, not just the work.** A channel that applies
    a fix but does not ship the outcome to the diagnostics branch has only
    changed the question from "please run this" to "did it work?". One-time
@@ -230,6 +237,16 @@ the verification pair `verify_requested` / `verified`. All ride the normal
 shard → courier → wall path; the WAITING tab shows unverified items beside
 unanswered asks, because both are the same thing: the loop holding a slot
 open for a human.
+
+The writers are commands, each refusing what this document forbids: `wall
+finding` (normalizes the signature; an `unclassified` finding cannot be
+`auto_repaired`), `wall story-filed --finding <event_id> --item <id>`, `wall
+verify-request --item --what --steps`, and `wall verified --item --verdict
+confirmed|confirmed_with_findings` (the owner's answer, on the `s_human`
+shard like `wall answer`). The courier flags a finding routed `story_filed`
+with no `story_filed` past `sla_minutes.story_filed` (`dropped_findings`) and
+a verification waiting past `verify_horizon_days` (`verify_overdue`); the
+open queue rides the snapshot as `verify_waiting`.
 
 ## 9. Cross-references
 

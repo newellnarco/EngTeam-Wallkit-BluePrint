@@ -30,7 +30,7 @@ fixed):
     "allow": ["**/*.md", "docs/**/*.docx", "MANIFEST.sha256"],
     "deny":  ["frontend/src/**", "backend/**/*.py", "**/*.bat", "**/*.ps1",
               ".github/workflows/**", "tools/**", ".wall/config/**",
-              "**/CLAUDE.md"]
+              "**/AGENTS.md", "**/CLAUDE.md"]
   }
 }
 ```
@@ -39,8 +39,9 @@ fixed):
 
 - `.github/workflows/**` - a builder editing CI to turn its own tests green is
   the classic escape hatch. It is code.
-- `**/CLAUDE.md` - it matches `**/*.md`, so the allow glob would fast-track it,
-  but it changes the behavior of every future agent. It is code.
+- `**/AGENTS.md`, `**/CLAUDE.md` - they match `**/*.md`, so the allow glob
+  would fast-track them, but they change the behavior of every future agent.
+  They are code (the second is generated from the first - CONTEXT_FILES.md).
 - `tools/**` - wall tooling can corrupt the ledger. Not a doc.
 - **Every document a generator or prompt-builder consumes** - a standards
   file compiled into a reviewer prompt, a failure registry that seeds
@@ -152,7 +153,11 @@ decision about *what* to run:
   commit bills the whole pyramid for commits nobody has looked at yet — the
   single biggest blowout in the corpus this kit was mined from. The work-in-
   progress signal is the local gate; the hosted one is for a head somebody is
-  asking about.
+  asking about. A project may deliberately keep `push` on working branches as
+  a second trigger path, so a dropped pull-request event cannot merge a change
+  with no CI (DEC-0035) -- but only together with the next lever, one group
+  covering both events, and knowing that branches with no pull request then
+  bill runs too. This kit's own CI keeps the default-branch scope.
 - **One concurrency group per branch, cancelling in progress.** Rapid pushes
   then collapse to one run of the latest head instead of N runs of N heads,
   most of which are already superseded. This is the setting that makes "never

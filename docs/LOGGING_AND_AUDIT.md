@@ -85,9 +85,11 @@ log eats the disk.
 
 ## Testing without spending tokens
 
-`--fake-agent` mode emits canned event sequences. The merge, validator, renderer,
-trace commands and timer should all be exercisable end to end with **zero model
-calls**. `sample/make_sample.py` is the fixture source.
+`sample/make_sample.py` writes canned event shards -- a deliberately unhealthy
+sample -- so the merge, validator, renderer, trace commands and timer are
+exercisable end to end with **zero model calls**. There is no `--fake-agent`
+flag on any command; the script is the whole fake-agent mode (see the planned
+list below).
 
 Golden-file test for the merge: shuffled shard order must produce byte-identical
 output. Already verified — `courier.py --rebuild` equals an incremental run.
@@ -100,15 +102,45 @@ a trailing partial line mid-append.
 
 ## Commands you will live in
 
+Every command below exists in `tools/wall/wall.py` today:
+
 ```
-wall trace <item_id>      causal timeline across agents and sessions
-wall run <run_id>         inputs and outputs of one invocation
-wall why <item_id>        decisions in effect, and which runs actually saw them
-wall tail [--role builder]
-wall doctor               heartbeat, seq gaps, orphan runs, hook health
-wall diff-state           ledger-derived vs on-disk
-wall replay <run_id>      re-dispatch with identical resolved inputs
+wall trace <item_id|trace_id>   causal timeline across agents and sessions
+wall why <item_id>              decisions in effect, and which runs actually saw them
+wall rebuild [--prune]          regenerate .wall/items/ from events alone
+wall diff-state                 ledger-derived item state vs on-disk
+wall doctor [--json]            heartbeat, integrity flags (seq gaps, orphan
+                                runs, ...), roster and plumbing health;
+                                --json also writes .wall/derived/doctor.json
 ```
 
-`wall replay` will not reproduce output exactly, but re-running an agent against
-a byte-identical prompt is how you tell a bad prompt from a bad roll.
+The learning-loop records, each validated before it is written (the command
+refuses what the governing document forbids):
+
+```
+wall run-start --key --role --item --deadline-min   run_start + open_runs.json;
+                                refuses past role_limits unless
+                                --over-cap-reason is recorded
+wall run-end --run <run_id>     no-hooks path: the terminal record the
+                                SubagentStop hook would write
+wall retro --wave --file        retro_held, validated against RETROSPECTIVES.md
+wall rebalance --knob --from --to --signal --expect --horizon
+                                rebalance_applied; one knob per cycle, a second
+                                reversal goes to the Adjudicator
+wall finding --signature --class --route --snapshot-ref
+                                diagnostic_finding (DIAGNOSTICS_LOOP.md)
+wall story-filed --finding --item   joins a finding to the story that carries it
+wall verify-request --item --what --steps   owner-verification queue
+wall verified --item --verdict  the owner's answer (human only)
+```
+
+**Planned -- not built.** Nothing in this list exists yet; do not script
+against it:
+
+- `wall run <run_id>` -- inputs and outputs of one invocation
+- `wall tail [--role builder]` -- live event stream, filterable by role
+- `wall replay <run_id>` -- re-dispatch with identical resolved inputs. It would
+  not reproduce output exactly, but re-running an agent against a
+  byte-identical prompt is how you tell a bad prompt from a bad roll.
+- `--fake-agent` -- a flag emitting canned event sequences; today
+  `sample/make_sample.py` plays that role

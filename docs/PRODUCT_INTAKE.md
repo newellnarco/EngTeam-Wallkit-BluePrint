@@ -52,7 +52,7 @@ artifacts nobody wrote for this purpose:
 
 | Evidence read | What it derives |
 |---|---|
-| README, entry-point context doc (`CLAUDE.md` or equivalent) | Product requirements, naming, non-goals |
+| README, entry-point context doc (`AGENTS.md`, `CLAUDE.md` or equivalent) | Product requirements, naming, non-goals |
 | Dependency manifests, lockfiles, language versions | Technology choices, dependency policy |
 | CI workflows, deploy scripts, install adapters | Hosting locations, release shape |
 | Existing architecture docs, module layout | Architecture choices |
