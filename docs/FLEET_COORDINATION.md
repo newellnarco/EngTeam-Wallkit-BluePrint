@@ -317,9 +317,13 @@ sequenceDiagram
   the TTL ends, and the release waits in `.wall/outbox/`. The coordinator
   still counts the slot as held, so reusing it never exceeds the allocation.
   After the TTL the reservation is gone on both sides.
-- **Reconnect reconciles reservations before anything else is sent.** The
-  session sends every queued release, re-heartbeats each reservation an open
-  run still uses, and releases the rest. A run still open on a reservation
+- **Reconnect reconciles reservations before anything else is sent,** in
+  this order, so a reused reservation is never released out from under the
+  run using it. First, the session re-heartbeats every reservation an open run
+  uses, and drops from the outbox any queued release for that reservation
+  (the release is stale: the session reused the slot after queueing it).
+  Only then does it send the remaining queued releases, and release any other
+  reservation no open run uses. A run still open on a reservation
   the coordinator has already expired asks for a fresh one; if the wave is
   full, the run keeps going but is recorded over cap with the reason
   `coordinator_unreachable` and flagged `over_cap`. A run is never stopped
@@ -667,9 +671,10 @@ Section 5.4 applies. The repo walls keep working, the desk shows the
 coordinator lamp cold, environment and deploy claims are refused, messages
 queue locally, and on reconnect the session, in order:
 
-1. reconciles its slot reservations (section 6.2): it sends queued releases,
-   re-heartbeats the ones open runs still use, and asks for a fresh one for
-   any run whose reservation expired, recording it over cap if the wave is full;
+1. reconciles its slot reservations (section 6.2): it first re-heartbeats the
+   ones open runs use and drops any queued release for them, then sends the
+   remaining releases, and asks for a fresh reservation for any run whose
+   reservation expired, recording it over cap if the wave is full;
 2. drains the rest of the outbox;
 3. re-sends presence, and swaps any provisional `~` name for a team-unique one.
 
