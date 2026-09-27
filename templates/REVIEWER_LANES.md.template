@@ -126,6 +126,14 @@ Repeat one of these per lane, including the dead ones.
   ready all spend the metered request against a head the lane can no longer
   answer about; a CI-green pull request with a review still running is not
   finished (WORKFLOW section 10).
+- **A lane billed per push is asked, never pushed at.** Where a lane charges
+  one review per push (a push that supersedes a running review is still
+  charged), configure it to review the opening push of a ready pull request
+  only, and ask for re-reviews through one throttle-aware requester: check
+  for a running review first, honour the lane's rate-limit notice (its stated
+  wait, else exponential backoff with jitter), at most one request per push,
+  a retry cap, and never a re-request on a timer. A rate limit that arrives as
+  a comment and a passing check is read from the comment.
 - **The lane count is re-checked on every subscription change.** A bundled
   tool can arrive with a plan upgrade and put the repository over its own
   lane cap without anyone deciding it - one arrived in the field at a $10

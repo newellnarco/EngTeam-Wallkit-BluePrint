@@ -1283,6 +1283,13 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
 
+### 2026-09-27: the kit's CodeRabbit lane is throttled
+
+- **`.coderabbit.yaml`** (new, the kit's own lane, not vendored): CodeRabbit reviews the opening push of a ready pull request only (`auto_incremental_review: false`, `auto_pause_after_reviewed_commits: 1`, `drafts: false` per DEC-0013), skips bot authors and `WIP` / `[skip review]` titles, and skips generated output. CodeRabbit charges one review per push, including a push that supersedes a running review, and sustained use drops the account into a slower refill lane.
+- **`tools/review/coderabbit-review.sh`** (new, kit tooling like `tools/quality/`): the one way to ask for a re-review. It waits out a running review, honours the rate-limit comment (its wait time, else exponential backoff with jitter), posts one request, and gives up after a retry cap. `--status` asks `@coderabbitai rate limit`, which is free.
+- **`REVIEWER_LANES.md`** (new, the kit's own register, built from the template): the CodeRabbit block (triggers, meter shape, what spends the meter, what a rate limit looks like, standing rules). `KNOWN_ISSUES.md` KI-2026-09-22-e stays open until Copilot's block is written.
+- **`templates/REVIEWER_LANES.md.template`** gains a standing rule for every adopting repository: a lane billed per push is asked, never pushed at (opening push only; re-reviews through one throttle-aware requester with a retry cap, never on a timer). `tests/test_review_lane_throttle.py` pins the config keys, the requester's throttle and the rule.
+
 ### 2026-09-24: fleet coordination proposed
 
 - **Proposed, not built:** `docs/FLEET_COORDINATION.md` and its proposed DEC-0036 design the team tier: a machine desk serving every registered repo from one server, a shared coordinator (self-hosted or serverless, GitHub identity), waves the engineer assigns, cross-machine leases, typed acknowledged messages between sessions, the platform merge queue in place of the Maestro's merge, personal and shared test environments, deploy locks and team-wide quotas. Includes workflows, diagrams, real screenshots of the wall and a mock of the desk.

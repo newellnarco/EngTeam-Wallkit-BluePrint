@@ -122,6 +122,11 @@ Silence is not a disposition. An entry with a code shape may carry a fenced
   throttle reopens, the quota does not until the period rolls), and batch
   review requests at open/ready rather than every push (`docs/FAST_TRACK.md`,
   the meter economics).
+- **Progress (2026-09-27):** CodeRabbit's block is in `REVIEWER_LANES.md`
+  (a throttle: one review per push, the slow lane, the rate-limit comment),
+  `.coderabbit.yaml` reviews only the opening push of a ready PR, and
+  re-reviews go through `tools/review/coderabbit-review.sh`. Copilot's block
+  is still owed, so the entry stays open.
 - **Disposition:** open
 
 ---
