@@ -7,8 +7,9 @@
 # those signals instead of guessing:
 #   1. waits while a CodeRabbit review is still running (pushing/requesting inside that window
 #      supersedes the running review, which is still charged);
-#   2. if the latest CodeRabbit comment is a rate-limit notice, sleeps until the time it names
-#      (or an exponential backoff with jitter when it names none);
+#   2. while any CodeRabbit rate-limit notice's stated wait is still running, sleeps it out (timed
+#      from the notice's last edit); if the latest notice names no time, backs off exponentially
+#      with jitter;
 #   3. posts "@coderabbitai review" once, then confirms CodeRabbit picked it up.
 # `--status` posts "@coderabbitai rate limit" (free: it does not consume a review), at most once
 # per hour per PR.
@@ -50,10 +51,13 @@ all_comments() {
   gh api "repos/$NWO/issues/$PR/comments?per_page=100" --paginate | jq -s 'add // []'
 }
 
-# Latest CodeRabbit issue comment on the PR: "<created_at>\t<body>" (body flattened to one line).
+# Latest CodeRabbit activity on the PR: "<id>@<updated_at>\t<body>" (body flattened to one line).
+# CodeRabbit edits its comments in place, so "latest" is the highest updated_at, ties broken by
+# comment id; the <id>@<updated_at> key changes on a new comment AND on an edit.
 last_cr_comment() {
   all_comments \
-    | jq -r --arg re "$BOT_RE" '[.[] | select(.user.login | test($re))] | last | if . then "\(.created_at)\t\(.body|gsub("[\n\r\t]";" "))" else "" end'
+    | jq -r --arg re "$BOT_RE" '[.[] | select(.user.login | test($re))] | sort_by([(.updated_at // .created_at), .id]) | last
+        | if . then "\(.id)@\(.updated_at // .created_at)\t\(.body|gsub("[\n\r\t]";" "))" else "" end'
 }
 
 to_epoch() { date -u -d "$1" +%s 2>/dev/null || date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s; }
@@ -66,24 +70,27 @@ review_running() {
     | jq -e '[.check_runs[] | select((.app.slug // "" | test("coderabbit"; "i")) or (.name | test("coderabbit"; "i"))) | select(.status != "completed")] | length > 0' >/dev/null
 }
 
-# Seconds to wait before requesting: the longest cooldown still running across ALL CodeRabbit
-# rate-limit notices (a newer ordinary CodeRabbit comment does not end an active cooldown).
-# -1 when the latest CodeRabbit comment is a rate-limit notice that names no time; else 0.
+# Prints "<wait> <untimed>": <wait> is the longest cooldown still running across ALL CodeRabbit
+# rate-limit notices, timed from each notice's updated_at (notices are edited in place), so a newer
+# ordinary comment cannot hide one; <untimed> is 1 when the latest CodeRabbit activity is a
+# rate-limit notice that names no time (the caller then backs off, never for less than <wait>).
 rate_limit_wait() {
-  local now latest best=0 unknown=0 ts body mins secs wait left
+  local now latest best=0 untimed=0 key ts body mins secs wait left
   now="$(date -u +%s)"
   latest="$(last_cr_comment | cut -f1)"
-  while IFS=$'\t' read -r ts body; do
-    [[ -z "$ts" ]] && continue
+  while IFS=$'\t' read -r key body; do
+    [[ -z "$key" ]] && continue
+    ts="${key#*@}"
     mins="$(grep -oiE '([0-9]+) ?minutes?' <<<"$body" | head -1 | grep -oE '[0-9]+' || true)"
     secs="$(grep -oiE '([0-9]+) ?seconds?' <<<"$body" | head -1 | grep -oE '[0-9]+' || true)"
     wait=$(( ${mins:-0} * 60 + ${secs:-0} ))
-    if (( wait == 0 )); then [[ "$ts" == "$latest" ]] && unknown=1; continue; fi
+    if (( wait == 0 )); then [[ "$key" == "$latest" ]] && untimed=1; continue; fi
     left=$(( $(to_epoch "$ts") + wait + 30 - now ))
     if (( left > best )); then best=$left; fi
   done < <(all_comments | jq -r --arg re "$BOT_RE" --arg rl "$RL_RE" \
-    '.[] | select(.user.login | test($re)) | select(.body | test($rl; "i")) | "\(.created_at)\t\(.body|gsub("[\n\r\t]";" "))"')
-  if (( best > 0 )); then echo "$best"; elif (( unknown )); then echo -1; else echo 0; fi
+    '.[] | select(.user.login | test($re)) | select(.body | test($rl; "i"))
+       | "\(.id)@\(.updated_at // .created_at)\t\(.body|gsub("[\n\r\t]";" "))"')
+  echo "$best $untimed"
 }
 
 say() { printf '%s %s\n' "$(date -u +%H:%M:%S)" "$*"; }
@@ -100,13 +107,15 @@ fi
 attempt=1
 while (( attempt <= MAX_RETRIES )); do
   while review_running; do say "CodeRabbit review still running on the head commit; waiting 60s (a new request now would supersede it)."; sleep 60; done
-  wait="$(rate_limit_wait)"
-  if [[ "$wait" == "-1" ]]; then
+  read -r known untimed <<<"$(rate_limit_wait)"
+  if (( untimed )); then
     wait=$(( BASE_DELAY * (2 ** (attempt - 1)) + RANDOM % 30 ))
+    (( wait < known )) && wait=$known
     (( wait > MAX_DELAY )) && wait=$MAX_DELAY
     say "Rate limited (slow lane) with no time given; backing off ${wait}s (attempt $attempt/$MAX_RETRIES)."
     sleep "$wait"; attempt=$((attempt + 1)); continue
-  elif (( wait > 0 )); then
+  elif (( known > 0 )); then
+    wait=$known
     (( wait > MAX_DELAY )) && wait=$MAX_DELAY
     say "Rate limited; CodeRabbit says capacity returns in ~${wait}s. Waiting (attempt $attempt/$MAX_RETRIES)."
     sleep "$wait"; attempt=$((attempt + 1)); continue
