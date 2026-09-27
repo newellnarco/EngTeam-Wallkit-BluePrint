@@ -1283,6 +1283,10 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
 
+### 2026-09-27: the CodeRabbit requester reads hours and the current limit notice
+
+- **`tools/review/coderabbit-review.sh`**: a stated wait in hours now counts. "Please wait 1 hour and 5 minutes" was read as 5 minutes, so the requester asked again with most of the cooldown left. CodeRabbit's current notice wording ("Review limit reached ... Next included review available in N minutes") is now matched directly. Before, only a hidden HTML marker in the comment matched, and the pickup check uses the same patterns. `tests/test_review_lane_throttle.py` pins both.
+
 ### 2026-09-27: the CodeRabbit requester reads every page and every cooldown
 
 - **`tools/review/coderabbit-review.sh`**: two bugs CodeRabbit found in the shared requester, on its first review, are fixed. `gh api --paginate` prints one JSON array per page, so on a pull request with more than 100 comments the latest-comment lookup returned several lines. Pages are now combined into one array, and comment bodies are flattened to one line. The rate-limit wait also read only the latest CodeRabbit comment, so a newer ordinary comment hid a cooldown still running. It now honours the longest cooldown still running across every rate-limit notice, timed from each notice's last edit because CodeRabbit edits its notices in place. The latest CodeRabbit activity is the comment with the newest edit, with ties broken by comment id, so two comments in the same second cannot be confused. When that latest notice names no time, the requester backs off with jitter but never for less than a cooldown still known to be running. `tests/test_review_lane_throttle.py` pins all of this.

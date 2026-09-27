@@ -44,7 +44,7 @@ BOT_RE='^coderabbitai(\[bot\])?$'
 ghr() { if [[ -n "$REPO" ]]; then gh "$@" --repo "$REPO"; else gh "$@"; fi; }
 NWO="${REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
 
-RL_RE='rate limit|rate-limited|review rate limited|reviews? (are|is) (currently )?unavailable'
+RL_RE='rate limit|rate-limited|review rate limited|review limit reached|reviews? (are|is) (currently )?unavailable'
 
 # All issue comments on the PR as ONE array (`gh --paginate` prints one JSON array per page).
 all_comments() {
@@ -75,15 +75,16 @@ review_running() {
 # ordinary comment cannot hide one; <untimed> is 1 when the latest CodeRabbit activity is a
 # rate-limit notice that names no time (the caller then backs off, never for less than <wait>).
 rate_limit_wait() {
-  local now latest best=0 untimed=0 key ts body mins secs wait left
+  local now latest best=0 untimed=0 key ts body hours mins secs wait left
   now="$(date -u +%s)"
   latest="$(last_cr_comment | cut -f1)"
   while IFS=$'\t' read -r key body; do
     [[ -z "$key" ]] && continue
     ts="${key#*@}"
+    hours="$(grep -oiE '([0-9]+) ?hours?' <<<"$body" | head -1 | grep -oE '[0-9]+' || true)"
     mins="$(grep -oiE '([0-9]+) ?minutes?' <<<"$body" | head -1 | grep -oE '[0-9]+' || true)"
     secs="$(grep -oiE '([0-9]+) ?seconds?' <<<"$body" | head -1 | grep -oE '[0-9]+' || true)"
-    wait=$(( ${mins:-0} * 60 + ${secs:-0} ))
+    wait=$(( ${hours:-0} * 3600 + ${mins:-0} * 60 + ${secs:-0} ))
     if (( wait == 0 )); then [[ "$key" == "$latest" ]] && untimed=1; continue; fi
     left=$(( $(to_epoch "$ts") + wait + 30 - now ))
     if (( left > best )); then best=$left; fi
@@ -130,7 +131,7 @@ while (( attempt <= MAX_RETRIES )); do
     if review_running; then say "CodeRabbit is reviewing."; exit 0; fi
     now_line="$(last_cr_comment)"; now_ts="${now_line%%$'\t'*}"
     if [[ -n "$now_ts" && "$now_ts" != "$before" ]]; then
-      if grep -qiE 'rate limit|rate-limited' <<<"${now_line#*$'\t'}"; then break; fi
+      if grep -qiE "$RL_RE" <<<"${now_line#*$'\t'}"; then break; fi
       say "CodeRabbit responded."; exit 0
     fi
   done

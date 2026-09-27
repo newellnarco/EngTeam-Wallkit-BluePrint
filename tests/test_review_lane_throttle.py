@@ -80,6 +80,8 @@ def test_the_requester_is_executable_and_parses():
     'select(.body | test($rl; "i"))',  # weighs every rate-limit notice, not only the latest comment
     "sort_by([(.updated_at // .created_at), .id])",  # latest = last edit, ties broken by comment id
     "(( wait < known )) && wait=$known",  # an untimed backoff never cuts a known cooldown short
+    "${hours:-0} * 3600",        # a stated wait in hours counts ("1 hour and 5 minutes")
+    "review limit reached",      # CodeRabbit's current notice wording, matched without its HTML marker
 ])
 def test_the_requester_keeps_its_throttle(phrase):
     assert phrase in SCRIPT.read_text(encoding="utf-8"), phrase
