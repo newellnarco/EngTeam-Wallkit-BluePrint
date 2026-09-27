@@ -76,6 +76,10 @@ def test_the_requester_is_executable_and_parses():
     "RANDOM % 30",               # jitter on the backoff
     'MAX_RETRIES="${CR_MAX_RETRIES:-4}"',   # a retry cap
     "@coderabbitai rate limit",  # the free status check
+    "jq -s 'add // []'",         # combines every page of comments before reading them
+    'select(.body | test($rl; "i"))',  # weighs every rate-limit notice, not only the latest comment
+    "sort_by([(.updated_at // .created_at), .id])",  # latest = last edit, ties broken by comment id
+    "(( wait < known )) && wait=$known",  # an untimed backoff never cuts a known cooldown short
 ])
 def test_the_requester_keeps_its_throttle(phrase):
     assert phrase in SCRIPT.read_text(encoding="utf-8"), phrase
