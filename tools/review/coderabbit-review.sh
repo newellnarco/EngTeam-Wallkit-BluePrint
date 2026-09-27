@@ -43,11 +43,20 @@ BOT_RE='^coderabbitai(\[bot\])?$'
 ghr() { if [[ -n "$REPO" ]]; then gh "$@" --repo "$REPO"; else gh "$@"; fi; }
 NWO="${REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
 
-# Latest CodeRabbit issue comment on the PR: "<created_at>\t<body>".
-last_cr_comment() {
-  gh api "repos/$NWO/issues/$PR/comments?per_page=100" --paginate \
-    | jq -r --arg re "$BOT_RE" '[.[] | select(.user.login | test($re))] | last | if . then "\(.created_at)\t\(.body|gsub("\n";" "))" else "" end'
+RL_RE='rate limit|rate-limited|review rate limited|reviews? (are|is) (currently )?unavailable'
+
+# All issue comments on the PR as ONE array (`gh --paginate` prints one JSON array per page).
+all_comments() {
+  gh api "repos/$NWO/issues/$PR/comments?per_page=100" --paginate | jq -s 'add // []'
 }
+
+# Latest CodeRabbit issue comment on the PR: "<created_at>\t<body>" (body flattened to one line).
+last_cr_comment() {
+  all_comments \
+    | jq -r --arg re "$BOT_RE" '[.[] | select(.user.login | test($re))] | last | if . then "\(.created_at)\t\(.body|gsub("[\n\r\t]";" "))" else "" end'
+}
+
+to_epoch() { date -u -d "$1" +%s 2>/dev/null || date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$1" +%s; }
 
 # Is a CodeRabbit check still running on the PR head?
 review_running() {
@@ -57,21 +66,24 @@ review_running() {
     | jq -e '[.check_runs[] | select((.app.slug // "" | test("coderabbit"; "i")) or (.name | test("coderabbit"; "i"))) | select(.status != "completed")] | length > 0' >/dev/null
 }
 
-# Seconds to wait if the latest CodeRabbit comment is a rate-limit notice, else 0.
+# Seconds to wait before requesting: the longest cooldown still running across ALL CodeRabbit
+# rate-limit notices (a newer ordinary CodeRabbit comment does not end an active cooldown).
+# -1 when the latest CodeRabbit comment is a rate-limit notice that names no time; else 0.
 rate_limit_wait() {
-  local line body ts
-  line="$(last_cr_comment)"
-  [[ -z "$line" ]] && { echo 0; return; }
-  ts="${line%%$'\t'*}"; body="${line#*$'\t'}"
-  if ! grep -qiE 'rate limit|rate-limited|review rate limited|reviews? (are|is) (currently )?unavailable' <<<"$body"; then echo 0; return; fi
-  local mins secs wait now posted
-  mins="$(grep -oiE '([0-9]+) ?minutes?' <<<"$body" | head -1 | grep -oE '[0-9]+' || true)"
-  secs="$(grep -oiE '([0-9]+) ?seconds?' <<<"$body" | head -1 | grep -oE '[0-9]+' || true)"
-  wait=$(( ${mins:-0} * 60 + ${secs:-0} ))
-  [[ $wait -eq 0 ]] && { echo -1; return; }   # limited, but no time given
-  now="$(date -u +%s)"; posted="$(date -u -d "$ts" +%s 2>/dev/null || date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$ts" +%s)"
-  local left=$(( posted + wait + 30 - now ))
-  (( left > 0 )) && echo "$left" || echo 0
+  local now latest best=0 unknown=0 ts body mins secs wait left
+  now="$(date -u +%s)"
+  latest="$(last_cr_comment | cut -f1)"
+  while IFS=$'\t' read -r ts body; do
+    [[ -z "$ts" ]] && continue
+    mins="$(grep -oiE '([0-9]+) ?minutes?' <<<"$body" | head -1 | grep -oE '[0-9]+' || true)"
+    secs="$(grep -oiE '([0-9]+) ?seconds?' <<<"$body" | head -1 | grep -oE '[0-9]+' || true)"
+    wait=$(( ${mins:-0} * 60 + ${secs:-0} ))
+    if (( wait == 0 )); then [[ "$ts" == "$latest" ]] && unknown=1; continue; fi
+    left=$(( $(to_epoch "$ts") + wait + 30 - now ))
+    if (( left > best )); then best=$left; fi
+  done < <(all_comments | jq -r --arg re "$BOT_RE" --arg rl "$RL_RE" \
+    '.[] | select(.user.login | test($re)) | select(.body | test($rl; "i")) | "\(.created_at)\t\(.body|gsub("[\n\r\t]";" "))"')
+  if (( best > 0 )); then echo "$best"; elif (( unknown )); then echo -1; else echo 0; fi
 }
 
 say() { printf '%s %s\n' "$(date -u +%H:%M:%S)" "$*"; }
@@ -79,7 +91,7 @@ post() { if (( DRY )); then say "[dry-run] would comment: $1"; else ghr pr comme
 
 if (( STATUS )); then
   line="$(last_cr_comment)"
-  if grep -q '@coderabbitai rate limit' <<<"$(gh api "repos/$NWO/issues/$PR/comments?per_page=100" --paginate | jq -r --arg since "$(date -u -d '-1 hour' +%FT%TZ 2>/dev/null || date -u -v-1H +%FT%TZ)" '.[] | select(.created_at > $since) | .body')"; then
+  if grep -q '@coderabbitai rate limit' <<<"$(all_comments | jq -r --arg since "$(date -u -d '-1 hour' +%FT%TZ 2>/dev/null || date -u -v-1H +%FT%TZ)" '.[] | select(.created_at > $since) | .body')"; then
     say "A rate-limit check was already posted in the last hour; latest CodeRabbit reply:"; echo "${line#*$'\t'}"; exit 0
   fi
   post "@coderabbitai rate limit"; say "Posted a rate-limit check (does not consume a review)."; exit 0

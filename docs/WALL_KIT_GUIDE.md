@@ -1283,6 +1283,10 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
 
+### 2026-09-27: the CodeRabbit requester reads every page and every cooldown
+
+- **`tools/review/coderabbit-review.sh`**: two bugs CodeRabbit found in the shared requester, on its first review, are fixed. `gh api --paginate` prints one JSON array per page, so on a pull request with more than 100 comments the latest-comment lookup returned several lines. Pages are now combined into one array, and comment bodies are flattened to one line. The rate-limit wait also read only the latest CodeRabbit comment, so a newer ordinary comment hid a cooldown still running. It now honours the longest cooldown still running across every rate-limit notice. `tests/test_review_lane_throttle.py` pins both.
+
 ### 2026-09-27: the kit's CodeRabbit lane is throttled
 
 - **`.coderabbit.yaml`** (new, the kit's own lane, not vendored): CodeRabbit reviews the opening push of a ready pull request only (`auto_incremental_review: false`, `auto_pause_after_reviewed_commits: 1`, `drafts: false` per DEC-0013), skips bot authors and `WIP` / `[skip review]` titles, and skips generated output. CodeRabbit charges one review per push, including a push that supersedes a running review, and sustained use drops the account into a slower refill lane.
