@@ -1,0 +1,53 @@
+# yaml-language-server: $schema=https://www.coderabbit.ai/integrations/schema.v2.json
+#
+# The kit's own CodeRabbit lane. Tuned to stay out of CodeRabbit's Fair Usage
+# "slow lane": CodeRabbit counts one review per PUSH (not per commit), a push
+# made while a review is still running supersedes it but is still charged, and
+# sustained activity over 24h/7d lowers the hourly refill rate. So: review the
+# opening push, pause early on busy branches, skip drafts/bots/WIP, and ask for
+# a re-review explicitly, through tools/review/coderabbit-review.sh.
+# The lane's triggers, meter shape and standing rules: REVIEWER_LANES.md.
+# Drafts are not reviewed: DEC-0013 (per-lane pin, default OFF for a metered lane).
+language: en-US
+reviews:
+  profile: chill
+  high_level_summary: true
+  poem: false
+  sequence_diagrams: false
+  request_changes_workflow: false
+  path_filters:
+    - "!**/package-lock.json"
+    - "!**/pnpm-lock.yaml"
+    - "!**/yarn.lock"
+    - "!**/poetry.lock"
+    - "!**/*.min.js"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!**/release/**"
+    - "!**/*.snap"
+    # Generated in this repository: never edited by hand, so never reviewed.
+    # The ast-grep rules are derived from FAILURE_PATTERNS.md / KNOWN_ISSUES.md
+    # by tools/wall/quality.py; the sample wall's derived state by make_sample.py.
+    - "!.ast-grep/rules/generated/**"
+    - "!.ast-grep/rule-tests/generated/**"
+    - "!sample/.wall/derived/**"
+    - "!docs/images/**"
+    - "!docs/screenshots/**"
+  auto_review:
+    enabled: true
+    # Review the opening push; later pushes are reviewed only on request
+    # (`@coderabbitai review`), so rapid fix-push loops don't burn the allowance.
+    auto_incremental_review: false
+    # If incremental reviews are turned back on, pause after one reviewed commit.
+    auto_pause_after_reviewed_commits: 1
+    drafts: false
+    ignore_title_keywords:
+      - "WIP"
+      - "[skip review]"
+      - "[no review]"
+    ignore_usernames:
+      - "dependabot[bot]"
+      - "renovate[bot]"
+      - "github-actions[bot]"
+chat:
+  auto_reply: true

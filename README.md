@@ -707,6 +707,8 @@ authority on which commands are in that state today.
 | `tools/wall/` | Courier, roster, CLI, service + server + shipper, install adapters, renderer, board-import adapters, `bootstrap.py` |
 | `tools/git-hooks/` | Versioned pre-commit and pre-push hooks; copied by bootstrap, installed only by their `install.sh` |
 | `frontend/theme/` | Tokens, primitives, preview |
+| `tools/review/` | `coderabbit-review.sh`: the throttle-aware way to ask CodeRabbit for a re-review (the kit's own tooling, not vendored) |
+| `.coderabbit.yaml`, `REVIEWER_LANES.md` | The kit's own CodeRabbit lane (opening push only, no drafts) and its register: triggers, meter shape, standing rules |
 | `sample/make_sample.py` | Fixture generator, zero model calls |
 | `tests/` | Scaffolding and integrity tests |
 
