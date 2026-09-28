@@ -204,6 +204,26 @@ def test_health_goes_false_when_the_sweep_stalls(home: Path):
     assert host.health()["ok"] is True
 
 
+def test_health_stays_true_while_a_long_sweep_makes_progress(home: Path, tmp_path: Path,
+                                                             monkeypatch):
+    """A sweep longer than 3 intervals (slow subprocess repos) is progress, not a
+    stall: /health must stay ok between repos, or the watchdog sweeps the same
+    repos concurrently."""
+    host = host_mod.Host(home, interval_s=10)
+    register(home, ("a", vendored_repo(tmp_path / "a")), ("b", vendored_repo(tmp_path / "b")))
+    host.fingerprint = None  # force the subprocess path
+    seen = []
+
+    def slow(wall_py, repo):
+        host._started_at -= 31  # each repo "takes" longer than 3 intervals
+        seen.append(host.health()["ok"])
+        return True, "ok"
+
+    monkeypatch.setattr(host, "_sweep_subprocess", slow)
+    host.sweep()
+    assert seen == [True, True], "a sweep that is still moving must read healthy"
+
+
 def test_health_refuses_a_foreign_origin(live_host):
     _, base = live_host
     req = urllib.request.Request(base + "/health", headers={"Origin": "https://evil.example"})

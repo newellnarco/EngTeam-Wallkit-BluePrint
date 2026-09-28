@@ -159,8 +159,10 @@ afterwards; `wall host status` shows what is linked.
 
 **When the host is down**, the local entry points at a port nothing answers,
 so the wall server shows as failed in `/mcp` for sessions on that machine.
-Restart it with `wall host start` (the timer's watchdog also restarts it
-within five minutes), or return the machine to stdio with `wall host
+Restart it with `wall host start` (on Windows the timer's watchdog also
+restarts it within five minutes; on Linux and macOS the timer's unit reaps
+what it starts, so run `python tools/wall/host.py` as its own user service
+there -- see `INSTALL.md`), or return the machine to stdio with `wall host
 uninstall`, which removes every local entry pointing at the host. `wall
 doctor` flags an enabled host that does not answer.
 

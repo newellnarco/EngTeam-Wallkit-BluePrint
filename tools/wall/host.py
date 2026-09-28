@@ -192,6 +192,11 @@ class Host:
         self.started = now()
         self._started_at = time.monotonic()
         self._swept_at: float | None = None
+        # Bumped when a sweep starts and after each repo: a long sweep (a
+        # subprocess repo may take SWEEP_TIMEOUT_S) is still progress, and
+        # /health must not call it stalled -- the watchdog would then sweep
+        # the same repos concurrently and race on registry/heartbeat.
+        self._progress_at: float | None = None
         self.last_sweep: dict | None = None
         self.stop = threading.Event()
         #: Set when the kit this host runs from changed on disk (an
@@ -236,7 +241,8 @@ class Host:
                           == self.fingerprint})
         # ok means SWEEPING, not merely listening: a host whose sweep loop
         # stalled answers ok=false, and the watchdog sweeps in its place.
-        since = self._swept_at if self._swept_at is not None else self._started_at
+        since = max(t for t in (self._swept_at, self._progress_at, self._started_at)
+                    if t is not None)
         fresh = time.monotonic() - since <= 3 * self.interval_s
         return {"ok": fresh and not self.stop.is_set(), "service": SERVICE,
                 "pid": os.getpid(),
@@ -300,6 +306,7 @@ class Host:
             self._swept_at = time.monotonic()
             return beat
         kept, results = [], []
+        self._progress_at = time.monotonic()
         for row in rows:
             repo = Path(row["path"])
             if not repo.is_dir():
@@ -324,6 +331,7 @@ class Host:
             results.append({"path": str(repo), "ok": ok, "detail": detail,
                             "in_process": same_kit})
             self.log("%s: %s -- %s" % (repo, "ok" if ok else "FAILED", detail))
+            self._progress_at = time.monotonic()
             if ok:
                 row["last_seen"] = now()
         _write_json(registry, {"repos": kept})
