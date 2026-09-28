@@ -1283,6 +1283,10 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
 
+### 2026-09-28: the CodeRabbit requester does not wait out a long rate limit
+
+- **`tools/review/coderabbit-review.sh`**: the owner's rule is now in the requester. When CodeRabbit is rate limited, it waits only if the limit clears within `CR_MAX_WAIT` (1200 s by default, counting every rate-limit wait in the run). A longer limit, or a latest notice naming no time, ends the run with exit 4 and nothing posted, so the work proceeds without a CodeRabbit review instead of sleeping for up to an hour. `CR_MAX_WAIT=0` restores the uncapped behaviour. `tests/test_review_lane_throttle.py` pins it.
+
 ### 2026-09-27: the CodeRabbit requester reads hours and the current limit notice
 
 - **`tools/review/coderabbit-review.sh`**: a stated wait in hours now counts. "Please wait 1 hour and 5 minutes" was read as 5 minutes, so the requester asked again with most of the cooldown left. CodeRabbit's current notice wording ("Review limit reached ... Next included review available in N minutes") is now matched directly. Before, only a hidden HTML marker in the comment matched, and the pickup check uses the same patterns. `tests/test_review_lane_throttle.py` pins both.

@@ -82,6 +82,9 @@ def test_the_requester_is_executable_and_parses():
     "(( wait < known )) && wait=$known",  # an untimed backoff never cuts a known cooldown short
     "${hours:-0} * 3600",        # a stated wait in hours counts ("1 hour and 5 minutes")
     "review limit reached",      # CodeRabbit's current notice wording, matched without its HTML marker
+    'MAX_WAIT="${CR_MAX_WAIT:-1200}"',  # a rate limit is waited out only if it clears within 20 minutes
+    "limit_slept + known > MAX_WAIT",   # counted across every rate-limit wait in the run
+    "exit 4",                    # past the cap: nothing posted, proceed without CodeRabbit
 ])
 def test_the_requester_keeps_its_throttle(phrase):
     assert phrase in SCRIPT.read_text(encoding="utf-8"), phrase
