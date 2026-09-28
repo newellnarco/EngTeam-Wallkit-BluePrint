@@ -231,6 +231,8 @@ The Maestro is **never** claimed in the roster. It's the session you're talking 
 | macOS | `~/Library/LaunchAgents/com.wallkit.courier.plist`, `launchctl bootstrap gui/<uid>` | `bootout` |
 | Windows | `schtasks /Create /TN WallCourier /SC MINUTE /MO 2 /F` using `pythonw.exe` (no console window flashes) | `schtasks /Delete` |
 
+**The resident host (optional, DEC-0037).** `wall host install --yes` starts one process per machine that serves the wall's MCP for every registered repo and runs the sweep itself. The timer then becomes its watchdog, every 300 s: it exits at once while the host is healthy, and sweeps and restarts the host when it is not. `wall host uninstall` reverts it all. See `INSTALL.md` for what it replaces (with three repos, 20 interpreter starts every ten minutes, plus one per MCP seat per open session) and what happens when the host is down.
+
 `install --yes` is idempotent. Each adapter replaces its task in place. If the scheduler step fails, the registry and sweeper survive and the command exits 1. After the first yes on a machine, adding another repo is just `wall register`.
 
 ### Step 4: optional hooks
@@ -284,7 +286,7 @@ Old records are carried forward unchanged, so a local edit nothing touched never
 
 | Area | Contents |
 | --- | --- |
-| `tools/wall/` | `wall.py` CLI (+ `wall.bat`), `bootstrap.py`, `courier.py`, `agents.py`, `service.py`, `server.py`, `shipper.py`, `mcp_server.py`, `summary.py`, `items.py`, `questions.py`, `decisions.py`, `contracts.py`, `quality.py`, `compliance.py`, `oversight.py`, `testkit.py`, `context_sync.py`, `install/` (OS adapters), `adapters/` (board import), `render/`, `config/wall.example.json` |
+| `tools/wall/` | `wall.py` CLI (+ `wall.bat`), `bootstrap.py`, `courier.py`, `agents.py`, `service.py`, `server.py`, `shipper.py`, `mcp_server.py`, `host.py` (the resident machine host), `mcp_local.py` (Claude Code local-scope links), `summary.py`, `items.py`, `questions.py`, `decisions.py`, `contracts.py`, `quality.py`, `compliance.py`, `oversight.py`, `testkit.py`, `context_sync.py`, `install/` (OS adapters), `adapters/` (board import), `render/`, `config/wall.example.json` |
 | `frontend/theme/` | Design tokens (light and dark, contrast-verified), primitives, preview. No build step |
 | `docs/` | About 35 process documents including this guide, 8 compliance blueprints, diagrams, handoff templates, the decision log, the skills library |
 | `templates/` | 13 context-document templates |
@@ -609,7 +611,7 @@ See section 9. There are eight compliance blueprints (SOC 2, HIPAA/PHI, PCI DSS 
 
 ### 7.13 MCP integration (S for the role gate)
 
-`mcp_server.py` speaks stdio JSON-RPC (protocol `2024-11-05`) and exposes six tools. **Engineer** mode gets all six. **Agent** mode gets reads only. `wall_enqueue` POSTs to your `queue_api`, or refuses honestly if that isn't configured. It can also serve MCP Streamable HTTP on a **loopback** address (`--http 127.0.0.1:8124`, roles by path `/mcp/engineer` and `/mcp/agent`), so one resident process serves every editor on the machine (DEC-0036). There's no remote (claude.ai) connector: that would cross the localhost line and needs its own DEC.
+`mcp_server.py` speaks stdio JSON-RPC (protocol `2024-11-05`) and exposes six tools. **Engineer** mode gets all six. **Agent** mode gets reads only. `wall_enqueue` POSTs to your `queue_api`, or refuses honestly if that isn't configured. It can also serve MCP Streamable HTTP on a **loopback** address (`--http 127.0.0.1:8124`, roles by path `/mcp/engineer` and `/mcp/agent`), so one resident process serves every editor on the machine (DEC-0036). `wall host install` runs that process for you (DEC-0037): `host.py` serves every registered repo at `/r/<name>/mcp/<role>`, folds in the courier sweep, and links each repo's stdio wall entries to it through Claude Code's **local** scope under the same names. Sessions on that machine then start no stdio copies, and the committed `.mcp.json` (and every machine without the host) is unchanged. There's no remote (claude.ai) connector: that would cross the localhost line and needs its own DEC.
 
 ### 7.14 Board import (S)
 
@@ -1152,6 +1154,7 @@ Dry run unless `--apply`. `--force` overrides the manifest's edit protection (ne
 | `wall unregister` | `--name` | Drop this repo, or the row with that name (a name matching two rows is refused), from the registry |
 | `wall verify` | `--app`, `--stale-after-s` | Timer, heartbeat, registry, app manifest |
 | `wall uninstall` | `--purge`, `--system` | Remove the timer |
+| `wall host` | `status\|install\|uninstall\|start\|link\|unlink`, `--yes`, `--port` (8124) | One resident process per machine: MCP for every registered repo + the sweep; Claude Code local-scope links (DEC-0037) |
 | `wall serve` | `--port` (8123), `--check` | Serve the wall on 127.0.0.1 |
 | `wall ship` | `--branch` (`wall-events`) | Push shards to the telemetry branch |
 | `wall fetch-events` | `--branch` | Pull the telemetry branch, with a freshness guard |
@@ -1208,6 +1211,7 @@ Every ruling in `docs/decisions/`, as of this edition. A new decision, or a supe
 | DEC-0034 | active | The owner runs a diagnostic by hand only while no closed loop exists | diagnostics / owner asks | 2026-09-23 |
 | DEC-0035 | active | A second CI trigger path is a project's choice, paired with one collapsing group | ci / triggers | 2026-09-23 |
 | DEC-0036 | active | The wall speaks MCP over stdio or loopback HTTP: six tools, role by path, still never remote | integration | 2026-09-28 |
+| DEC-0037 | active | One resident wall host per machine: MCP for every repo and the sweep, reached through Claude Code's local scope | integration / machine timer | 2026-09-28 |
 
 ## Appendix B. Document map
 
@@ -1283,6 +1287,14 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 ## Appendix C. Change log
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
+
+### 2026-09-28: one resident wall host per machine (DEC-0037)
+
+- **`tools/wall/host.py`** (new): one resident process serves the loopback MCP transport for every registered repo (`/r/<name>/mcp/engineer|agent`, `GET /health`) and runs the courier sweep every 120 s. It sweeps in-process only for a repo whose vendored `tools/wall/` is byte-identical to its own code; any other repo is swept by that repo's own `wall.py`, as before. Heartbeat, log and pruning are unchanged. It exits when `~/.wall/host.json` is removed, and restarts itself when its kit changes on disk.
+- **`tools/wall/mcp_server.py`**: the bind is exclusive on every platform (the single-instance guard; Windows' `SO_REUSEADDR` let two processes share a port). `GET /health` answers liveness. The HTTP handler is now `make_routed_server`, shared by the single-repo server and the host.
+- **`tools/wall/mcp_local.py`** (new): writes Claude Code local-scope entries (`~/.claude.json`) that shadow a repo's stdio wall entries with the same names and roles. It is idempotent, preserves every other key, never overwrites a stranger's entry, and `unlink`/`unlink_all` revert it.
+- **`wall host status|install|uninstall|start|link|unlink`** (service.py): consent-gated install. Nothing is linked and the timer is untouched until the host answers; `wall doctor` gains a `host` check when the host is enabled. The generated `sweep_all.py` becomes the host's watchdog (loopback `/health` probe, proxies bypassed; the no-network guard is narrowed to exactly that). `wall install` keeps the watchdog's 300 s cadence while the host is enabled.
+- Tests: `tests/test_host.py` covers stdio/HTTP byte parity for both roles, routing, the single-instance guard, the folded sweep against the generated sweeper, the watchdog, the local-scope writer and the `wall host` commands.
 
 ### 2026-09-28: seven review findings from a host re-vendor are fixed
 

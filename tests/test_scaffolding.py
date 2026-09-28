@@ -169,9 +169,10 @@ def test_decision_seed_set_present():
     # failure library and known-issues intake (Patron, 2026-09-22); 34 the
     # hand-run diagnostic only while no closed loop exists (Patron, 2026-09-23);
     # 35 a second CI trigger path as a project choice (Patron, 2026-09-23);
-    # 36 MCP over loopback HTTP beside stdio (Patron, 2026-09-28).
+    # 36 MCP over loopback HTTP beside stdio (Patron, 2026-09-28); 37 the
+    # resident machine host and local-scope links (Patron, 2026-09-28).
     # The equality still guards against holes and strays.
-    expected = [f"DEC-{n:04d}.md" for n in range(1, 37)]
+    expected = [f"DEC-{n:04d}.md" for n in range(1, 38)]
     assert names == expected, f"decision seed set drifted: {names}"
 
 

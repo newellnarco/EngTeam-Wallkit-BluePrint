@@ -100,8 +100,74 @@ and the sweeper are in place, so `wall run-once` and a hand-made task both work.
 The failure is named, never swallowed.
 
 Courier itself is stdlib Python, local file I/O only, zero model calls and zero
-network. The one command that reaches the network is `wall ship` (below), which
+network. The sweeper's one connection is the watchdog's loopback probe of the
+resident host, when the host is enabled (below). The one command that reaches the network is `wall ship` (below), which
 is separately invoked and separately gated.
+
+### One resident process instead of many (DEC-0037)
+
+Two things start Python on a busy machine. The timer starts `sweep_all.py`
+every two minutes, and that starts one more interpreter per registered repo
+for `wall run-once`: with three repos, 20 starts every ten minutes. And every
+MCP client session opened in a repo whose `.mcp.json` runs `mcp_server.py`
+over stdio starts its own interpreter per configured seat, for as long as the
+session is open.
+
+`wall host install` replaces both with **one resident process per machine**
+(`tools/wall/host.py`):
+
+```
+wall host install            PRINTS the plan and exits 1; changes nothing
+wall host install --yes      consent: write host.json, start the host, link
+wall host status             pid, sweep freshness, which seats are linked
+wall host start              start it again if it is down
+wall host link | unlink      one repo's Claude Code local-scope entries
+wall host uninstall          unlink everything, stop the host, restore the timer
+```
+
+- **MCP for every registered repo**, on loopback only: `POST
+  http://127.0.0.1:8124/r/<name>/mcp/engineer` and `.../mcp/agent`, plus `GET
+  /health`. Same `handle_request` as stdio, so the same tools, schemas and
+  refusals (DEC-0036).
+- **The courier sweep, folded in.** Every 120 s, as before. A repo whose
+  vendored `tools/wall/` is byte-identical to the host's code is swept in the
+  host's own interpreter; a repo on a different kit version is swept exactly
+  as before, by its own `wall.py` in a subprocess. Same heartbeat, same
+  `courier.log` lines, same pruning of dead paths.
+- **The timer stays, as the watchdog**, re-timed to every 300 s. While the
+  host answers `/health` with a sweep newer than three intervals, the sweeper
+  exits at once. When it does not, the sweeper sweeps as it always did and
+  starts the host again.
+- **One instance only.** The listener binds the port exclusively
+  (`SO_EXCLUSIVEADDRUSE` on Windows, where plain `SO_REUSEADDR` would let two
+  processes share it). A second host exits 0 with "already running".
+- **Upgrades restart it.** When the kit the host runs from changes on disk,
+  the host hands the port to a fresh copy of itself instead of serving old
+  code.
+
+**How clients find it without breaking anyone else.** The committed
+`.mcp.json` is not touched: a cloud session, a CI runner or a machine without
+the host keeps its stdio servers. On this machine only, `wall host install`
+(and `wall host link`) writes a Claude Code **local-scope** entry in
+`~/.claude.json` for each stdio wall entry in the repo's `.mcp.json`, under the
+**same name**, pointing at the host. Claude Code prefers local scope over
+project scope for a name defined in both, so sessions here use the host and
+start no stdio copies. The role carries over from the entry's own `--role`.
+Entries it did not write are never overwritten, and other keys in the file
+are left alone. Details: `docs/MCP_INTEGRATION.md`.
+
+**When the host is down**, a linked session's wall server fails to connect:
+the local entry points at a port nothing answers. `wall doctor` flags it
+(`host  FAIL`). The fix is `wall host start`, or wait for the watchdog (at
+most five minutes), or `wall host uninstall` to go back to stdio. Install
+links nothing and leaves the timer alone until the host has answered.
+
+**Platform note.** The watchdog starts the host detached. On Windows it asks
+to break away from the scheduled task's job object, so the host outlives the
+task. Under systemd and launchd a process started by the timer's unit is
+reaped when the unit ends, so on Linux and macOS run `python
+tools/wall/host.py` as its own user service instead; `host.json` and the
+watchdog work the same way.
 
 ### Taking the kit out of a repo
 
@@ -268,6 +334,7 @@ loses a row the code does not have. Most writing commands also take
 | `wall unregister` | `[--name NAME]` | Drop this repo from the registry; `--name NAME`: unregister by registry name. |
 | `wall verify` | `[--app PATH] [--stale-after-s N]` | Timer alive, heartbeat fresh (stale after 300s by default), registry sane, deployed app in sync. |
 | `wall uninstall` | `[--purge] [--system NAME]` | Remove the timer and keep `.wall/`; `--purge` also removes the sweeper and the machine registry. |
+| `wall host` | `[status\|install\|uninstall\|start\|link\|unlink] [--yes] [--port 8124] [--system NAME]` | One resident process per machine: loopback MCP for every registered repo and the courier sweep; links Claude Code local-scope entries (DEC-0037). `install` is consent-gated. |
 | `wall serve` | `[--port 8123] [--check] [--verbose]` | Serve `.wall/derived/` on 127.0.0.1; `--check` probes a running server. |
 | `wall ship` | `[--branch wall-events]` | Push today's shards and snapshot to the isolated branch; separately invoked and gated. |
 | `wall fetch-events` | `[--branch wall-events]` | Materialise the isolated branch locally (git fetch), freshness-guarded. |

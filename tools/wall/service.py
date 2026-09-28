@@ -71,6 +71,13 @@ DEFAULT_STALE_AFTER_S = 300
 
 DEFAULT_INTERVAL_S = 120
 
+#: The machine timer's cadence while the resident host sweeps (DEC-0037): it
+#: is then only the watchdog, and a healthy host makes each firing a probe.
+WATCHDOG_INTERVAL_S = 300
+
+#: How long ``wall host install`` waits for a started host to answer.
+HOST_START_WAIT_S = 15
+
 
 # ------------------------------------------------------------------ wall home
 
@@ -249,7 +256,11 @@ SWEEPER_SOURCE = '''#!/usr/bin/env python3
 
 Walks the registry beside this file and runs `wall run-once` for each live repo.
 A repo whose path no longer exists is dropped, so an orphan cannot fire forever.
-Stdlib only, local only, no model calls, no network.
+
+With the resident host enabled (host.json beside this file, DEC-0037) this is
+its watchdog: while the host answers /health it does the sweeping and this
+exits at once; when it does not, this sweeps as before and restarts it.
+Stdlib only, local only, no model calls; the one connection is a loopback probe.
 """
 
 import json
@@ -263,6 +274,7 @@ HOME = Path(__file__).resolve().parent
 REGISTRY = HOME / "registry.json"
 HEARTBEAT = HOME / "heartbeat.json"
 LOG = HOME / "courier.log"
+HOST_CONFIG = HOME / "host.json"
 SWEEP_TIMEOUT_S = 240
 LOG_MAX_BYTES = 1000000
 
@@ -291,7 +303,60 @@ def write_json(path, payload):
         pass
 
 
+def host_config():
+    try:
+        cfg = json.loads(HOST_CONFIG.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return cfg if isinstance(cfg, dict) else None
+
+
+def host_alive(cfg):
+    """The host answers /health on loopback, names itself, and is sweeping."""
+    import urllib.request
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        url = "http://127.0.0.1:%d/health" % int(cfg.get("port") or 8124)
+        with opener.open(url, timeout=5) as resp:
+            body = json.loads(resp.read(65536).decode("utf-8"))
+    except Exception:
+        return False
+    return body.get("service") == "wall-host" and body.get("ok") is True
+
+
+def start_host(cfg):
+    """Start the host detached, so it outlives this task. Returns its pid."""
+    argv = [str(a) for a in cfg.get("command") or []]
+    if not argv:
+        raise ValueError("host.json names no command")
+    quiet = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL,
+             "stderr": subprocess.DEVNULL, "close_fds": True}
+    if os.name != "nt":
+        return subprocess.Popen(argv, start_new_session=True, **quiet).pid
+    flags = (getattr(subprocess, "DETACHED_PROCESS", 0x8)
+             | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x200))
+    try:
+        return subprocess.Popen(argv, creationflags=flags | getattr(
+            subprocess, "CREATE_BREAKAWAY_FROM_JOB", 0x1000000), **quiet).pid
+    except OSError:
+        return subprocess.Popen(argv, creationflags=flags, **quiet).pid
+
+
 def main():
+    host = host_config()
+    if host is not None and host_alive(host):
+        return 0
+    code = sweep()
+    if host is not None:
+        try:
+            log("host not answering or not sweeping -- swept directly; started host pid %d"
+                % start_host(host))
+        except (OSError, ValueError) as exc:
+            log("host not answering or not sweeping, and could not be started: %s" % exc)
+    return code
+
+
+def sweep():
     try:
         registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
         rows = [r for r in registry.get("repos", []) if isinstance(r, dict) and r.get("path")]
@@ -649,6 +714,25 @@ def doctor_checks(repo: Path | str, *, env: dict | None = None,
             detail += "; %s" % state["error"]
         checks.append({"name": "timer", "status": status, "detail": detail})
 
+    host_cfg = read_host_config(env)
+    if host_cfg is not None:
+        health = host_health(host_port(host_cfg))
+        if health is None:
+            checks.append({"name": "host", "status": "fail",
+                           "detail": "enabled but not answering on 127.0.0.1:%d -- "
+                                     "local-scope wall MCP entries fail until it is "
+                                     "back (`wall host start`, or `wall host "
+                                     "uninstall` to return to stdio)" % host_port(host_cfg)})
+        elif not health.get("ok"):
+            checks.append({"name": "host", "status": "warn",
+                           "detail": "answering but its sweep is stale -- the "
+                                     "watchdog sweeps in its place"})
+        else:
+            checks.append({"name": "host", "status": "ok",
+                           "detail": "pid %s on 127.0.0.1:%s, %d repo(s) served"
+                                     % (health.get("pid"), health.get("port"),
+                                        len(health.get("repos") or []))})
+
     headroom = budget_headroom(resolved)
     if headroom is None:
         checks.append({"name": "budget", "status": "unknown",
@@ -697,8 +781,8 @@ def _repo(args) -> Path:
 def cmd_install(args) -> int:
     """Consent-gated machine install. Prints the plan; ``--yes`` proceeds."""
     repo = _repo(args)
-    interval = int(getattr(args, "interval", None) or DEFAULT_INTERVAL_S)
     env = getattr(args, "env", None)
+    interval = int(getattr(args, "interval", None) or default_interval(env))
 
     for line in install_plan(repo, interval_seconds=interval, env=env):
         print(line)
@@ -706,7 +790,7 @@ def cmd_install(args) -> int:
     if not getattr(args, "yes", False):
         print("")
         print("Nothing was created. Re-run with --yes to proceed:")
-        print("  wall install --yes%s" % ("" if interval == DEFAULT_INTERVAL_S
+        print("  wall install --yes%s" % ("" if interval == default_interval(env)
                                           else " --interval %d" % interval))
         return 1
 
@@ -818,6 +902,282 @@ def cmd_serve(args) -> int:
     return server.serve(_repo(args), port, quiet=not getattr(args, "verbose", False))
 
 
+# ------------------------------------------------------------ resident host
+
+def host_config_path(env: dict | None = None) -> Path:
+    return wall_home(env) / "host.json"
+
+
+def read_host_config(env: dict | None = None) -> dict | None:
+    """``host.json`` as a dict; None when the host is not enabled."""
+    import host as host_mod
+    return host_mod.read_host_config(wall_home(env))
+
+
+def host_port(cfg: dict | None) -> int:
+    import host as host_mod
+    return int((cfg or {}).get("port") or host_mod.DEFAULT_PORT)
+
+
+def default_interval(env: dict | None = None) -> int:
+    """The timer's cadence: the watchdog's while the host is enabled."""
+    return WATCHDOG_INTERVAL_S if read_host_config(env) is not None else DEFAULT_INTERVAL_S
+
+
+def host_health(port: int, timeout: float = 3.0) -> dict | None:
+    """The host's ``/health`` JSON, or None when nothing that calls itself
+    the wall host answers there. Proxies bypassed: this is loopback."""
+    import urllib.request
+    import host as host_mod
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open("http://127.0.0.1:%d%s" % (port, "/health"),
+                         timeout=timeout) as resp:
+            body = json.loads(resp.read(65536).decode("utf-8"))
+    except Exception:
+        return None
+    return body if isinstance(body, dict) and body.get("service") == host_mod.SERVICE else None
+
+
+def _host_prefix(port: int) -> str:
+    import host as host_mod
+    return "http://127.0.0.1:%d%s" % (port, host_mod.REPO_PREFIX)
+
+
+def _registered_rows(env: dict | None) -> list[dict]:
+    return [row for row in read_registry(env)["repos"] if Path(row["path"]).is_dir()]
+
+
+def _row_for(repo: Path, env: dict | None) -> dict | None:
+    resolved = Path(repo).resolve()
+    return next((row for row in _registered_rows(env)
+                 if Path(row["path"]).resolve() == resolved), None)
+
+
+def host_link_repo(row: dict, port: int, *, claude_config: Path | None = None) -> dict:
+    """Local-scope HTTP twins for one registered repo's stdio wall entries."""
+    import host as host_mod
+    import mcp_local
+    repo = Path(row["path"])
+    return mcp_local.link(
+        repo, host_mod.repo_base_url(port, row.get("name") or repo.name),
+        _host_prefix(port), claude_config)
+
+
+def host_plan(env: dict | None = None, *, port: int | None = None,
+              system: str | None = None, claude_config: Path | None = None) -> list[str]:
+    """Exactly what ``wall host install`` would do, as printable lines."""
+    import host as host_mod
+    import mcp_local
+    port = port or host_port(read_host_config(env))
+    home = wall_home(env)
+    adapter = get_adapter(system)
+    try:
+        scheduler = list(adapter.describe_install(
+            sys.executable, str(sweeper_path(env)), WATCHDOG_INTERVAL_S))
+    except Exception as exc:  # never block the consent print
+        scheduler = ["  schedule   could not be described: %s" % exc]
+    lines = [
+        "wall host install would:",
+        "  file       %s  {port: %d, interval: %d, command}" % (
+            host_config_path(env), port, DEFAULT_INTERVAL_S),
+        "  start      %s" % " ".join(host_mod.host_command(home)),
+        "             ONE resident process: MCP for every registered repo on",
+        "             127.0.0.1:%d (loopback only) + the courier sweep every %ds"
+        % (port, DEFAULT_INTERVAL_S),
+        "  file       %s  (rewritten: the timer becomes the host's watchdog)"
+        % sweeper_path(env),
+    ] + scheduler + [
+        "             (only once the host answers; until then the timer keeps "
+        "sweeping every %ds)" % DEFAULT_INTERVAL_S,
+        "",
+        "  local MCP  %s  (Claude Code local scope, same names as .mcp.json)"
+        % (claude_config or mcp_local.claude_config_path()),
+    ]
+    rows = _registered_rows(env)
+    for row in rows:
+        repo = Path(row["path"])
+        entries = mcp_local.wall_stdio_entries(repo)
+        base = host_mod.repo_base_url(port, row.get("name") or repo.name)
+        if not entries:
+            lines.append("    %s: no stdio wall entry in .mcp.json -- nothing to link" % repo)
+        for name, role in sorted(entries.items()):
+            lines.append("    %s: %s -> %s/mcp/%s" % (repo, name, base, role))
+    if not rows:
+        lines.append("    (no registered repos -- `wall register` first)")
+    lines += ["",
+              "The committed .mcp.json files are NOT changed: a machine without the",
+              "host (a cloud session, CI) keeps its stdio servers. Undo it all with",
+              "`wall host uninstall`."]
+    return lines
+
+
+def _wait_healthy(port: int, seconds: float) -> dict | None:
+    import time
+    deadline = time.monotonic() + seconds
+    while True:
+        health = host_health(port, timeout=1.0)
+        if health is not None or time.monotonic() >= deadline:
+            return health
+        time.sleep(0.5)
+
+
+def _start_host(env: dict | None, port: int) -> dict | None:
+    """Start the host detached unless one already answers; wait for it."""
+    import host as host_mod
+    health = host_health(port)
+    if health is not None:
+        return health
+    host_mod.spawn_detached(host_mod.host_command(wall_home(env)))
+    return _wait_healthy(port, HOST_START_WAIT_S)
+
+
+def _retime_timer(adapter, interval: int, env: dict | None) -> str:
+    """Re-install the machine timer at ``interval`` -- only if it exists."""
+    try:
+        state = adapter.verify()
+    except Exception as exc:
+        return "timer not checked (%s)" % exc
+    if not (isinstance(state, dict) and state.get("installed")):
+        return "no machine timer installed -- nothing to re-time"
+    try:
+        return adapter.install(interval, python=sys.executable,
+                               sweeper=str(write_sweeper(env)))
+    except (RuntimeError, NotImplementedError, OSError) as exc:
+        return "timer NOT re-timed: %s" % exc
+
+
+def _print_link(repo: str, outcome: dict) -> bool:
+    if outcome["error"]:
+        print("    %s: %s" % (repo, outcome["error"]))
+        return False
+    for name in outcome["added"]:
+        print("    %s: linked %s" % (repo, name))
+    for name in outcome["unchanged"]:
+        print("    %s: %s already linked" % (repo, name))
+    for name in outcome["conflicts"]:
+        print("    %s: %s NOT linked -- a local entry of that name is not the "
+              "host's; left alone" % (repo, name))
+    return not outcome["conflicts"]
+
+
+def cmd_host(args) -> int:
+    """``wall host install|uninstall|start|link|unlink|status`` (DEC-0037)."""
+    import host as host_mod
+    import mcp_local
+    env = getattr(args, "env", None)
+    action = getattr(args, "action", None) or "status"
+    claude_config = getattr(args, "claude_config", None)
+    claude_config = Path(claude_config) if claude_config else None
+    cfg = read_host_config(env)
+    port = int(getattr(args, "port", None) or host_port(cfg))
+    adapter_for = getattr(args, "adapter", None) or (
+        lambda: get_adapter(getattr(args, "system", None)))
+
+    if action == "install":
+        for line in host_plan(env, port=port, system=getattr(args, "system", None),
+                              claude_config=claude_config):
+            print(line)
+        if not getattr(args, "yes", False):
+            print("\nNothing was changed. Re-run with --yes to proceed:\n"
+                  "  wall host install --yes")
+            return 1
+        try:
+            write_sweeper(env)
+            _atomic_write(host_config_path(env), json.dumps({
+                "port": port, "interval": DEFAULT_INTERVAL_S,
+                "command": host_mod.host_command(wall_home(env)),
+                "enabled": _now_iso()}, indent=2) + "\n")
+        except OSError as exc:
+            print("could not write %s: %s" % (host_config_path(env), exc), file=sys.stderr)
+            return 1
+        health = _start_host(env, port)
+        if health is None:
+            print("\n  host       NOT answering on 127.0.0.1:%d after %ds -- nothing "
+                  "linked, timer unchanged. The watchdog will keep retrying; see "
+                  "%s" % (port, HOST_START_WAIT_S, wall_home(env) / "courier.log"),
+                  file=sys.stderr)
+            return 1
+        print("\n  host       pid %s on 127.0.0.1:%d" % (health.get("pid"), port))
+        print("  schedule   %s" % _retime_timer(adapter_for(), WATCHDOG_INTERVAL_S, env))
+        print("  local MCP  %s" % (claude_config or mcp_local.claude_config_path()))
+        ok = True
+        for row in _registered_rows(env):
+            if mcp_local.wall_stdio_entries(Path(row["path"])):
+                ok &= _print_link(row["path"], host_link_repo(
+                    row, port, claude_config=claude_config))
+        print("\nOpen Claude Code sessions pick the change up on their next start.")
+        return 0 if ok else 1
+
+    if action == "uninstall":
+        code = 0
+        outcome = mcp_local.unlink_all(_host_prefix(port), claude_config)
+        if outcome["error"]:
+            print("  %s" % outcome["error"], file=sys.stderr)
+            code = 1
+        for key, names in sorted(outcome["removed"].items()):
+            print("  unlinked %s: %s (the .mcp.json stdio entries apply again)"
+                  % (key, ", ".join(names)))
+        try:
+            host_config_path(env).unlink(missing_ok=True)
+            print("  removed  %s (the host exits within %ds)"
+                  % (host_config_path(env), host_mod.TICK_S))
+        except OSError as exc:
+            print("could not remove %s: %s" % (host_config_path(env), exc), file=sys.stderr)
+            code = 1
+        print("  schedule %s" % _retime_timer(adapter_for(), DEFAULT_INTERVAL_S, env))
+        return code
+
+    if action == "start":
+        if cfg is None:
+            print("the host is not enabled -- `wall host install` first", file=sys.stderr)
+            return 1
+        health = _start_host(env, port)
+        print("host %s" % ("pid %s on 127.0.0.1:%d" % (health.get("pid"), port)
+                           if health else "NOT answering on 127.0.0.1:%d" % port))
+        return 0 if health else 1
+
+    if action in ("link", "unlink"):
+        repo = _repo(args)
+        if action == "unlink":
+            outcome = mcp_local.unlink(repo, _host_prefix(port), claude_config)
+            if outcome["error"]:
+                print("unlink failed: %s" % outcome["error"], file=sys.stderr)
+                return 1
+            print("unlinked %s" % (", ".join(outcome["removed"]) or "nothing (none linked)"))
+            return 0
+        row = _row_for(repo, env)
+        if row is None:
+            print("%s is not registered -- `wall register` first" % repo, file=sys.stderr)
+            return 1
+        if host_health(port) is None:
+            print("the host is not answering on 127.0.0.1:%d -- linking now would "
+                  "leave this repo's sessions with no wall; `wall host start` first"
+                  % port, file=sys.stderr)
+            return 1
+        return 0 if _print_link(str(repo), host_link_repo(
+            row, port, claude_config=claude_config)) else 1
+
+    # status
+    health = host_health(port)
+    print("wall host  %s" % ("enabled (%s)" % host_config_path(env) if cfg
+                             else "not enabled"))
+    if health is None:
+        print("  not answering on 127.0.0.1:%d" % port)
+    else:
+        print("  pid %s on 127.0.0.1:%d, sweeping %s, last sweep %s" % (
+            health.get("pid"), port, "on time" if health.get("ok") else "LATE",
+            health.get("last_sweep") or "not yet"))
+        for repo in health.get("repos") or []:
+            print("  /r/%s  %s%s" % (repo["name"], repo["path"], "" if repo.get(
+                "kit_match") else "  (different kit: swept in its own process)"))
+    for row in _registered_rows(env):
+        links = mcp_local.linked(Path(row["path"]), _host_prefix(port), claude_config)
+        print("  local MCP %s: %s" % (row["path"], ", ".join(
+            "%s -> %s" % item for item in links.items()) or "stdio (.mcp.json)"))
+    return 0 if (cfg is None or health is not None) else 1
+
+
 # ---------------------------------------------------------------------- main
 
 def main(argv: list[str] | None = None) -> int:
@@ -848,6 +1208,13 @@ def main(argv: list[str] | None = None) -> int:
     uninstall_parser = sub.add_parser("uninstall")
     uninstall_parser.add_argument("--purge", action="store_true")
     uninstall_parser.set_defaults(fn=cmd_uninstall)
+
+    host_parser = sub.add_parser("host")
+    host_parser.add_argument("action", nargs="?", default="status", choices=(
+        "status", "install", "uninstall", "start", "link", "unlink"))
+    host_parser.add_argument("--yes", action="store_true")
+    host_parser.add_argument("--port", type=int)
+    host_parser.set_defaults(fn=cmd_host)
 
     serve_parser = sub.add_parser("serve")
     serve_parser.add_argument("--port", type=int, default=server.DEFAULT_PORT)
