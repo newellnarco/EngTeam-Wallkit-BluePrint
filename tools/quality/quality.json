@@ -10,7 +10,7 @@
     },
     "skillspector": {
       "install": "git:https://github.com/NVIDIA/skillspector",
-      "version": "v2.11.2",
+      "version": "v2.12.0",
       "rollback": "v2.11.2",
       "reason": "Not published to PyPI; installed from its git tag. Pinned for the same reason as ast-grep.",
       "lifting": "Lifted every week by the scanner-bump PR once its canary run is green."
@@ -24,7 +24,7 @@
     },
     "ruff": {
       "install": "pypi:ruff",
-      "version": "0.16.8",
+      "version": "0.16.9",
       "rollback": "0.16.8",
       "reason": "The security rules (S, the bandit set) of the linter the suite already runs. Pinned so an upstream release cannot turn every PR red overnight (UPGRADE_DISCIPLINE.md). The scheduled scanner-bump workflow proposes the latest release as a PR.",
       "lifting": "Lifted every week by the scanner-bump PR once its canary run is green."
