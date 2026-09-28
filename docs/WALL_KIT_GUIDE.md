@@ -1284,6 +1284,18 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
 
+### 2026-09-28: seven review findings from MAX3's re-vendor are fixed
+
+CodeRabbit reviewed the kit as vendored into MAX3 (#1705). The fixes land here, in the kit, so every host picks them up on its next upgrade.
+
+- **`tools/wall/bootstrap.py`**: `upgrade` re-vendored `docs/` without the `docs/decisions` exclusion that `adopt` applies. An adopted host's own decision files were refused as unverified, or overwritten with `--force`, and the kit's rulings were added to the host's log. The stamp now records the subtrees an install left to the host (`excluded`), and `upgrade` honours them. A stamp from before this change is read as an adoption whenever the host holds a decision file the kit never recorded.
+- **`tools/wall/mcp_server.py`**: a JSON-RPC request with an explicit `"id": null` is an invalid request. It used to run the method, including `wall_answer`'s ledger write.
+- **`tools/wall/quality.py`**: `gate-skillspector` gives the same "not clean, unknown" verdict as `gate-zizmor` for an unreadable report or one that is not a JSON object, instead of a traceback. The baseline-slug docstring now states that `.claude/x` and `claude/x` share a slug. Baselines already on disk keep their names.
+- **`tools/wall/service.py`**: `_parse_budget` read `12 kib` as k × "ib" and dropped the row. The whole unit word is now tried first.
+- **`tools/wall/wall.py`**: `validate_retro` reports a non-string signal name, diff path, signal reference or adopted diff as a problem instead of raising `TypeError`.
+- **`tools/wall/render/wall_template.html`**: an omitted `verify_waiting` is unmeasured, not zero. The WAITING count reads `n+?`, and the empty state no longer says "Nothing needs you".
+- `tests/test_review_findings_1705.py` pins all seven. Each test fails with its fix reverted.
+
 ### 2026-09-28: the CodeRabbit requester does not wait out a long rate limit
 
 - **`tools/review/coderabbit-review.sh`**: the owner's rule is now in the requester. When CodeRabbit is rate limited, it waits only if the limit clears within `CR_MAX_WAIT` (1200 s by default, counting every rate-limit wait in the run). A longer limit, or a latest notice naming no time, ends the run with exit 4 and nothing posted, so the work proceeds without a CodeRabbit review instead of sleeping for up to an hour. `CR_MAX_WAIT=0` restores the uncapped behaviour. `tests/test_review_lane_throttle.py` pins it.
