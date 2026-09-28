@@ -435,6 +435,11 @@ def _dispatch_one(repo: Path, msg, role: str) -> dict | None:
     notification, silence) — never a dead server."""
     if not isinstance(msg, dict):
         return _rpc_error(INVALID_REQUEST, "request is not an object")
+    if "id" in msg and msg["id"] is None:
+        # JSON-RPC: an explicit null id is an invalid request, not a
+        # notification -- the method (and a wall_answer's ledger write)
+        # must not run.
+        return _rpc_error(INVALID_REQUEST, "id must not be null")
     try:
         return handle_request(repo, msg, role=role)
     except Exception as exc:

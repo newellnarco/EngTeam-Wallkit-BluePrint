@@ -502,8 +502,16 @@ def emit_mcp_configs(repo: Path, clients: list[str], apply: bool) -> None:
                             encoding="utf-8")
 
 
-def _stamp(repo: Path, apply: bool, ledger: Ledger) -> None:
+def _stamp(repo: Path, apply: bool, ledger: Ledger,
+           excluded: dict[str, list[str]] | None = None) -> None:
+    """Write the stamp. `excluded` names subtrees this install left to the
+    HOST (adopt keeps docs/decisions the host's); None carries the prior
+    stamp's record forward, so an upgrade keeps honouring it."""
     stamp = _kit_stamp()
+    if excluded is None:
+        prior = _read_stamp(repo).get("excluded")
+        excluded = prior if isinstance(prior, dict) else {}
+    stamp["excluded"] = excluded
     path = repo / STAMP_REL
     _say(f"  stamp  {STAMP_REL}  (kit {stamp['kit_commit'][:12]}; "
          f"sha256 manifest of every kit file bootstrap wrote or owns)")
@@ -659,7 +667,7 @@ def cmd_fresh(a) -> int:
          "docs/CONTEXT_FILES.md):")
     _context_copies(repo, apply, pending=not unmastered
                     and not (repo / "AGENTS.md").exists())
-    _stamp(repo, apply, ledger)
+    _stamp(repo, apply, ledger, {})
     if a.mcp:
         _say("\nengineer interface configs (--role engineer, DEC-0019):")
         emit_mcp_configs(repo, a.mcp, apply)
@@ -705,7 +713,7 @@ def cmd_adopt(a) -> int:
     _write(repo / ".wall" / "config" / "wall.json", example, apply,
            ".wall/config/wall.json")
     ensure_gitignore(repo, apply)
-    _stamp(repo, apply, ledger)
+    _stamp(repo, apply, ledger, {"docs": ["decisions"]})
     if a.mcp:
         _say("\nengineer interface configs:")
         emit_mcp_configs(repo, a.mcp, apply)
@@ -716,12 +724,32 @@ def cmd_adopt(a) -> int:
     return 0
 
 
+def _upgrade_excludes(repo: Path, stamp: dict,
+                      ledger: Ledger) -> dict[str, list[str]]:
+    """The subtrees an upgrade must leave to the host: what the stamp
+    recorded, or -- for a stamp written before exclusions were recorded --
+    docs/decisions whenever the host holds a decision file the kit never
+    recorded (an adoption: the decision log is the HOST's)."""
+    rec = stamp.get("excluded")
+    if isinstance(rec, dict):
+        return {k: [str(x) for x in v] for k, v in rec.items()
+                if isinstance(v, list)}
+    host = repo / "docs" / "decisions"
+    if host.is_dir() and any(
+            ledger.status(p.relative_to(repo).as_posix()) == "unverified"
+            for p in host.rglob("*") if p.is_file()):
+        return {"docs": ["decisions"]}
+    return {}
+
+
 def cmd_upgrade(a) -> int:
     repo = Path(a.into).resolve()
     apply = a.apply
     _say(f"upgrade {repo} from kit at {KIT_ROOT}  "
          f"({'APPLYING' if apply else 'dry run'})")
-    ledger = Ledger(repo, _read_stamp(repo))
+    stamp = _read_stamp(repo)
+    ledger = Ledger(repo, stamp)
+    excluded = _upgrade_excludes(repo, stamp, ledger)
     old_commit = ledger.old_commit
     new_commit = _kit_stamp()["kit_commit"]
     _say(f"  stamped source: {old_commit[:12]}  ->  this kit: {new_commit[:12]}")
@@ -745,7 +773,8 @@ def cmd_upgrade(a) -> int:
     plan: list[tuple[str, str]] = []
     for prefix in VENDORED:
         if (repo / prefix).exists() or prefix in ("tools/wall",):
-            plan += _plan_copy(ledger, prefix, merge=False, strict=True)
+            plan += _plan_copy(ledger, prefix, merge=False, strict=True,
+                               exclude=tuple(excluded.get(prefix, ())))
     # VERBATIM means subtraction too — but only where the tree is wholly
     # kit-owned: a file the kit dropped or renamed must not survive as a
     # stale half-upgrade (host-review finding). docs/ and templates/ stay
@@ -767,7 +796,7 @@ def cmd_upgrade(a) -> int:
     changed += _context_copies(repo, apply)
     if changed == 0:
         _say("  nothing to change — already at this kit")
-    _stamp(repo, apply, ledger)
+    _stamp(repo, apply, ledger, excluded)
     _say("\nthen: run YOUR pins first, the kit's second; one PR per "
          "upgrade, citing the kit commit range above.")
     return 0

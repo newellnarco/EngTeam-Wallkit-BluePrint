@@ -1476,8 +1476,8 @@ def validate_retro(payload: dict, pending: list[dict]) -> tuple[list[str], list[
         if not isinstance(sig, dict):
             problems.append(f"signals[{i}]: not an object")
             continue
-        if not str(sig.get("name") or "").strip():
-            problems.append(f"signals[{i}]: no name")
+        if not isinstance(sig.get("name"), str) or not sig["name"].strip():
+            problems.append(f"signals[{i}]: no name (a non-empty string)")
         else:
             names.add(sig["name"])
         if sig.get("value") in (None, ""):
@@ -1511,11 +1511,11 @@ def validate_retro(payload: dict, pending: list[dict]) -> tuple[list[str], list[
             problems.append(f"diffs[{i}]: no owner -- an output without an owner "
                             f"is not an output")
         if kind != "no_change":
-            if not str(d.get("path") or "").strip():
+            if not isinstance(d.get("path"), str) or not d["path"].strip():
                 problems.append(f"diffs[{i}]: no path -- outputs are diffs to artifacts")
             else:
                 diff_paths.add(d["path"])
-        if d.get("signal") not in names:
+        if not isinstance(d.get("signal"), str) or d["signal"] not in names:
             problems.append(f"diffs[{i}]: signal {d.get('signal')!r} is not one of "
                             f"this record's signals -- a change with no signal "
                             f"attached is not adopted")
@@ -1542,7 +1542,8 @@ def validate_retro(payload: dict, pending: list[dict]) -> tuple[list[str], list[
         if not str(row.get(need) or "").strip():
             problems.append(f"inputs[{i}]: {disp} needs `{need}`")
             continue
-        if disp == "adopted" and row["diff"] not in diff_paths:
+        if disp == "adopted" and (not isinstance(row["diff"], str)
+                                  or row["diff"] not in diff_paths):
             problems.append(f"inputs[{i}]: adopted as diff {row['diff']!r}, which "
                             f"is not a path in this record's diffs")
             continue

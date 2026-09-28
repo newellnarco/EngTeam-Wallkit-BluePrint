@@ -981,13 +981,21 @@ footer {
     {id:'board',   label:'STORIES', count:function(){ return allItems().length; }},
     {id:'crew',    label:'CREW',  count:function(d){ return (d.crew||[]).length; }},
     {id:'ledger',  label:'LEDGER',  count:function(){ return null; }},
-    {id:'waiting', label:'WAITING', count:function(d){ return (d.waiting_on_you||[]).length + (d.verify_waiting||[]).length; }, hot:true},
+    {id:'waiting', label:'WAITING', count:function(d){ return waitingCount(d); }, hot:true},
     {id:'retro',   label:'RETRO',   count:function(d){ return ov(d).retro && ov(d).retro.held || null; }},
     {id:'posture', label:'POSTURE', count:function(d){ var p=ov(d).posture; return p && p.blocked && p.blocked.length || null; }, hot:true},
     {id:'docs',    label:'DOCS',    count:function(d){ var x=ov(d).docs; return x && x.needs_review || null; }, hot:true},
     {id:'flow',    label:'FLOW',    count:function(d){ var f=ov(d).flow; return f && f.open_now || null; }}
   ];
   function ov(d){ return (d && d.oversight) || {}; }
+  // An omitted verify_waiting is UNMEASURED, not an empty queue: the count
+  // says so ("n+?") instead of passing a missing queue off as zero.
+  function verifyMeasured(d){ return !!d && Array.isArray(d.verify_waiting); }
+  function waitingCount(d){
+    var asks = (d && d.waiting_on_you || []).length;
+    if (!verifyMeasured(d)) return asks + '+?';
+    return asks + d.verify_waiting.length;
+  }
   // The active tab survives ANY reload: the URL fragment is authoritative,
   // sessionStorage is the fallback for reloads that arrive without one (an
   // embedding iframe reloading at its bare src, a file:// reload in a browser
@@ -1001,7 +1009,7 @@ footer {
   function paintTabs(){
     $('tabs').innerHTML = TABS.map(function(t){
       var c = t.count(D), sel = t.id === active;
-      var hot = t.hot && c > 0 ? ' hot' : '';
+      var hot = t.hot && parseInt(c, 10) > 0 ? ' hot' : '';
       return '<button role="tab" id="tab-'+t.id+'" aria-controls="panel-'+t.id+'" '+
              'aria-selected="'+sel+'" data-tab="'+t.id+'">'+esc(t.label)+
              (c === null ? '' : '<span class="count'+hot+'">'+c+'</span>')+'</button>';
@@ -1547,7 +1555,9 @@ footer {
     var asks = D.waiting_on_you || [];
     var verifying = D.verify_waiting || [];
     if (!asks.length){
-      $('asks').innerHTML = verifying.length
+      $('asks').innerHTML = !verifyMeasured(D)
+        ? '<div class="empty">No questions are waiting. The verification queue was not measured, so this is not a clear queue (re-run the courier).</div>'
+        : verifying.length
         ? '<div class="empty">No questions are waiting. ' + verifying.length + ' verification request' + (verifying.length === 1 ? '' : 's') + ' below still need the owner.</div>'
         : '<div class="empty">Nothing needs you. The crew is unblocked.</div>';
     } else {
@@ -1942,7 +1952,7 @@ footer {
       {label:'Items on the board', big: items.length, foot:''},
       {label:'In flight', big: work.length, foot:'in progress, review, blocked, triage'},
       {label:'Agents working', big: working.length, foot:''},
-      {label:'Waiting on you', big:(D.waiting_on_you||[]).length + (D.verify_waiting||[]).length,
+      {label:'Waiting on you', big:waitingCount(D),
        foot:'answer or verify on the WAITING tab'},
       {label:'Integrity flags', big:nflags, foot: nflags ? 'details on the CREW tab' : 'clean'}
     ];
