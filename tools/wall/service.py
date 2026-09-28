@@ -467,15 +467,19 @@ def _register_rows(text: str) -> list[dict]:
 
 
 def _parse_budget(cell: str) -> tuple[float, str] | None:
-    m = re.match(r"^\s*~?\s*([\d][\d,_]*(?:\.\d+)?)\s*(k)?\s*([A-Za-z]+)\s*$",
+    m = re.match(r"^\s*~?\s*([\d][\d,_]*(?:\.\d+)?)\s*(k\s+)?([A-Za-z]+)\s*$",
                  cell.replace("`", ""))
     if not m:
         return None
-    unit = _BUDGET_UNITS.get(m.group(3).lower())
-    if unit is None:
-        return None
     value = float(m.group(1).replace(",", "").replace("_", ""))
-    if m.group(2):
+    word = m.group(3).lower()
+    # The whole word first: "kib" / "kb" are units, not k x "ib" / "b".
+    unit = None if m.group(2) else _BUDGET_UNITS.get(word)
+    if unit is None:
+        base = word if m.group(2) else (word[1:] if word.startswith("k") else "")
+        unit = _BUDGET_UNITS.get(base)
+        if unit is None:
+            return None
         value *= 1000
     return value * unit[1], unit[0]
 

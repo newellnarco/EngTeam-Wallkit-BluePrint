@@ -330,7 +330,11 @@ def judge_skillspector(reports: list[dict], cfg: dict) -> tuple[list[str], list[
 
 def baseline_path(target: str) -> Path:
     """`.claude/agents` -> `.skillspector/baselines/claude__agents.yaml`. One
-    file per target: SkillSpector refuses a shared baseline across skills."""
+    file per target: SkillSpector refuses a shared baseline across skills.
+
+    Leading dots are dropped on purpose (baselines already on disk carry
+    these names), so `.claude/x` and `claude/x` share a slug: configure
+    only one of the two spellings as a target."""
     slug = target.strip("/").lstrip("./").replace("/", "__")
     return BASELINES / ("%s.yaml" % slug)
 
@@ -696,7 +700,16 @@ def main(argv=None) -> int:
             print(rid)
         return 0
     if a.cmd == "gate-skillspector":
-        reports = [json.loads(r.read_text(encoding="utf-8")) for r in a.reports]
+        try:
+            reports = [json.loads(r.read_text(encoding="utf-8")) for r in a.reports]
+        except (OSError, ValueError) as exc:
+            print("skillspector: unreadable report (%s) -- not clean, unknown" % exc,
+                  file=sys.stderr)
+            return 1
+        if not all(isinstance(r, dict) for r in reports):
+            print("skillspector: a report is not a JSON object -- not clean, unknown",
+                  file=sys.stderr)
+            return 1
         blocking, advisory = judge_skillspector(reports, cfg)
         for line in advisory:
             print("skillspector (report-only): %s" % line)
