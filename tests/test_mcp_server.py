@@ -16,6 +16,8 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
+import types
 from pathlib import Path
 
 import mcp_server as srv
@@ -407,16 +409,43 @@ def test_http_batch_answers_every_request_in_order(http_server):
     assert status == 200 and [r["id"] for r in body] == ["a", "b"]
 
 
-def test_http_refuses_a_foreign_origin(http_server):
-    """The DNS-rebinding guard: a web page's POST carries its Origin."""
-    status, body = post(f"{http_server}/mcp/engineer",
-                        {"jsonrpc": "2.0", "id": 1, "method": "ping"},
-                        headers={"Origin": "https://evil.example"})
-    assert status == 403
+def test_http_refuses_every_browser_origin_by_default(http_server):
+    """DEC-0036 clause 4: a browser always sends Origin, an MCP client never
+    does. Loopback pages (a dev server on :5173) are browsers too, and must
+    not get the engineer seat stdio never offered them."""
+    for origin in ("https://evil.example", "http://localhost:5173", "http://127.0.0.1:8124", "null"):
+        status, _ = post(f"{http_server}/mcp/engineer",
+                         {"jsonrpc": "2.0", "id": 1, "method": "ping"},
+                         headers={"Origin": origin})
+        assert status == 403, origin
+    assert post(f"{http_server}/mcp/engineer",
+                {"jsonrpc": "2.0", "id": 1, "method": "ping"})[0] == 200
+
+
+def test_http_admits_an_origin_only_when_the_operator_allows_it():
+    server = srv.make_http_server(SAMPLE, "127.0.0.1", 0,
+                                  allow_origins=("http://localhost:6274",))
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    try:
+        ok = post(f"{base}/mcp/agent", {"jsonrpc": "2.0", "id": 1, "method": "ping"},
+                  headers={"Origin": "http://localhost:6274"})
+        other = post(f"{base}/mcp/agent", {"jsonrpc": "2.0", "id": 1, "method": "ping"},
+                     headers={"Origin": "http://localhost:6275"})
+    finally:
+        server.shutdown()
+        server.server_close()
+    assert ok[0] == 200 and other[0] == 403
+
+
+def test_http_refuses_a_non_loopback_host_header(http_server):
+    """DNS rebinding: the page resolves its own name to 127.0.0.1 but still
+    names itself in Host."""
     status, _ = post(f"{http_server}/mcp/engineer",
                      {"jsonrpc": "2.0", "id": 1, "method": "ping"},
-                     headers={"Origin": "http://localhost:5173"})
-    assert status == 200
+                     headers={"Host": "evil.example:8124"})
+    assert status == 403
 
 
 def test_http_bad_input_is_answered_not_crashed(http_server):
@@ -443,41 +472,225 @@ def test_http_never_binds_beyond_loopback(host):
         srv.make_http_server(SAMPLE, host, 0)
 
 
-@pytest.mark.parametrize(("origin", "ok"), [
-    (None, True), ("", True), ("http://127.0.0.1:8124", True),
-    ("http://[::1]:3000", True), ("http://localhost", True),
-    ("null", False), ("https://evil.example", False),
-    ("http://127.0.0.1.evil.example", False), ("file://", False)])
-def test_origin_rule(origin, ok):
-    assert srv.origin_allowed(origin) is ok
+@pytest.mark.parametrize(("origin", "allow", "ok"), [
+    (None, (), True), ("", (), True),
+    ("http://127.0.0.1:8124", (), False), ("http://localhost", (), False),
+    ("null", (), False), ("https://evil.example", (), False),
+    ("http://localhost:6274", ("http://localhost:6274",), True),
+    ("http://localhost:6274/", ("http://localhost:6274",), False)])
+def test_origin_rule(origin, allow, ok):
+    assert srv.origin_allowed(origin, allow) is ok
 
 
-def test_tool_calls_are_serialized(monkeypatch):
-    """The verb tools swap the process-wide stdout; two at once would mix
-    their transcripts. Mutation: drop _TOOL_LOCK from handle_http_body."""
-    inside = []
-    peak = []
+@pytest.mark.parametrize(("host", "ok"), [
+    ("127.0.0.1:8124", True), ("localhost:8124", True), ("[::1]:8124", True),
+    ("127.0.0.1", True), ("evil.example:8124", False), (None, False),
+    ("", False), ("192.168.1.2:8124", False)])
+def test_host_header_rule(host, ok):
+    assert srv.host_header_allowed(host) is ok
 
-    def slow(repo, args):
+
+def test_cli_captures_are_serialized_and_nothing_else_is(monkeypatch):
+    """Only CLI-capturing tools share a lock (a wall_answer ledger write must
+    not interleave). Pings and reads — and wall_enqueue's network call — must
+    not queue behind one. Mutation: drop _CLI_LOCK, or put a lock back
+    around the whole dispatch."""
+    inside, peak = [], []
+    gate = threading.Event()
+
+    def slow_cli(ns):
         inside.append(1)
         peak.append(len(inside))
-        threading.Event().wait(0.05)
+        gate.wait(0.2)
         inside.pop()
-        return "ok"
+        return 0
 
-    monkeypatch.setitem(srv.TOOLS["wall_status"], "fn", slow)
-    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
-                       "params": {"name": "wall_status"}}).encode()
-    threads = [threading.Thread(target=srv.handle_http_body,
-                                args=(SAMPLE, body, "agent")) for _ in range(4)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
+    def capture_tool(repo, args):
+        return srv._capture_cli(slow_cli, types.SimpleNamespace())[1] or "ok"
+
+    monkeypatch.setitem(srv.TOOLS["wall_trace"], "fn", capture_tool)
+    call_body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                            "params": {"name": "wall_trace"}}).encode()
+    threads = [threading.Thread(target=srv.handle_http_body, args=(SAMPLE, call_body, "agent"))
+               for _ in range(3)]
+    for th in threads:
+        th.start()
+    ping = json.dumps({"jsonrpc": "2.0", "id": 9, "method": "ping"}).encode()
+    started = time.monotonic()
+    assert srv.handle_http_body(SAMPLE, ping, "agent")[0] == 200
+    assert time.monotonic() - started < 0.15, "a ping waited behind a CLI capture"
+    gate.set()
+    for th in threads:
+        th.join()
     assert max(peak) == 1
+
+
+def test_capture_is_per_thread_so_a_host_s_output_never_leaks_in(capsys):
+    """In a resident host the server runs on a thread; the host keeps printing.
+    Its lines must stay on its own stream, not land in a wall_answer transcript.
+    Mutation: capture with contextlib.redirect_stdout again."""
+    in_capture = threading.Event()
+    release = threading.Event()
+
+    def cli(ns):
+        print("from the tool")
+        in_capture.set()
+        release.wait(2)
+        return 0
+
+    result = {}
+    worker = threading.Thread(
+        target=lambda: result.update(out=srv._capture_cli(cli, types.SimpleNamespace())[1]))
+    worker.start()
+    assert in_capture.wait(2)
+    print("from the host")  # another thread, same process, mid-capture
+    release.set()
+    worker.join()
+    assert result["out"] == "from the tool\n"
+    assert "from the host" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("name", [["x"], {"a": 1}, 7, None])
+def test_a_non_string_tool_name_is_an_error_not_a_crash(name):
+    """Was: TypeError (unhashable) out of handle_request, killing stdio's loop
+    and resetting the HTTP connection."""
+    r = call(SAMPLE, "tools/call", {"name": name})
+    if name is None:  # falsy → empty name → unknown tool
+        assert "unknown tool" in r["error"]["message"]
+    else:
+        assert r["error"]["code"] == srv.INVALID_PARAMS
+
+
+def test_non_object_arguments_are_invalid_params():
+    r = call(SAMPLE, "tools/call", {"name": "wall_status", "arguments": [1]})
+    assert r["error"]["code"] == srv.INVALID_PARAMS
+
+
+def test_stdio_survives_an_unhashable_name_and_absurd_nesting():
+    lines = [
+        json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                    "params": {"name": ["x"]}}),
+        "[" * 100000,
+        json.dumps({"jsonrpc": "2.0", "id": 2, "method": "ping"}),
+    ]
+    out = io.StringIO()
+    srv.serve(SAMPLE, stdin=io.StringIO("\n".join(lines) + "\n"), stdout=out)
+    replies = [json.loads(x) for x in out.getvalue().splitlines()]
+    assert replies[0]["error"]["code"] == srv.INVALID_PARAMS
+    assert replies[1]["error"]["code"] == srv.PARSE_ERROR
+    assert replies[2] == {"jsonrpc": "2.0", "id": 2, "result": {}}
+
+
+def test_an_unexpected_exception_is_an_internal_error_response(monkeypatch):
+    def explode(repo, msg, role="engineer"):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(srv, "handle_request", explode)
+    kind, resp = srv.handle_payload(SAMPLE, b'{"jsonrpc":"2.0","id":3,"method":"ping"}',
+                                    "agent", allow_batch=True)
+    assert kind == srv.PAYLOAD_OK
+    assert resp["id"] == 3 and resp["error"]["code"] == srv.INTERNAL_ERROR
+    kind, resp = srv.handle_payload(SAMPLE, b'{"jsonrpc":"2.0","method":"x"}',
+                                    "agent", allow_batch=True)
+    assert resp is None, "a notification gets no response, even an error"
+
+
+def test_both_transports_share_one_error_envelope():
+    """Mutation: rebuild the parse-error dict inline in serve() or the HTTP path."""
+    status, body = srv.handle_http_body(SAMPLE, b"{nope", "agent")
+    out = io.StringIO()
+    srv.serve(SAMPLE, stdin=io.StringIO("{nope\n"), stdout=out)
+    assert status == 400
+    assert json.loads(body)["error"]["code"] == json.loads(out.getvalue())["error"]["code"]
+    assert json.loads(body)["error"]["message"] == json.loads(out.getvalue())["error"]["message"]
+
+
+def test_http_deeply_nested_body_is_a_400(http_server):
+    assert post(f"{http_server}/mcp/agent", b"[" * 100000)[0] == 400
+
+
+def test_http_chunked_body_is_411(http_server):
+    import http.client
+    host, port = http_server.rsplit("/", 1)[-1].split(":")
+    conn = http.client.HTTPConnection(host, int(port), timeout=10)
+    conn.putrequest("POST", "/mcp/agent")
+    conn.putheader("Transfer-Encoding", "chunked")
+    conn.putheader("Content-Type", "application/json")
+    conn.endheaders()
+    conn.send(b"0\r\n\r\n")
+    assert conn.getresponse().status == 411
+    conn.close()
+
+
+def test_a_stalled_body_times_out_instead_of_parking_a_thread(monkeypatch):
+    import socket as _socket
+    monkeypatch.setattr(srv, "HTTP_SOCKET_TIMEOUT_S", 0.3)
+    server = srv.make_http_server(SAMPLE, "127.0.0.1", 0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        s = _socket.create_connection(server.server_address[:2], timeout=5)
+        s.sendall(b"POST /mcp/agent HTTP/1.1\r\nHost: 127.0.0.1\r\n"
+                  b"Content-Length: 1000\r\n\r\n{")
+        s.settimeout(5)
+        assert s.recv(100) == b"", "the server should drop a stalled request"
+        s.close()
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_handler_threads_are_joined_on_close():
+    server = srv.make_http_server(SAMPLE, "127.0.0.1", 0)
+    try:
+        assert server.daemon_threads is False
+        assert server.block_on_close is True
+    finally:
+        server.server_close()
+
+
+def test_ipv6_gets_an_ipv6_socket_without_needing_to_bind():
+    """Pure half of the IPv6 fix, so it is pinned even where the host has no
+    IPv6 stack. Mutation: always return AF_INET."""
+    import socket as _socket
+    assert srv.address_family_for("::1") == _socket.AF_INET6
+    assert srv.address_family_for("[::1]") == _socket.AF_INET6
+    assert srv.address_family_for("127.0.0.1") == _socket.AF_INET
+    assert srv.address_family_for("localhost") == _socket.AF_INET
+
+
+def test_ipv6_loopback_actually_binds():
+    import socket as _socket
+    if not _socket.has_ipv6:
+        pytest.skip("no IPv6 on this host")
+    for host in ("::1", "[::1]"):
+        try:
+            server = srv.make_http_server(SAMPLE, host, 0)
+        except OSError as exc:  # IPv6 disabled in this container
+            pytest.skip(f"IPv6 loopback unavailable: {exc}")
+        try:
+            assert server.address_family == _socket.AF_INET6
+        finally:
+            server.server_close()
+
+
+def test_cli_usage_errors_are_argparse_errors_not_tracebacks(capsys):
+    for argv in (["--http", "localhost:x"], ["--http", "0.0.0.0:8124"],
+                 ["--http", "::1"], ["--http", "8124", "--role", "agent"],
+                 ["--allow-origin", "http://x"]):
+        with pytest.raises(SystemExit) as exc:
+            srv.main(["--repo", str(SAMPLE), *argv])
+        assert exc.value.code == 2, argv
+    assert "Traceback" not in capsys.readouterr().err
 
 
 def test_http_arg_parsing():
     assert srv._parse_http_arg("8124") == ("127.0.0.1", 8124)
     assert srv._parse_http_arg("127.0.0.1:9000") == ("127.0.0.1", 9000)
     assert srv._parse_http_arg(":9000") == ("127.0.0.1", 9000)
+    assert srv._parse_http_arg("localhost") == ("localhost", srv.DEFAULT_HTTP_PORT)
+    assert srv._parse_http_arg("[::1]:9000") == ("::1", 9000)
+    assert srv._parse_http_arg("[::1]") == ("::1", srv.DEFAULT_HTTP_PORT)
+    for bad in ("::1", "[::1", "[::1]x", "localhost:x", ""):
+        with pytest.raises(ValueError):
+            srv._parse_http_arg(bad)
