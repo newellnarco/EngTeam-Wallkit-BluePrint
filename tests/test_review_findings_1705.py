@@ -1,4 +1,4 @@
-"""CodeRabbit findings on the kit as vendored into MAX3 #1705, pinned.
+"""CodeRabbit findings on the kit as vendored into a host repo, pinned.
 
 Each test fails with its fix reverted:
 - an upgrade of an ADOPTED repo re-vendored `docs/` without adopt's

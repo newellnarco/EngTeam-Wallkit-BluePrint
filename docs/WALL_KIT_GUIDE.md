@@ -1284,9 +1284,9 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
 
-### 2026-09-28: seven review findings from MAX3's re-vendor are fixed
+### 2026-09-28: seven review findings from a host re-vendor are fixed
 
-CodeRabbit reviewed the kit as vendored into MAX3 (#1705). The fixes land here, in the kit, so every host picks them up on its next upgrade.
+CodeRabbit reviewed the kit as vendored into a host repository. The fixes land here, in the kit, so every host picks them up on its next upgrade.
 
 - **`tools/wall/bootstrap.py`**: `upgrade` re-vendored `docs/` without the `docs/decisions` exclusion that `adopt` applies. An adopted host's own decision files were refused as unverified, or overwritten with `--force`, and the kit's rulings were added to the host's log. The stamp now records the subtrees an install left to the host (`excluded`), and `upgrade` honours them. A stamp from before this change is read as an adoption whenever the host holds a decision file the kit never recorded.
 - **`tools/wall/mcp_server.py`**: a JSON-RPC request with an explicit `"id": null` is an invalid request. It used to run the method, including `wall_answer`'s ledger write.
