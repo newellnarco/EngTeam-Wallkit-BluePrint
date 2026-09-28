@@ -1,7 +1,7 @@
 # MCP_INTEGRATION.md
 
 The wall as an MCP server: one integration point for every editor and
-agent (DEC-0019, DEC-0036). `tools/wall/mcp_server.py` speaks the Model Context
+agent (DEC-0019, DEC-0036, DEC-0037). `tools/wall/mcp_server.py` speaks the Model Context
 Protocol over stdio — newline-delimited JSON-RPC, stdlib only — so any
 MCP client attaches with three lines of config and gets the same six
 tools: `wall_status`, `wall_item`, `wall_waiting`, `wall_trace`,
@@ -111,6 +111,67 @@ the committed `.mcp.json` on stdio unless every machine that opens the repo
 runs the shared server, and put the HTTP entries in a machine-local config
 (Claude Code's user/local scope, `~/.cursor/mcp.json`) on the machine that
 does.
+
+### The kit's own host, and how Claude Code finds it (DEC-0037)
+
+You don't have to run the command above yourself. `wall host install --yes`
+starts **one resident process per machine** (`tools/wall/host.py`). It
+serves every repo in the machine registry on one loopback port, one path per
+repo and role, and runs the courier sweep in the same process:
+
+```
+POST http://127.0.0.1:8124/r/<name>/mcp/engineer     all six tools
+POST http://127.0.0.1:8124/r/<name>/mcp/agent        the four reads
+GET  http://127.0.0.1:8124/health                    liveness + served repos
+```
+
+`<name>` is the repo's registry name as one URL segment (`wall host status`
+prints each). The committed `.mcp.json` **keeps its stdio entries**. On the
+machine running the host, `wall host install` (or `wall host link` for one
+repo) writes a Claude Code **local-scope** server for each stdio wall entry,
+with the **same name** and the same `--role`, into `~/.claude.json` under
+`projects[<repo path>].mcpServers`:
+
+```json
+"wall":       {"type": "http", "url": "http://127.0.0.1:8124/r/<name>/mcp/engineer"},
+"wall-agent": {"type": "http", "url": "http://127.0.0.1:8124/r/<name>/mcp/agent"}
+```
+
+The hand-typed equivalent, run from the repo root:
+
+```
+claude mcp add --scope local --transport http wall http://127.0.0.1:8124/r/<name>/mcp/engineer
+claude mcp remove --scope local wall
+```
+
+Claude Code resolves a server name defined in more than one scope **local
+first, then project (`.mcp.json`), then user**. So a session on this machine
+connects to the host and starts no stdio interpreter for that name, while a
+cloud session or another machine, which has no local entry, keeps the
+project's stdio server. Tool names do not change (`mcp__wall__wall_status`),
+so allow-lists and prompts that name them keep working.
+
+The writer never overwrites an entry it did not write (it reports a
+conflict), preserves every other key in the file, and does nothing when the
+entry is already right. Running Claude Code sessions also write
+`~/.claude.json`, so link with sessions closed, or re-run `wall host link`
+afterwards; `wall host status` shows what is linked.
+
+**When the host is down**, the local entry points at a port nothing answers,
+so the wall server shows as failed in `/mcp` for sessions on that machine.
+Restart it with `wall host start` (the timer's watchdog also restarts it
+within five minutes), or return the machine to stdio with `wall host
+uninstall`, which removes every local entry pointing at the host. `wall
+doctor` flags an enabled host that does not answer.
+
+**Which clients this covers.** Only clients that read Claude Code's
+local-scope servers: the Claude Code CLI and IDE extensions, and anything
+built on the Agent SDK that loads the user's settings. An SDK-based app that
+loads **only** project settings reads `.mcp.json` and nothing else, so it
+still starts stdio copies. Give it the HTTP URLs in its own config instead.
+Cursor and VS Code keep their own files (`~/.cursor/mcp.json`, user
+settings); point them at the same URLs by hand, since the kit writes no
+config for them yet.
 
 What the transport guarantees, pinned by tests: it binds loopback only (a
 non-loopback host is refused, no flag widens it); a request whose `Origin`

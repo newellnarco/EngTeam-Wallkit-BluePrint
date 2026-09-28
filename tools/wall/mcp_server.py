@@ -28,6 +28,8 @@ Ruled by three standing decisions:
   the LOOPBACK interface only, so one resident process can serve every
   editor on the machine instead of each client session spawning its
   own copies. Remote exposure (claude.ai connectors) is still out.
+* **DEC-0037 (hosting)** — ``host.py`` is that resident process, one per
+  machine, serving every registered repo through ``make_routed_server``.
 
 Run:  python tools/wall/mcp_server.py --repo .
       python tools/wall/mcp_server.py --repo . --http 127.0.0.1:8124
@@ -42,6 +44,7 @@ import http.server
 import io
 import ipaddress
 import json
+import socket
 import sys
 import threading
 import types
@@ -404,6 +407,8 @@ HTTP_PATH_PREFIX = "/mcp/"
 #: A tool call is a few hundred bytes; anything this large is not MCP.
 HTTP_MAX_BODY = 1_048_576
 DEFAULT_HTTP_PORT = 8124
+#: ``GET`` here answers liveness JSON; every other GET is 405 (DEC-0037).
+HEALTH_PATH = "/health"
 
 #: One tool call at a time. The verb tools CAPTURE the CLI by swapping
 #: sys.stdout (``_capture_cli``), which is process-global: two concurrent
@@ -481,20 +486,44 @@ def handle_http_body(repo: Path, body: bytes, role: str) -> tuple[int, bytes | N
     return 200, json.dumps(payload).encode()
 
 
-def make_http_server(repo: Path, host: str = "127.0.0.1",
-                     port: int = DEFAULT_HTTP_PORT) -> http.server.ThreadingHTTPServer:
-    """A ready-to-run loopback MCP server; the caller runs ``serve_forever``.
+class ExclusiveHTTPServer(http.server.ThreadingHTTPServer):
+    """A ThreadingHTTPServer whose bind is EXCLUSIVE on every platform.
 
-    Split from ``serve_http`` so a host process that is already resident
-    (a service, a supervisor) can run it on a thread of its own instead of
-    starting another interpreter — which is the point of DEC-0036.
-    Refuses any non-loopback bind: the exposure boundary is structural.
+    This is the single-instance guard (DEC-0037): a second host binding the
+    same port must fail, not share it. ``http.server`` sets SO_REUSEADDR,
+    which on POSIX only lets a restart reuse a TIME_WAIT port -- but on
+    Windows it lets a second process bind a port another process is already
+    listening on, and the two then split the traffic. So on Windows the
+    reuse flag is off and SO_EXCLUSIVEADDRUSE is on.
+    """
+
+    daemon_threads = True
+    allow_reuse_address = not sys.platform.startswith("win")
+
+    def server_bind(self):
+        exclusive = getattr(socket, "SO_EXCLUSIVEADDRUSE", None)
+        if exclusive is not None:
+            self.socket.setsockopt(socket.SOL_SOCKET, exclusive, 1)
+        super().server_bind()
+
+
+def make_routed_server(route, host: str = "127.0.0.1",
+                       port: int = DEFAULT_HTTP_PORT,
+                       health=None) -> ExclusiveHTTPServer:
+    """The loopback MCP transport over any routing: the one Handler both the
+    single-repo server and the machine host (``host.py``) run.
+
+    ``route(path)`` answers ``(repo, role)`` for a POST path it serves, or
+    None (404). ``health()`` answers the JSON dict ``GET /health`` returns;
+    None means the stock ``{"ok": true, ...}``. Refuses any non-loopback
+    bind: the exposure boundary is structural (DEC-0036). The bind is
+    exclusive, so a second server on the same port raises OSError -- the
+    single-instance guard (DEC-0037).
     """
     if not is_loopback_host(host):
         raise ValueError(
             f"refusing to bind {host!r}: the wall MCP server is loopback-only "
             "(DEC-0036); remote exposure is a separate decision")
-    repo = Path(repo).resolve()
 
     class Handler(http.server.BaseHTTPRequestHandler):
         server_version = "wall-mcp/" + SERVER_INFO["version"]
@@ -522,9 +551,10 @@ def make_http_server(repo: Path, host: str = "127.0.0.1",
         def do_POST(self):  # noqa: N802 - http.server naming
             if not origin_allowed(self.headers.get("Origin")):
                 return self._refused(403, "origin not allowed (loopback only)")
-            role = role_for_path(self.path)
-            if role is None:
+            target = route(self.path)
+            if target is None:
                 return self._refused(404, f"POST {HTTP_PATH_PREFIX}<role>")
+            repo, role = target
             try:
                 length = int(self.headers.get("Content-Length") or 0)
             except ValueError:
@@ -537,13 +567,44 @@ def make_http_server(repo: Path, host: str = "127.0.0.1",
             self._send(status, body)
 
         def do_GET(self):  # noqa: N802
+            if urllib.parse.urlsplit(self.path).path.rstrip("/") == HEALTH_PATH:
+                # Liveness for a watchdog, an installer or a person: never
+                # takes the tool lock, so a long tool call cannot make a
+                # live server look dead.
+                if not origin_allowed(self.headers.get("Origin")):
+                    return self._refused(403, "origin not allowed (loopback only)")
+                payload = health() if health is not None else {
+                    "ok": True, "service": "wall-mcp"}
+                return self._send(200, json.dumps(payload).encode())
             # No server-initiated stream: this server never pushes. 405 is
             # the transport's way of saying so.
             self._send(405, None, {"Allow": "POST"})
 
-        do_DELETE = do_GET  # noqa: N815 - stateless: no session to end
+        def do_DELETE(self):  # noqa: N802 - stateless: no session to end
+            self._send(405, None, {"Allow": "POST"})
 
-    return http.server.ThreadingHTTPServer((host, port), Handler)
+    return ExclusiveHTTPServer((host, port), Handler)
+
+
+def make_http_server(repo: Path, host: str = "127.0.0.1",
+                     port: int = DEFAULT_HTTP_PORT) -> ExclusiveHTTPServer:
+    """A ready-to-run loopback MCP server for ONE repo; the caller runs
+    ``serve_forever``. Roles by path, ``/mcp/<role>``.
+
+    Split from ``serve_http`` so a host process that is already resident
+    (a service, a supervisor) can run it on a thread of its own instead of
+    starting another interpreter -- which is the point of DEC-0036. The
+    machine-wide host that serves every registered repo is ``host.py``
+    (DEC-0037).
+    """
+    repo = Path(repo).resolve()
+
+    def route(path: str):
+        role = role_for_path(path)
+        return None if role is None else (repo, role)
+
+    return make_routed_server(route, host, port, health=lambda: {
+        "ok": True, "service": "wall-mcp", "repo": str(repo)})
 
 
 def serve_http(repo: Path, host: str = "127.0.0.1", port: int = DEFAULT_HTTP_PORT) -> int:

@@ -182,8 +182,16 @@ def test_sweeper_drops_dead_paths_and_writes_a_heartbeat():
 
 
 def test_sweeper_makes_no_network_call():
-    banned = ("urllib", "requests", "http.client", "socket")
-    assert not [word for word in banned if word in service.SWEEPER_SOURCE]
+    """The sweeper never leaves the machine. Its one socket (DEC-0037) is the
+    watchdog's probe of the resident host on loopback, proxies bypassed; any
+    other URL, or a lower-level client, is a network call and fails here."""
+    import re
+    source = service.SWEEPER_SOURCE
+    banned = ("requests", "http.client", "socket")
+    assert not [word for word in banned if word in source]
+    urls = re.findall(r"[a-z]+://[^\"' ]*", source)
+    assert urls and all(u.startswith("http://127.0.0.1:") for u in urls), urls
+    assert "ProxyHandler({})" in source, "a loopback probe must not route via a proxy"
 
 
 # ------------------------------------------------------------------ consent

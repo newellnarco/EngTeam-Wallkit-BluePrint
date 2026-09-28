@@ -50,7 +50,7 @@ flowchart TB
         Server[local server<br/>127.0.0.1, no-cache]
         Wall[wall.html]
         Summary[wall summary<br/>CLI digest]
-        MCP[mcp_server.py<br/>stdio or loopback HTTP, role-gated<br/>DEC-0019 / DEC-0036]
+        MCP[mcp_server.py<br/>stdio, or loopback HTTP via the<br/>resident host.py, role-gated<br/>DEC-0019 / DEC-0036 / DEC-0037]
         Editors([VS Code / Cursor /<br/>Claude Code])
     end
 

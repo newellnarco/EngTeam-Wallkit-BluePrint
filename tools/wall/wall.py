@@ -1990,6 +1990,13 @@ def cmd_uninstall(a):
                        "and leave .wall/ intact")
 
 
+def cmd_host(a):
+    return via_service("host", a,
+                       "host.py: one resident process per machine serving the "
+                       "wall's MCP for every registered repo and the courier sweep "
+                       "(DEC-0037)")
+
+
 def cmd_serve(a):
     return via_service("serve", a,
                        "the stdlib server that binds 127.0.0.1 explicitly and sends "
@@ -2300,6 +2307,17 @@ def main() -> int:
                    help="also remove the sweeper and the machine registry")
     s.add_argument("--system", help="force a platform adapter")
     s.set_defaults(fn=cmd_uninstall)
+
+    s = sub.add_parser("host", help="one resident process per machine: MCP for "
+                                    "every registered repo + the sweep (DEC-0037)")
+    s.add_argument("action", nargs="?", default="status",
+                   choices=("status", "install", "uninstall", "start", "link", "unlink"),
+                   help="install/uninstall are consent-gated (--yes); link/unlink "
+                        "one repo's Claude Code local-scope entries")
+    s.add_argument("--yes", action="store_true", help="install: proceed")
+    s.add_argument("--port", type=int, help="loopback port (default 8124)")
+    s.add_argument("--system", help="force a platform adapter")
+    s.set_defaults(fn=cmd_host)
 
     s = sub.add_parser("serve", help="serve .wall/derived/ on 127.0.0.1")
     s.add_argument("--port", type=int)
