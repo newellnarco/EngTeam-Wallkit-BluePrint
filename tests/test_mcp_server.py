@@ -331,3 +331,153 @@ def test_array_params_are_invalid_params_not_a_crash():
     lines = [json.loads(x) for x in stdout.getvalue().splitlines()]
     assert lines[0]["error"]["code"] == srv.INVALID_PARAMS
     assert lines[1]["result"] == {}
+
+
+# ------------------------------------------------- loopback HTTP (DEC-0036)
+
+import urllib.error  # noqa: E402
+import urllib.request  # noqa: E402
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture
+def http_server():
+    """A real loopback server on an ephemeral port, torn down after."""
+    server = srv.make_http_server(SAMPLE, "127.0.0.1", 0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    base = f"http://127.0.0.1:{server.server_address[1]}"
+    yield base
+    server.shutdown()
+    server.server_close()
+
+
+def post(url: str, payload, headers: dict | None = None):
+    body = payload if isinstance(payload, bytes) else json.dumps(payload).encode()
+    req = urllib.request.Request(url, data=body, method="POST", headers={
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream", **(headers or {})})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = resp.read()
+            return resp.status, (json.loads(raw) if raw else None)
+    except urllib.error.HTTPError as exc:
+        raw = exc.read()
+        return exc.code, (json.loads(raw) if raw else None)
+
+
+def test_http_speaks_the_same_protocol_as_stdio(http_server):
+    status, init = post(f"{http_server}/mcp/engineer", {
+        "jsonrpc": "2.0", "id": 1, "method": "initialize",
+        "params": {"protocolVersion": "2025-03-26"}})
+    assert status == 200 and init["result"]["serverInfo"]["name"] == "wall-mcp"
+    status, listed = post(f"{http_server}/mcp/engineer",
+                          {"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+    assert [t["name"] for t in listed["result"]["tools"]] == list(srv.ROLE_TOOLS["engineer"])
+    status, called = post(f"{http_server}/mcp/engineer", {
+        "jsonrpc": "2.0", "id": 3, "method": "tools/call",
+        "params": {"name": "wall_status", "arguments": {}}})
+    assert called["result"]["content"][0]["text"] == srv.tool_wall_status(SAMPLE, {})
+
+
+def test_http_role_comes_from_the_path_and_never_degrades_up(http_server):
+    """Mutation: serve the engineer allowlist on /mcp/agent or /mcp/<unknown>."""
+    for path in ("/mcp/agent", "/mcp/root"):
+        _, listed = post(f"{http_server}{path}",
+                         {"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+        assert [t["name"] for t in listed["result"]["tools"]] == list(srv.ROLE_TOOLS["agent"])
+    _, refused = post(f"{http_server}/mcp/agent", {
+        "jsonrpc": "2.0", "id": 2, "method": "tools/call",
+        "params": {"name": "wall_answer", "arguments": {"target": "x", "text": "y"}}})
+    assert "allowlist" in refused["error"]["message"]
+
+
+def test_http_notification_is_202_with_no_body(http_server):
+    status, body = post(f"{http_server}/mcp/engineer",
+                        {"jsonrpc": "2.0", "method": "notifications/initialized"})
+    assert (status, body) == (202, None)
+
+
+def test_http_batch_answers_every_request_in_order(http_server):
+    status, body = post(f"{http_server}/mcp/agent", [
+        {"jsonrpc": "2.0", "id": "a", "method": "ping"},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": "b", "method": "ping"}])
+    assert status == 200 and [r["id"] for r in body] == ["a", "b"]
+
+
+def test_http_refuses_a_foreign_origin(http_server):
+    """The DNS-rebinding guard: a web page's POST carries its Origin."""
+    status, body = post(f"{http_server}/mcp/engineer",
+                        {"jsonrpc": "2.0", "id": 1, "method": "ping"},
+                        headers={"Origin": "https://evil.example"})
+    assert status == 403
+    status, _ = post(f"{http_server}/mcp/engineer",
+                     {"jsonrpc": "2.0", "id": 1, "method": "ping"},
+                     headers={"Origin": "http://localhost:5173"})
+    assert status == 200
+
+
+def test_http_bad_input_is_answered_not_crashed(http_server):
+    assert post(f"{http_server}/mcp/engineer", b"{not json")[0] == 400
+    assert post(f"{http_server}/mcp/engineer", [])[0] == 400
+    assert post(f"{http_server}/other", {"jsonrpc": "2.0", "id": 1, "method": "ping"})[0] == 404
+    # The server is still up after all of that.
+    assert post(f"{http_server}/mcp/engineer",
+                {"jsonrpc": "2.0", "id": 9, "method": "ping"})[0] == 200
+
+
+def test_http_get_is_405_no_server_stream(http_server):
+    try:
+        urllib.request.urlopen(f"{http_server}/mcp/engineer", timeout=10)
+        raise AssertionError("GET must not succeed")
+    except urllib.error.HTTPError as exc:
+        assert exc.code == 405 and exc.headers["Allow"] == "POST"
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "192.168.1.10", "example.com", "::"])
+def test_http_never_binds_beyond_loopback(host):
+    """Mutation: drop the bind guard. The exposure boundary is structural."""
+    with pytest.raises(ValueError, match="loopback-only"):
+        srv.make_http_server(SAMPLE, host, 0)
+
+
+@pytest.mark.parametrize(("origin", "ok"), [
+    (None, True), ("", True), ("http://127.0.0.1:8124", True),
+    ("http://[::1]:3000", True), ("http://localhost", True),
+    ("null", False), ("https://evil.example", False),
+    ("http://127.0.0.1.evil.example", False), ("file://", False)])
+def test_origin_rule(origin, ok):
+    assert srv.origin_allowed(origin) is ok
+
+
+def test_tool_calls_are_serialized(monkeypatch):
+    """The verb tools swap the process-wide stdout; two at once would mix
+    their transcripts. Mutation: drop _TOOL_LOCK from handle_http_body."""
+    inside = []
+    peak = []
+
+    def slow(repo, args):
+        inside.append(1)
+        peak.append(len(inside))
+        threading.Event().wait(0.05)
+        inside.pop()
+        return "ok"
+
+    monkeypatch.setitem(srv.TOOLS["wall_status"], "fn", slow)
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                       "params": {"name": "wall_status"}}).encode()
+    threads = [threading.Thread(target=srv.handle_http_body,
+                                args=(SAMPLE, body, "agent")) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert max(peak) == 1
+
+
+def test_http_arg_parsing():
+    assert srv._parse_http_arg("8124") == ("127.0.0.1", 8124)
+    assert srv._parse_http_arg("127.0.0.1:9000") == ("127.0.0.1", 9000)
+    assert srv._parse_http_arg(":9000") == ("127.0.0.1", 9000)

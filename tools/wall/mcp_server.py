@@ -22,11 +22,15 @@ Ruled by three standing decisions:
   CAPTURE the existing CLI commands rather than reimplementing them.
   One implementation per fact, presented here a second time.
 * **DEC-0019 (this server's own charter)** — the tool set below is an
-  exact allowlist; growing it is a decision, not an edit. Transport is
-  stdio/local only: a remote (HTTP) exposure for claude.ai would cross
-  the localhost-only line and needs its own DEC.
+  exact allowlist; growing it is a decision, not an edit.
+* **DEC-0036 (transport, supersedes DEC-0019 clause 3)** — stdio stays
+  the default. A second transport, MCP Streamable HTTP, is allowed on
+  the LOOPBACK interface only, so one resident process can serve every
+  editor on the machine instead of each client session spawning its
+  own copies. Remote exposure (claude.ai connectors) is still out.
 
 Run:  python tools/wall/mcp_server.py --repo .
+      python tools/wall/mcp_server.py --repo . --http 127.0.0.1:8124
 Client configs: docs/MCP_INTEGRATION.md (Claude Code / Cursor / VS Code).
 """
 
@@ -34,10 +38,14 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import http.server
 import io
+import ipaddress
 import json
 import sys
+import threading
 import types
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -387,13 +395,191 @@ def serve(repo: Path, stdin=None, stdout=None, role: str = "engineer") -> int:
     return 0
 
 
+# ------------------------------------------------- loopback HTTP (DEC-0036)
+
+#: Where a role is chosen over HTTP: ``/mcp/<role>``. The path, not a
+#: header, because it is what every client config can express, and an
+#: unknown role degrades to ``agent`` exactly as ``--role`` does.
+HTTP_PATH_PREFIX = "/mcp/"
+#: A tool call is a few hundred bytes; anything this large is not MCP.
+HTTP_MAX_BODY = 1_048_576
+DEFAULT_HTTP_PORT = 8124
+
+#: One tool call at a time. The verb tools CAPTURE the CLI by swapping
+#: sys.stdout (``_capture_cli``), which is process-global: two concurrent
+#: calls would interleave each other's transcripts, and ``wall_answer``'s
+#: transcript is part of the audit record.
+_TOOL_LOCK = threading.Lock()
+
+
+def is_loopback_host(host: str) -> bool:
+    """True for ``localhost`` and any loopback IP literal (v4 or v6)."""
+    host = host.strip("[]").lower()
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def origin_allowed(origin: str | None) -> bool:
+    """DNS-rebinding guard (the MCP transport spec's MUST): a browser page
+    on any other site can POST to 127.0.0.1, and only its Origin header
+    gives it away. No Origin means a non-browser client — allowed; an
+    Origin must itself be a loopback origin."""
+    if not origin:
+        return True
+    if origin == "null":
+        return False
+    parsed = urllib.parse.urlsplit(origin)
+    return parsed.scheme in ("http", "https") and is_loopback_host(parsed.hostname or "")
+
+
+def role_for_path(path: str) -> str | None:
+    """``/mcp/engineer`` → ``engineer``; unknown role → ``agent``; any
+    other path → None (404)."""
+    path = urllib.parse.urlsplit(path).path.rstrip("/")
+    if not path.startswith(HTTP_PATH_PREFIX):
+        return None
+    role = path[len(HTTP_PATH_PREFIX):]
+    if not role or "/" in role:
+        return None
+    return role if role in ROLE_TOOLS else "agent"
+
+
+def handle_http_body(repo: Path, body: bytes, role: str) -> tuple[int, bytes | None]:
+    """One POST body in → (HTTP status, JSON body or None).
+
+    Pure of sockets so the whole transport contract is testable without a
+    server. A single message or a batch; a notification-only body answers
+    202 with no body, per the Streamable HTTP transport.
+    """
+    try:
+        msg = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return 400, json.dumps({"jsonrpc": "2.0", "id": None, "error": {
+            "code": PARSE_ERROR, "message": f"parse error: {exc}"}}).encode()
+    batch = isinstance(msg, list)
+    messages = msg if batch else [msg]
+    if batch and not messages:
+        return 400, json.dumps({"jsonrpc": "2.0", "id": None, "error": {
+            "code": INVALID_REQUEST, "message": "empty batch"}}).encode()
+    responses = []
+    for one in messages:
+        if not isinstance(one, dict):
+            responses.append({"jsonrpc": "2.0", "id": None, "error": {
+                "code": INVALID_REQUEST, "message": "request is not an object"}})
+            continue
+        with _TOOL_LOCK:
+            response = handle_request(repo, one, role=role)
+        if response is not None:
+            responses.append(response)
+    if not responses:
+        return 202, None
+    payload = responses if batch else responses[0]
+    return 200, json.dumps(payload).encode()
+
+
+def make_http_server(repo: Path, host: str = "127.0.0.1",
+                     port: int = DEFAULT_HTTP_PORT) -> http.server.ThreadingHTTPServer:
+    """A ready-to-run loopback MCP server; the caller runs ``serve_forever``.
+
+    Split from ``serve_http`` so a host process that is already resident
+    (a service, a supervisor) can run it on a thread of its own instead of
+    starting another interpreter — which is the point of DEC-0036.
+    Refuses any non-loopback bind: the exposure boundary is structural.
+    """
+    if not is_loopback_host(host):
+        raise ValueError(
+            f"refusing to bind {host!r}: the wall MCP server is loopback-only "
+            "(DEC-0036); remote exposure is a separate decision")
+    repo = Path(repo).resolve()
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        server_version = "wall-mcp/" + SERVER_INFO["version"]
+
+        def log_message(self, fmt, *args):  # quiet: editors poll
+            return
+
+        def _send(self, status: int, body: bytes | None = None,
+                  extra: dict | None = None) -> None:
+            self.send_response(status)
+            for key, value in (extra or {}).items():
+                self.send_header(key, value)
+            if body is not None:
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+            else:
+                self.send_header("Content-Length", "0")
+            self.end_headers()
+            if body is not None:
+                self.wfile.write(body)
+
+        def _refused(self, status: int, message: str) -> None:
+            self._send(status, json.dumps({"error": message}).encode())
+
+        def do_POST(self):  # noqa: N802 - http.server naming
+            if not origin_allowed(self.headers.get("Origin")):
+                return self._refused(403, "origin not allowed (loopback only)")
+            role = role_for_path(self.path)
+            if role is None:
+                return self._refused(404, f"POST {HTTP_PATH_PREFIX}<role>")
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+            except ValueError:
+                return self._refused(400, "bad Content-Length")
+            if length <= 0:
+                return self._refused(400, "empty body")
+            if length > HTTP_MAX_BODY:
+                return self._refused(413, "body too large")
+            status, body = handle_http_body(repo, self.rfile.read(length), role)
+            self._send(status, body)
+
+        def do_GET(self):  # noqa: N802
+            # No server-initiated stream: this server never pushes. 405 is
+            # the transport's way of saying so.
+            self._send(405, None, {"Allow": "POST"})
+
+        do_DELETE = do_GET  # noqa: N815 - stateless: no session to end
+
+    return http.server.ThreadingHTTPServer((host, port), Handler)
+
+
+def serve_http(repo: Path, host: str = "127.0.0.1", port: int = DEFAULT_HTTP_PORT) -> int:
+    server = make_http_server(repo, host, port)
+    bound_host, bound_port = server.server_address[:2]
+    print(f"[wall-mcp] serving {HTTP_PATH_PREFIX}<role> on "
+          f"http://{bound_host}:{bound_port} (loopback only)", file=sys.stderr, flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return 0
+
+
+def _parse_http_arg(value: str) -> tuple[str, int]:
+    host, sep, port = value.rpartition(":")
+    if not sep:
+        return "127.0.0.1", int(value)
+    return host or "127.0.0.1", int(port)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="wall-mcp", description=__doc__.split("\n")[0])
     p.add_argument("--repo", default=".", help="repo root containing .wall/")
     p.add_argument("--role", choices=sorted(ROLE_TOOLS), default="engineer",
                    help="whose seat this server is: engineer (all six tools) "
-                        "or agent (reads only — never the human verbs)")
+                        "or agent (reads only — never the human verbs); stdio only")
+    p.add_argument("--http", metavar="[HOST:]PORT", default=None,
+                   help="serve MCP Streamable HTTP on a LOOPBACK address instead "
+                        f"of stdio (DEC-0036); roles by path, {HTTP_PATH_PREFIX}<role>")
     a = p.parse_args(argv)
+    if a.http:
+        host, port = _parse_http_arg(a.http)
+        return serve_http(Path(a.repo).resolve(), host, port)
     return serve(Path(a.repo).resolve(), role=a.role)
 
 

@@ -1,7 +1,7 @@
 # MCP_INTEGRATION.md
 
 The wall as an MCP server: one integration point for every editor and
-agent (DEC-0019). `tools/wall/mcp_server.py` speaks the Model Context
+agent (DEC-0019, DEC-0036). `tools/wall/mcp_server.py` speaks the Model Context
 Protocol over stdio — newline-delimited JSON-RPC, stdlib only — so any
 MCP client attaches with three lines of config and gets the same six
 tools: `wall_status`, `wall_item`, `wall_waiting`, `wall_trace`,
@@ -71,6 +71,54 @@ Tools appear as `mcp__wall__wall_status` etc. On Windows use `python`
 }
 ```
 
+## One shared server for every client — loopback HTTP (DEC-0036)
+
+Over stdio, **every client session starts its own server** — and with the
+engineer and agent seats configured as two entries, that is two
+interpreters per open editor or agent session. On a machine with several
+clients open, that adds up. The same server can instead run ONCE and serve
+them all over MCP Streamable HTTP, bound to loopback:
+
+```
+python3 tools/wall/mcp_server.py --repo . --http 127.0.0.1:8124
+```
+
+or, from a process that is already resident (a service, a supervisor),
+without another interpreter:
+
+```python
+server = mcp_server.make_http_server(repo, "127.0.0.1", 8124)
+threading.Thread(target=server.serve_forever, daemon=True).start()
+```
+
+The role is the path: `/mcp/engineer` (all six tools) and `/mcp/agent`
+(the four reads); anything else degrades to `agent`. Client config
+(Claude Code shown; Cursor and VS Code take the same `url` shape):
+
+```json
+{
+  "mcpServers": {
+    "wall": {"type": "http", "url": "http://127.0.0.1:8124/mcp/engineer"},
+    "wall-agent": {"type": "http", "url": "http://127.0.0.1:8124/mcp/agent"}
+  }
+}
+```
+
+**When NOT to switch a repo's shared config to HTTP:** a client with no
+local server behind that URL — a cloud session, a CI runner, a fresh clone
+on a machine where nothing hosts it — loses the wall tools entirely. Keep
+the committed `.mcp.json` on stdio unless every machine that opens the repo
+runs the shared server, and put the HTTP entries in a machine-local config
+(Claude Code's user/local scope, `~/.cursor/mcp.json`) on the machine that
+does.
+
+What the transport guarantees, pinned by tests: it binds loopback only (a
+non-loopback host is refused, no flag widens it); a request whose `Origin`
+is not a loopback origin is refused, so a web page cannot drive it; it is
+stateless and never pushes (`GET` is `405`); notifications answer `202`;
+tool calls run one at a time; a malformed body is an error response, never
+a dead server.
+
 ## Anything else that speaks MCP stdio
 
 Spawn `python3 tools/wall/mcp_server.py --repo <repo-root>` and talk
@@ -84,11 +132,11 @@ transcript.
 ## claude.ai — deliberately not (yet)
 
 claude.ai custom connectors need a **remote (HTTP) transport**. This
-server is stdio/local only, on purpose: remote exposure crosses the
+server's HTTP transport is loopback-only, on purpose: remote exposure crosses the
 local-only line every deployment document assumes (INSTALL.md,
 DEPLOYMENT_TARGETS.md's "never exposed beyond a trusted boundary"), so
 adopting it is a superseding decision with an auth story — see
-DEC-0019's revisit clause. claude.ai coverage today is via Claude Code
+DEC-0036's revisit clause. claude.ai coverage today is via Claude Code
 sessions, which run this server locally like any other client.
 
 ## The enqueue write

@@ -609,7 +609,7 @@ See section 9. There are eight compliance blueprints (SOC 2, HIPAA/PHI, PCI DSS 
 
 ### 7.13 MCP integration (S for the role gate)
 
-`mcp_server.py` speaks stdio JSON-RPC (protocol `2024-11-05`) and exposes six tools. **Engineer** mode gets all six. **Agent** mode gets reads only. `wall_enqueue` POSTs to your `queue_api`, or refuses honestly if that isn't configured. There's no remote (claude.ai) connector: that would cross the localhost line and needs its own DEC (DEC-0019).
+`mcp_server.py` speaks stdio JSON-RPC (protocol `2024-11-05`) and exposes six tools. **Engineer** mode gets all six. **Agent** mode gets reads only. `wall_enqueue` POSTs to your `queue_api`, or refuses honestly if that isn't configured. It can also serve MCP Streamable HTTP on a **loopback** address (`--http 127.0.0.1:8124`, roles by path `/mcp/engineer` and `/mcp/agent`), so one resident process serves every editor on the machine (DEC-0036). There's no remote (claude.ai) connector: that would cross the localhost line and needs its own DEC.
 
 ### 7.14 Board import (S)
 
@@ -1190,7 +1190,7 @@ Every ruling in `docs/decisions/`, as of this edition. A new decision, or a supe
 | DEC-0016 | active | Cooperative parallel PRs; merges + per-PR pushes stay serialized | integration | 2026-09-19 |
 | DEC-0017 | active | Portability is a standing requirement, mechanically ratcheted | portability | 2026-09-20 |
 | DEC-0018 | active | One source of truth, derived presentations, reporting rides existing actions | reporting | 2026-09-20 |
-| DEC-0019 | active | The wall speaks MCP: six tools exactly, stdio only, role-gated, schemas from contracts | integration | 2026-09-20 |
+| DEC-0019 | superseded | The wall speaks MCP: six tools exactly, stdio only, role-gated, schemas from contracts | integration | 2026-09-20 |
 | DEC-0020 | active | Drift-first: the docs pass precedes dispatch, for the Architect and every role | process | 2026-09-20 |
 | DEC-0021 | active | One-command bootstrap; the kit lives as a bounded subtree beside the product | deployment | 2026-09-20 |
 | DEC-0022 | active | Dependencies verified and named at install; uninstall is a first-class mode | deployment | 2026-09-20 |
@@ -1207,6 +1207,7 @@ Every ruling in `docs/decisions/`, as of this edition. A new decision, or a supe
 | DEC-0033 | active | The kit ships its failure library and a known-issues intake | templates / registry | 2026-09-22 |
 | DEC-0034 | active | The owner runs a diagnostic by hand only while no closed loop exists | diagnostics / owner asks | 2026-09-23 |
 | DEC-0035 | active | A second CI trigger path is a project's choice, paired with one collapsing group | ci / triggers | 2026-09-23 |
+| DEC-0036 | active | The wall speaks MCP over stdio or loopback HTTP: six tools, role by path, still never remote | integration | 2026-09-28 |
 
 ## Appendix B. Document map
 

@@ -26,7 +26,7 @@ Format and front-matter contract: `docs/WALL_STANDARDS.md` section 6.
 | [DEC-0016](DEC-0016.md) | active | Cooperative parallel PRs; merges + per-PR pushes stay serialized | integration | 2026-09-19 |
 | [DEC-0017](DEC-0017.md) | active | Portability is a standing requirement, mechanically ratcheted | portability | 2026-09-20 |
 | [DEC-0018](DEC-0018.md) | active | One source of truth, derived presentations, reporting rides existing actions | reporting | 2026-09-20 |
-| [DEC-0019](DEC-0019.md) | active | The wall speaks MCP: six tools exactly, stdio only, role-gated, schemas from contracts | integration | 2026-09-20 |
+| [DEC-0019](DEC-0019.md) | superseded | The wall speaks MCP: six tools exactly, stdio only, role-gated, schemas from contracts | integration | 2026-09-20 |
 | [DEC-0020](DEC-0020.md) | active | Drift-first: the docs pass precedes dispatch, for the Architect and every role | process | 2026-09-20 |
 | [DEC-0021](DEC-0021.md) | active | One-command bootstrap; the kit lives as a bounded subtree beside the product | deployment | 2026-09-20 |
 | [DEC-0022](DEC-0022.md) | active | Dependencies verified and named at install; uninstall is a first-class mode | deployment | 2026-09-20 |
@@ -43,6 +43,7 @@ Format and front-matter contract: `docs/WALL_STANDARDS.md` section 6.
 | [DEC-0033](DEC-0033.md) | active | The kit ships its failure library and a known-issues intake | templates / registry | 2026-09-22 |
 | [DEC-0034](DEC-0034.md) | active | The owner runs a diagnostic by hand only while no closed loop exists | diagnostics / owner asks | 2026-09-23 |
 | [DEC-0035](DEC-0035.md) | active | A second CI trigger path is a project's choice, paired with one collapsing group | ci / triggers | 2026-09-23 |
+| [DEC-0036](DEC-0036.md) | active | The wall speaks MCP over stdio or loopback HTTP: six tools, role by path, still never remote | integration | 2026-09-28 |
 
 ---
 
