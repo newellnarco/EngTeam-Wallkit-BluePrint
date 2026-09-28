@@ -174,11 +174,18 @@ settings); point them at the same URLs by hand, since the kit writes no
 config for them yet.
 
 What the transport guarantees, pinned by tests: it binds loopback only (a
-non-loopback host is refused, no flag widens it); a request whose `Origin`
-is not a loopback origin is refused, so a web page cannot drive it; it is
+non-loopback host is refused, no flag widens it; IPv6 is written `[::1]:8124`);
+browser requests are refused — any request carrying an `Origin` header, unless
+you pass that exact origin with `--allow-origin` (for a browser-based client
+such as an inspector) — and the `Host` header must be a loopback name; it is
 stateless and never pushes (`GET` is `405`); notifications answer `202`;
-tool calls run one at a time; a malformed body is an error response, never
-a dead server.
+chunked bodies get `411`; idle connections time out; a malformed body is an
+error response, never a dead server; only CLI-capturing tool calls queue
+behind each other, and their capture is per thread.
+
+The role in the URL keeps a correctly configured agent out of the human verbs.
+It is not authentication: like `--role` over stdio, a local process that
+chooses to call `/mcp/engineer` can.
 
 ## Anything else that speaks MCP stdio
 

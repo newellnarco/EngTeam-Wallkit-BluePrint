@@ -259,14 +259,15 @@ class Host:
             pass
 
     def _sweep_in_process(self, repo: Path) -> tuple[bool, str]:
-        """``wall run-once`` for one repo, in this interpreter. Holds the
-        tool lock: the capture swaps the process-wide stdout, exactly as a
-        verb tool's does."""
+        """``wall run-once`` for one repo, in this interpreter. Goes through
+        the verb tools' own capture, which serialises CLI calls on
+        ``_CLI_LOCK`` and routes this thread's output only (DEC-0036
+        amended) -- so a sweep never interleaves a ledger write with a
+        concurrent ``wall_answer``."""
         import wall as wall_mod
-        with mcp_server._TOOL_LOCK:
-            rc, out = mcp_server._capture_cli(
-                wall_mod.cmd_run_once,
-                types.SimpleNamespace(repo=str(repo), rebuild=False))
+        rc, out = mcp_server._capture_cli(
+            wall_mod.cmd_run_once,
+            types.SimpleNamespace(repo=str(repo), rebuild=False))
         lines = out.strip().splitlines()
         return rc in (0, None), lines[-1] if lines else "no output"
 
