@@ -88,9 +88,12 @@ tools/review/coderabbit-review.sh <pr> --status   # "@coderabbitai rate limit" (
 tools/review/coderabbit-review.sh <pr> --dry-run  # everything except posting
 ```
 
-Needs `gh` (authenticated) and `jq`. Environment: `CR_MAX_RETRIES` (4),
-`CR_BASE_DELAY` (120 s), `CR_MAX_DELAY` (3600 s). It exits 1 after the retry
-cap. It is the kit's own tooling, like `tools/quality/`, and is not vendored by
+Needs `gh` (authenticated) and `jq`. Environment: `CR_MAX_WAIT` (1200 s; `0`
+means no cap), `CR_MAX_RETRIES` (4), `CR_BASE_DELAY` (120 s), `CR_MAX_DELAY`
+(3600 s). It exits 1 after the retry cap. If CodeRabbit is rate limited, it
+waits only when the limit clears within `CR_MAX_WAIT` (20 minutes, counting
+every rate-limit wait in the run). A longer limit, or a notice naming no time,
+exits 4 with nothing posted: not an error, proceed without a CodeRabbit review. It is the kit's own tooling, like `tools/quality/`, and is not vendored by
 `bootstrap`. An adopting repository that runs a CodeRabbit lane copies
 `.coderabbit.yaml`'s `reviews.auto_review` keys and this script, and records the
 lane here through `/reviewer-integration add`.

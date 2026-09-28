@@ -8,13 +8,17 @@
 #   1. waits while a CodeRabbit review is still running (pushing/requesting inside that window
 #      supersedes the running review, which is still charged);
 #   2. while any CodeRabbit rate-limit notice's stated wait is still running, sleeps it out (timed
-#      from the notice's last edit); if the latest notice names no time, backs off exponentially
-#      with jitter;
+#      from the notice's last edit), but only when the limit clears within CR_MAX_WAIT (20 min,
+#      every rate-limit wait in the run counted). A longer limit, or a latest notice naming no
+#      time, exits 4 at once with nothing posted: proceed without a CodeRabbit review. With
+#      CR_MAX_WAIT=0 there is no cap, and an untimed notice backs off exponentially with jitter;
 #   3. posts "@coderabbitai review" once, then confirms CodeRabbit picked it up.
 # `--status` posts "@coderabbitai rate limit" (free: it does not consume a review), at most once
 # per hour per PR.
 #
 # Usage: tools/review/coderabbit-review.sh <pr-number> [--repo owner/name] [--full] [--status] [--dry-run]
+# Exit:  0 requested (or picked up) - 1 gave up - 2 usage - 4 rate limited past CR_MAX_WAIT:
+#        not an error, proceed without a CodeRabbit review.
 # Needs: gh (authenticated), jq.
 set -euo pipefail
 
@@ -38,6 +42,7 @@ done
 MAX_RETRIES="${CR_MAX_RETRIES:-4}"
 BASE_DELAY="${CR_BASE_DELAY:-120}"      # seconds; reviews take ~5 min, so start at 2 min
 MAX_DELAY="${CR_MAX_DELAY:-3600}"       # never wait more than an hour per attempt
+MAX_WAIT="${CR_MAX_WAIT:-1200}"         # wait out a rate limit only when it ends inside this (0 = no cap)
 BOT_RE='^coderabbitai(\[bot\])?$'
 
 # gh with --repo only when one was given (set -u safe).
@@ -106,10 +111,19 @@ if (( STATUS )); then
 fi
 
 attempt=1
+limit_slept=0
 while (( attempt <= MAX_RETRIES )); do
   while review_running; do say "CodeRabbit review still running on the head commit; waiting 60s (a new request now would supersede it)."; sleep 60; done
   read -r known untimed <<<"$(rate_limit_wait)"
-  if (( untimed )); then
+  # Owner rule: a rate limit that clears within CR_MAX_WAIT (20 min) in total is waited out;
+  # a longer one, or one naming no time, is not: the work proceeds without CodeRabbit.
+  if (( MAX_WAIT > 0 )) && (( untimed )); then
+    say "Rate limited and CodeRabbit names no time. Not waiting: proceed without a CodeRabbit review."
+    exit 4
+  elif (( MAX_WAIT > 0 && known > 0 && limit_slept + known > MAX_WAIT )); then
+    say "Rate limited for ~${known}s more; with ${limit_slept}s already waited that passes CR_MAX_WAIT (${MAX_WAIT}s). Not waiting: proceed without a CodeRabbit review."
+    exit 4
+  elif (( untimed )); then
     wait=$(( BASE_DELAY * (2 ** (attempt - 1)) + RANDOM % 30 ))
     (( wait < known )) && wait=$known
     (( wait > MAX_DELAY )) && wait=$MAX_DELAY
@@ -119,7 +133,7 @@ while (( attempt <= MAX_RETRIES )); do
     wait=$known
     (( wait > MAX_DELAY )) && wait=$MAX_DELAY
     say "Rate limited; CodeRabbit says capacity returns in ~${wait}s. Waiting (attempt $attempt/$MAX_RETRIES)."
-    sleep "$wait"; attempt=$((attempt + 1)); continue
+    sleep "$wait"; limit_slept=$(( limit_slept + wait )); attempt=$((attempt + 1)); continue
   fi
   before="$(last_cr_comment | cut -f1)"
   post "$CMD"
