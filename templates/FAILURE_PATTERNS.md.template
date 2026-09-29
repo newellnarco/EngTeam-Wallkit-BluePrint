@@ -1714,6 +1714,27 @@ invalid:
 
 
 
+### F-REVIEW-013 - every hosted reviewer lane is exhausted, and a sensitive change merges unreviewed
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** agent-team workstation (1) -- the kit's own roles, run across several repositories on one machine
+- **Symptom:** A change that handled credentials reached green with no review
+  comment at all. Every hosted lane had hit its spending cap or quota, each was
+  correctly recorded as unavailable, and "an unavailable lane does not hold the
+  change" let it through.
+- **Root cause:** The rule that stops one metered lane from blocking work did
+  not consider every lane being down at once, so the most sensitive change had
+  no adversarial read.
+- **Check:** With hosted lanes down, a cold in-house security review is
+  mandatory before merge for anything touching secrets, credentials,
+  authentication or the machine it runs on, and is recorded before the merge.
+- **Command:** `<LIST_REVIEW_LANE_STATUS_AND_FAIL_IF_ALL_DOWN_AND_DIFF_TOUCHES_SENSITIVE_PATHS>`
+
+> class-guard: <merge gate refuses a change touching sensitive paths when no
+> lane and no in-house security review is recorded on its head>
+> VARIANT: one lane up, but it is configured to skip the changed paths, so the
+> sensitive files are still unread.
+
 **Documents and process**
 
 ### F-DOCS-001 - prose that makes a claim nothing verifies
@@ -1908,6 +1929,43 @@ invalid:
 > reported as the fleet p95 in an incident review.
 
 
+
+### F-PROC-004 - a "merge on green" driver goes idle after green, and nothing merges
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** agent-team workstation (1) -- the kit's own roles, run across several repositories on one machine
+- **Symptom:** A change sat green for a long time. Its driver reported green
+  and ended, as instructed; the session that owned the merge read the report as
+  the work being finished.
+- **Root cause:** "Report green and stop" and "the coordinator merges" had no
+  owner for the moment between them, and a report was taken for the merge.
+- **Check:** The coordinator's check-in merges green changes; a driver's report
+  is not the merge. A green-but-unmerged change older than one check-in is a
+  flag.
+- **Command:** `<LIST_OPEN_CHANGES_GREEN_ON_FULL_REQUIRED_CHECKS_AND_UNMERGED>`
+
+> class-guard: <a status check flags any change green on its full required
+> set and unmerged past one check-in interval>
+> VARIANT: an auto-merge flag set on a change whose required checks were later
+> renamed, so it never fires and nobody looks.
+
+### F-PROC-005 - a global quiet rule several sessions cannot satisfy
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** agent-team workstation (1) -- the kit's own roles, run across several repositories on one machine
+- **Symptom:** A standing rule said "no push while any CI run is in progress".
+  With several sessions sharing one repository's CI some run was always in
+  progress, so sessions waited forever or broke the rule.
+- **Root cause:** A rule written for one session was stated over shared state
+  every session changes, and no session could make it true on its own.
+- **Check:** Serialize through one owner (a push and merge queue held by one
+  coordinator per repository), or scope the rule to the session's own changes.
+- **Command:** none; the rule is procedural
+
+> class-guard: <the standing rules name exactly one queue owner per
+> repository, and no rule conditions on another session's runs>
+> VARIANT: "do not deploy while anyone has a change open", on a repository
+> where someone always has a change open.
 
 **Data and contracts**
 
@@ -3360,6 +3418,63 @@ invalid:
 > VARIANT: a trust score read from a cache that a crashed writer left at its
 > sentinel maximum, granting full trust on the next start.
 
+### F-OPS-011 - co-located agent services, model servers and runners exhaust one machine
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** agent-team workstation (1) -- the kit's own roles, run across several repositories on one machine
+- **Symptom:** The machine stopped responding to its owner. Memory and every
+  core were taken; each consumer, measured alone, was within reason.
+- **Root cause:** Every consumer sized itself as if alone. No machine-wide plan
+  existed, no launcher applied an operating-system limit, runners took jobs
+  whatever the load, and a failed load probe read as idle.
+- **Check:** One throttle plan per machine: a ceiling per consumer and floors
+  always left for the owner. The launcher caps each process from the plan (job
+  objects, cgroups, container limits). Runners take work only through a load
+  gate, and "could not look" closes the gate.
+- **Command:** `<READ_THE_PLAN_AND_COMPARE_EACH_CONSUMER_S_OS_LIMIT_AND_MEASURED_USE>`
+
+> class-guard: <every launcher refuses to start a consumer the plan does not
+> cap, and the load gate's unknown branch closes it>
+> VARIANT: a consumer that honours its own limit but spawns children the limit
+> does not cover, because the cap was set on the process, not its job or group.
+
+### F-OPS-012 - a restorer re-enables what the owner turned off
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** agent-team workstation (1) -- the kit's own roles, run across several repositories on one machine
+- **Symptom:** The owner stopped and disabled a service; minutes later it was
+  running again. A watchdog, a reconcile pass and an installer re-run each
+  brought back something the owner had turned off on purpose.
+- **Root cause:** Each restorer treated every difference from its idea of
+  "should be running" as damage, and could not tell a crash from a clean stop
+  or an absent item from a removed one.
+- **Check:** Only a crashed thing is restarted. A clean stop, a disable or a
+  pause stays off, and every re-register reads current state first.
+- **Command:** `<RESTORER_TESTS_CONSTRUCT_STOPPED_DISABLED_AND_REMOVED_CASES>`
+
+> class-guard: <a restorer's suite asserts no action for a cleanly stopped, a
+> disabled and a removed item, and a restart only for an abnormal exit>
+> VARIANT: an upgrade script re-registers every scheduled task from its
+> template and flips a disabled task back to enabled.
+
+### F-OPS-013 - a removal with no recorded way back
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** agent-team workstation (1) -- the kit's own roles, run across several repositories on one machine
+- **Symptom:** A retire script refused several items it was asked to delete.
+  The refusal looked like a bug; it was the guard working.
+- **Root cause:** The hazard is a deletion nobody can undo because nothing
+  recorded what was there. The script saved settings first and refused items
+  it could not recreate on rollback.
+- **Check:** Deletion is owner-run, never automatic; it saves settings first,
+  records a rollback, and refuses an item it could not recreate.
+- **Command:** `<RETIRE_TOOL_DRY_RUN_LISTING_WHAT_IT_WOULD_REFUSE_AND_WHY>`
+
+> class-guard: <the retire tool's suite asserts refusal for an item whose
+> settings cannot be read back, and a rollback that recreates a deleted item>
+> VARIANT: a cleanup that deletes a branch or a record whose only copy of its
+> contents was the thing deleted.
+
 **Observability and diagnosis**
 
 ### F-OBS-001 - the cause is dropped before the surface that speaks
@@ -4200,6 +4315,24 @@ invalid:
 > visible commits, losing commits that existed only on the overwritten tip.
 
 
+
+### F-GIT-005 - parallel changes in one repository each bump the version
+
+- **Discovered:** inherited, not yet observed here
+- **Paid for:** agent-team workstation (1) -- the kit's own roles, run across several repositories on one machine
+- **Symptom:** Two changes, each correct alone, raised the version from the
+  same base. The first merged; the second conflicted on the version line.
+- **Root cause:** The version is shared derived state, and each change claimed
+  it at authoring time, when neither could see the other.
+- **Check:** The bump happens at integration time, after the rebase onto the
+  moved main, or a coordinator assigns the numbers up front. Nobody bumps it in
+  the unit.
+- **Command:** `git diff <BASE>...HEAD -- <VERSION_FILE>` (empty in a unit)
+
+> class-guard: <CI on a change fails when the version file differs from its
+> merge base outside the integration step>
+> VARIANT: a changelog heading or a migration sequence number claimed by two
+> parallel changes.
 
 **Shell and scripting**
 

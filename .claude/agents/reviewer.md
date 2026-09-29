@@ -114,6 +114,13 @@ When the Maestro routes you a finding from a hosted lane, your job is to
   not a refutation.
 - **A metered lane that is out of quota is named, not waited on.** Report the
   lane as unavailable; it does not hold the unit.
+- **Lanes down means a cold in-house security review.** When every hosted lane
+  is unavailable (spending cap, quota, outage) and the diff touches secrets,
+  credentials, authentication or the machine it runs on, your cold read -- or
+  the Warden's -- is **mandatory before merge**, and it is a security read, not
+  a style pass. Record it on the PR's head SHA. The rule that an unavailable
+  lane does not hold the unit was written for one lane, not all of them
+  (FAILURE_PATTERNS F-REVIEW-013).
 - **You do not post the reply.** The unit that owns the PR owns its threads (G8).
   You hand your verification to the Maestro or to the owning unit.
 

@@ -126,7 +126,8 @@ builder hinted.
 ## 5. Integration, one PR at a time
 
 Concurrent PRs on disjoint leased surfaces (DEC-0016; single-slot mode where
-the host's rules mandate one branch). Merges are yours alone, one at a time,
+the host's rules mandate one branch). Merges belong to the merge seat -- yours
+unless the program lead has recorded that it holds it -- one at a time,
 next PR rebases first. Each finished unit is transplanted
 by an Integrator (or a Builder wearing the Integrator hat) per WORKFLOW
 section 9. The session:
@@ -135,7 +136,17 @@ section 9. The session:
 - never commits or pushes an in-flight unit's working-tree files -- that ships
   unvalidated mid-build work past the owner's own gate;
 - reads the check runs itself before flipping ready or merging (G12);
-- owns a review thread only by telling the owning unit first (G8).
+- owns a review thread only by telling the owning unit first (G8);
+- **merges at its own check-in.** A PR green on its full required checks is
+  merged at the next check-in that finds it -- **a driver's report is not the
+  merge**. A driver that reported green and ended has done its job; the merge
+  is still owed (FAILURE_PATTERNS F-PROC-004);
+- **holds the repository's merge seat, one holder at a time.** Pushes and
+  merges serialize through the seat holder's queue: this session by default, or
+  the program lead when it records that it took the seat
+  (`.claude/agents/program-lead.md`, DEC-0038). A "no push while any CI runs"
+  rule is scoped to this session's own PRs; stated over every session sharing
+  the repository's CI it can never be satisfied (F-PROC-005).
 
 ---
 
