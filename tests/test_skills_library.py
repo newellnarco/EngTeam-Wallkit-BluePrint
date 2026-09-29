@@ -30,7 +30,7 @@ AGENTS = KIT / ".claude" / "agents"
 REGISTRIES = (KIT / "FAILURE_PATTERNS.md", KIT / "templates" / "FAILURE_PATTERNS.md.template")
 
 ROLES = ("adjudicator", "architect", "builder", "foreman", "integrator",
-         "researcher", "reviewer", "warden")
+         "researcher", "reviewer", "warden", "program-lead", "fleet-operator")
 
 #: Names of the deployments the library was mined from, their code names and
 #: their people. Case-sensitive where the word is also ordinary English in

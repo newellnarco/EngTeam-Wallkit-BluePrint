@@ -45,6 +45,7 @@ Format and front-matter contract: `docs/WALL_STANDARDS.md` section 6.
 | [DEC-0035](DEC-0035.md) | active | A second CI trigger path is a project's choice, paired with one collapsing group | ci / triggers | 2026-09-23 |
 | [DEC-0036](DEC-0036.md) | active | The wall speaks MCP over stdio or loopback HTTP: six tools, role by path, still never remote | integration | 2026-09-28 |
 | [DEC-0037](DEC-0037.md) | active | One resident wall host per machine: MCP for every repo and the sweep, reached through Claude Code's local scope | integration / machine timer | 2026-09-28 |
+| [DEC-0038](DEC-0038.md) | active | A program lead per engineer and a fleet operator per machine; the engineer stays the Patron for every consent gate | roles above the repository | 2026-09-29 |
 
 ---
 

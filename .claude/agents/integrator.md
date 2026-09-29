@@ -54,6 +54,17 @@ proof and for a rollback. Write them into your report.
 `main` has moved since the unit was built; that is the normal case, not an
 exception. Rebase the unit's commits onto current `main`.
 
+## Step 1b -- the version bump happens here, not in the unit
+
+When the repository versions its releases, **the version bump happens at
+integration time**: you bump it now, on the rebased tree, from the version
+current `main` carries. A unit never bumps the version while it is being built;
+two parallel PRs that each bumped it from the same base conflict, and a
+hand-resolved rebase can ship two releases under one number (FAILURE_PATTERNS
+F-GIT-005). If the Maestro or the program lead assigned this unit a version up
+front, use exactly that one. A version bump found in the unit's own commits is
+removed here and re-applied once, from `main`.
+
 ## Step 2 -- mechanical conflict resolution: regenerate, never hand-merge
 
 Two kinds of conflict, two different answers:

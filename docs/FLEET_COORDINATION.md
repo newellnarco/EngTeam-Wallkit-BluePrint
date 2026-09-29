@@ -1,6 +1,8 @@
 # FLEET_COORDINATION.md
 
-**Status: PROPOSED. Nothing in this document is built.** It is the design for
+**Status: PROPOSED. Nothing in this document is built**, except the two role
+sheets section 4 names (program lead and fleet operator, DEC-0038), which are
+instructions, not services. It is the design for
 running the kit with a team of engineers, each with one or many sessions, on
 one or many machines, in one or many repositories. The ruling it asks for is
 the proposed DEC-0036 in the appendix; the decision log holds only rulings in
@@ -73,6 +75,8 @@ These answers set the design. They are recorded in the proposed DEC-0036 (append
 | **Wave allocation** *(proposed)* | The engineer's assignment of agent slots and budget to one wave in one repo. |
 | **Environment** *(proposed as a kit object)* | A place tests run against: personal (owned by one engineer, many allowed) or shared (claimed, queued, released). |
 | **Deploy target** *(proposed as a kit object)* | A place a deploy lands: preview, staging, production. One deploy at a time per target. |
+| **Program lead** *(role sheet exists, DEC-0038)* | Acts for one engineer across all of that engineer's repos: product direction, architecture priorities, the cross-repo queue, assignment to each repo's Maestro, merging green PRs where it holds the repo's merge seat. Never takes a Patron consent decision. |
+| **Fleet operator** *(role sheet exists, DEC-0038)* | One per machine. Observes the machine's throttle plan, services, runners and local model servers; recommends; applies only reversible, lower-only changes inside the floors. Never starts, enables, raises or deletes. |
 
 ---
 
@@ -145,6 +149,36 @@ example `Desmond~7f3a`), flagged on the wall. Team-wide uniqueness therefore
 holds throughout the outage, not only after it. On reconnect the coordinator
 issues a plain team-unique name, and the key, which every event references,
 never changes.
+
+### Where the program lead and the fleet operator fit
+
+Two roles were added by DEC-0038 after a day of running the kit's roles across
+several adopting repositories on one workstation. **What exists today is their
+role sheets and the rules they carry** (`.claude/agents/program-lead.md`,
+`.claude/agents/fleet-operator.md`, and their key prefixes in
+`tools/wall/agents.py`). No coordinator, desk, throttle-plan reader or merge
+queue was built for them; each works with the machinery the tiers above
+already have.
+
+| Role | Scope | Tier it works in today | With the proposed tiers |
+|---|---|---|---|
+| **Program lead** | One engineer, every repo that engineer owns | **Tier 1**, repo by repo: it reads each repo wall and hands each repo's Maestro its next items. The cross-repo queue is a record it keeps, not a kit service. | **Tier 3**: the engineer's delegate at the coordinator. The cross-repo queue and the one-per-engineer limit could become coordinator state. It still never takes the engineer's consent decisions, and it would enqueue into the merge queue like any session rather than merge. |
+| **Fleet operator** | One machine | **Beside tier 2**: it reads the machine it runs on (process table, resource counters, the machine timer's heartbeat, the resident wall host's `/health` from DEC-0037) and the machine's throttle plan, which is a file the engineer keeps on that machine, not a kit file. | **Tier 2**: its findings would render on the machine desk, one panel per machine. The desk is still proposed. |
+
+Both respect the same boundary the rest of this design does: **the engineer is
+the Patron for every consent gate** -- starting or enabling anything on a
+machine, deleting, widening access, spending money, production. The program
+lead prepares those decisions; the fleet operator only ever lowers a knob,
+inside the plan's floors, reversibly and with an override window.
+
+**The merge seat until a merge queue exists.** Section 8 moves merges to the
+platform merge queue. Until a repo adopts it, DEC-0038 keeps G12's single merge
+authority as a **merge seat**: exactly one holder per repo at a time (its
+Maestro, or the program lead when it records that it took the seat), and pushes
+and merges serialize through that holder's queue. A "no push while any CI runs"
+rule stated over every session sharing a repo's CI cannot be satisfied
+(FAILURE_PATTERNS F-PROC-005), which is the same pressure that motivates
+section 8.
 
 ---
 

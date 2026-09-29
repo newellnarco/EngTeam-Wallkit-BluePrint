@@ -37,6 +37,8 @@ nobody skips the sections their work touches.
 | **Foreman** | 14, 3, 1 | 2 |
 | **Adjudicator** | 1, 2, 3 | 7 |
 | **Maestro** | 3, 1, 8 | every heading, to route |
+| **Program-lead** | 3, 8, 4 | 7, 13, 14 |
+| **Fleet-operator** | 14, 10, 1 | 3, 12 |
 
 Each entry has the same shape: the rule in bold, **Why** (the incident that
 paid for it, told as a generic shape), **Check** (how to verify or enforce

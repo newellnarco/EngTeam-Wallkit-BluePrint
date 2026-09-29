@@ -258,7 +258,7 @@ Ownership decides what upgrade may overwrite and what remove may delete. Get it 
 | --- | --- | --- | --- |
 | **Kit-owned tree** | `tools/wall/`, `frontend/theme/` | Overwritten verbatim; files dropped upstream are **deleted**; a locally modified file blocks the upgrade unless `--force` | Deleted, except a locally modified file blocks the remove unless `--force` |
 | **Kit-owned by filename** | `templates/<kit template names>` | Added and updated | Each unmodified kit-named file deleted (modified ones need `--force`); the folder stays if host files remain (a `templates/` folder is common in Flask and Django apps) |
-| **Merged, add-only** | `.claude/` (MAESTRO, 8 role sheets, 3 skills, hooks; never `settings*.json`), `tools/git-hooks/` | Missing files added; files bootstrap added are refreshed or pruned if unmodified; host files never touched | Files bootstrap added and you did not modify are deleted; host-authored files never |
+| **Merged, add-only** | `.claude/` (MAESTRO, 10 role sheets, 3 skills, hooks; never `settings*.json`), `tools/git-hooks/` | Missing files added; files bootstrap added are refreshed or pruned if unmodified; host files never touched | Files bootstrap added and you did not modify are deleted; host-authored files never |
 | **Marked block** | The kit's lines in `.gitignore` between `# >>> wall kit` and `# <<< wall kit` | Refreshed in place | Stripped back to your exact bytes (the file is deleted if the kit created it) |
 | **Shared, add-only** | `docs/` (kit process docs beside your decision log) | Added and updated, never pruned | **Kept** |
 | **Host-owned once seeded** | `AGENTS.md`, `RULES.md`, `FAILURE_PATTERNS.md`, `KNOWN_ISSUES.md`, `SHIP_CHECKLIST.md`, `BEST_PRACTICES.md`, `DOCS_MAP.md`, `BUDGETED_DOCS.md`, `OWNER_DECISIONS.md`, `REVIEWER_LANES.md`, `docs/ENGINEERING_STANDARD.md`, `docs/decisions/` | Never touched | Never touched |
@@ -290,7 +290,7 @@ Old records are carried forward unchanged, so a local edit nothing touched never
 | `frontend/theme/` | Design tokens (light and dark, contrast-verified), primitives, preview. No build step |
 | `docs/` | About 35 process documents including this guide, 8 compliance blueprints, diagrams, handoff templates, the decision log, the skills library |
 | `templates/` | 13 context-document templates |
-| `.claude/` | `MAESTRO.md`, 8 role sheets, skills `wave`, `adopt`, `reviewer-integration`, hooks |
+| `.claude/` | `MAESTRO.md`, 10 role sheets, skills `wave`, `adopt`, `reviewer-integration`, hooks |
 | `.wall/` | Config, registry, items, events, derived, logs, runs (section 2) |
 
 ## 5. How it works
@@ -325,6 +325,8 @@ The orchestrator is **the top-level session you talk to, not a subagent**. Subag
 | **Adjudicator** | Fable / Opus | 1 (enforced) | Tie-breaks after evidence runs out; DEC contradictions; third rework cycle | Change ceilings (yours) |
 | **Foreman** | Sonnet | 1 (lock + heartbeat + TTL) | Reconciles claimed status against git, CI and the ledger; cost rollups; rebalance recommendations with numbers | Assign work; rewrite the ledger; run on a timer |
 | **Courier** | none (script) | per machine timer | Merges shards, integrity, render, heartbeat | Anything that needs judgment |
+| **Program lead** (`program-lead`) | Opus | 1 per engineer, across all their repos (procedural) | Acts for you day to day: product direction and architecture priorities across repos, the cross-repo queue, assignment to each repo's Maestro, merging green PRs where it holds the repo's merge seat (DEC-0038) | Take any Patron consent decision: start or enable on a machine, delete, widen access, spend, production; dispatch past a repo's Maestro |
+| **Fleet operator** (`fleet-operator`) | Sonnet | 1 per machine (procedural) | Observes the machine throttle plan, services, runners and local model servers; recommends with numbers; applies only reversible, lower-only changes inside the floors, with an override window | Start, enable, raise or delete anything; restart a service the owner stopped |
 
 **Identity:** keys look like `<role3>_<6hex>` (e.g. `bld_a41f09`) and are permanent. Display names come from per-role pools and are unique among *live* agents. Confusable names are refused. `wall agents whois --name X --at <ts>` resolves who held a recycled name at a given time.
 
@@ -441,7 +443,7 @@ You supply four things, and the organization runs everything else on written pro
 
 1. **Effort variables:** how much, how fast, and the budget ceilings.
 2. **Product answers:** requirements, data security, hosting, technology, architecture and UX. These are derived from the repo first and asked second.
-3. **Consent:** anything irreversible, outward-facing, permission-widening, spend beyond budget, or security-related.
+3. **Consent:** anything irreversible, outward-facing, permission-widening, spend beyond budget, or security-related. A program lead may act for you across every repo, but these stay yours by name (DEC-0038): starting or enabling anything on a machine, deleting, widening access, spending money, and production.
 4. **Ratification and verification:** signing off documents, suppressions, evaluations and compliance selections.
 
 ### Product intake (once, then as amendments)
@@ -566,7 +568,7 @@ A single static HTML file renders nine tabs from one `wall.json`. Served over HT
 
 ### 7.4 Roster and identity (S)
 
-`agents.py` keeps the roster in `.wall/registry/agents.md` under the same OS advisory lock. **Architect, Adjudicator and Warden are singletons, refused in code at claim time.** The Foreman singleton is a lock file with a heartbeat and a TTL. Names that are confusable with a live agent's name are refused.
+`agents.py` keeps the roster in `.wall/registry/agents.md` under the same OS advisory lock. **Architect, Adjudicator and Warden are singletons, refused in code at claim time.** The Foreman singleton is a lock file with a heartbeat and a TTL. Names that are confusable with a live agent's name are refused. The program lead (`prl_` keys) and the fleet operator (`fop_` keys) have pools and prefixes but are not registry singletons: one per engineer and one per machine span repositories, which a per-repo registry cannot count (DEC-0038).
 
 ### 7.5 Leases and parallelism (S/P)
 
@@ -630,6 +632,8 @@ The loop runs: running system → redacted snapshots shipped unconditionally →
 For more than one adopting repo (`FLEET.md`): verdicts are exit codes (0 in sync, 1 diverged and acted on, 2 UNKNOWN, which is never a pass). One hash-pinned, byte-identical shared block. Delivery by draft PR. Every inbound item is adopted, reworded or declined with a reason.
 
 **Proposed, not built: fleet coordination** (`FLEET_COORDINATION.md`, proposed DEC-0036). One machine already sweeps many repos (DEC-0010), but each repo serves its own wall on one port, and a team breaks the one-session assumptions: two sessions in one repo on different machines cannot see each other's leases, open runs or roster, can race merges, and overwrite each other's `wall-events` telemetry. The proposal adds two tiers above the unchanged repo wall. A **machine desk** serves every registered repo from one local server and needs no service. A **team tier** adds a shared coordinator (self-hosted or serverless, chosen at setup, GitHub identity) holding presence, cross-machine leases, wave allocations the engineer assigns (engineers share a wave only when they work in the same repo, however many sessions each runs, and the repo's Patron engineer leads it), shared test environments (first come, first served unless a priority jumps the queue) and deploy locks, a team-wide quota ledger, and typed, acknowledged messages between sessions. Merges move to the platform merge queue: a Maestro enqueues and never merges. A customer-reported production issue overrides all work in its repo until the fix is in production, without skipping any gate. It ships in six phases (P0 machine desk to P5 incident override); the design lists the questions still open for the owner.
+
+**Roles above the repo (DEC-0038, role sheets only).** A **program lead** acts for one engineer across all of that engineer's repos and hands each repo's Maestro its work; a **fleet operator** watches one machine against its throttle plan (a file on the machine with a ceiling per consumer and floors for the owner) and only ever lowers a knob, reversibly, with an override window. Until a repo adopts a merge queue, merges go through one **merge seat** per repo: its Maestro, or the program lead when it records that it took the seat. The check-in merges green; a driver's report is not the merge. Where both fit in the three tiers is in `FLEET_COORDINATION.md` section 4; nothing beyond the role sheets is built.
 
 ### 7.18 Deployment targets (P)
 
@@ -1093,15 +1097,18 @@ The first edition of this guide listed fourteen places where the docs and the co
 | **DEC** | A decision record, `docs/decisions/DEC-NNNN.md`; superseded, never rewritten |
 | **Drift pass** | The Architect's check that docs and code still agree, done before dispatch |
 | **Fast track** | Doc-only routing that skips heavy CI, decided from the file list alone |
+| **Fleet operator** | One per machine: measures services, runners and model servers against the machine's throttle plan; lowers, never raises (DEC-0038) |
 | **Foundation gate** | No product story dispatches until guardrails, scaffolding, metrics, quality, security, requirements and architecture exist |
 | **Gates last** | Run the checks after the final edit; a gate run earlier proves nothing |
 | **Integrator** | A Builder wearing the transplant hat: rebase, prove, push, open the PR |
 | **Lease** | An exclusive claim on a file scope |
 | **Ledger** | The append-only, reproducible event log |
 | **Maestro** | The top-level session: the orchestrator |
+| **Merge seat** | The one holder of a repo's push and merge queue at a time: its Maestro, or the program lead when it records that it took the seat (DEC-0038) |
 | **Manifest** | The sha256 of every file bootstrap owns, in `kit_source.json`; what lets upgrade and remove tell your edits from the kit's bytes |
 | **Mutation protocol** | Plant the defect, watch the test fail, restore |
 | **Patron** | The driving human engineer |
+| **Program lead** | Acts for one engineer across all their repos; never takes a Patron consent decision (DEC-0038) |
 | **Shard** | One session's daily event file |
 | **Structural / Procedural / Advisory** | Enforcement grades: code refuses / written instruction / recommendation |
 | **Transplant** | Moving a finished unit onto the moved main |
@@ -1212,6 +1219,7 @@ Every ruling in `docs/decisions/`, as of this edition. A new decision, or a supe
 | DEC-0035 | active | A second CI trigger path is a project's choice, paired with one collapsing group | ci / triggers | 2026-09-23 |
 | DEC-0036 | active | The wall speaks MCP over stdio or loopback HTTP: six tools, role by path, still never remote | integration | 2026-09-28 |
 | DEC-0037 | active | One resident wall host per machine: MCP for every repo and the sweep, reached through Claude Code's local scope | integration / machine timer | 2026-09-28 |
+| DEC-0038 | active | A program lead per engineer and a fleet operator per machine; the engineer stays the Patron for every consent gate | roles above the repository | 2026-09-29 |
 
 ## Appendix B. Document map
 
@@ -1282,11 +1290,20 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 
 ### Roles and skills (`.claude/`)
 
-`.claude/MAESTRO.md` is the session manual. Role sheets: `adjudicator`, `architect`, `builder`, `foreman`, `integrator`, `researcher`, `reviewer`, `warden`. Skills: `/wave`, `/adopt`, `/reviewer-integration`. Hooks: `.claude/hooks/` (opt-in).
+`.claude/MAESTRO.md` is the session manual. Role sheets: `adjudicator`, `architect`, `builder`, `fleet-operator`, `foreman`, `integrator`, `program-lead`, `researcher`, `reviewer`, `warden`. Skills: `/wave`, `/adopt`, `/reviewer-integration`. Hooks: `.claude/hooks/` (opt-in).
 
 ## Appendix C. Change log
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
+
+### 2026-09-29: a program lead and a fleet operator, and seven lessons from running the roles across repos (DEC-0038)
+
+- **Two roles.** `.claude/agents/program-lead.md` (one per engineer, across all their repos: product direction, architecture priorities, the cross-repo queue, assignment to each repo's Maestro, merging green PRs where it holds the repo's merge seat) and `.claude/agents/fleet-operator.md` (one per machine: the throttle plan, services, runners and local model servers; applies only reversible, lower-only changes inside the floors, with an override window). Neither takes a Patron consent decision: starting or enabling anything on a machine, deleting, widening access, spending money, production. The owner accepted that split in writing (DEC-0038). Key prefixes `prl` and `fop` and name pools in `tools/wall/agents.py`; neither is a registry singleton.
+- **No release manager.** The Integrator bumps the version at integration time (new step 1b), or the Maestro or program lead assigns numbers up front. DEC-0038 records why a separate seat would add a hand-off, not an owner.
+- **The merge seat.** G12 now reads "one merge seat per repo": its Maestro by default, or the program lead when it records that it took the seat. The Maestro's check-in merges green PRs; a driver's report is not the merge. A "no push while any CI runs" rule is scoped to the session's own PRs (`.claude/MAESTRO.md` section 5, `WORKFLOW.md` section 7, `AGENT_ROSTER_SPEC.md`).
+- **Lanes down means an in-house security review.** When every hosted reviewer lane is exhausted, a change touching secrets, credentials, authentication or the machine gets a cold Warden or Reviewer security read before merge (reviewer and warden sheets).
+- **Seven failure classes**, in the kit's registry and in the shipped library: F-OPS-011 (co-located services, model servers and runners exhaust one machine), F-OPS-012 (a restorer re-enables what the owner turned off), F-GIT-005 (parallel PRs each bump the version), F-REVIEW-013 (every hosted lane exhausted), F-PROC-004 (a merge-on-green driver idles and nothing merges), F-PROC-005 (a global quiet rule several sessions cannot satisfy) and F-OPS-013 (a removal with no way back; the guard that refused held, and is recorded so it is not simplified away). The registry's header now says the kit's own roles, run in an adopting repo, count as "here".
+- `FLEET_COORDINATION.md` places both roles in its three tiers and names what is built (the role sheets) and what is not (everything else). `tests/test_fleet_roles.py` pins each rule to the sheet that owns it.
 
 ### 2026-09-28: one resident wall host per machine (DEC-0037)
 

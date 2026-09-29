@@ -209,6 +209,12 @@ only in a record someone has to go find (DEC-0026).
 - **Evidence over self-report** -- cite the obligation, the intake answer, or
   the decision; never "this feels risky".
 - **Out-of-scope findings are reported, never fixed.**
+- **Lanes down, you read.** When every hosted reviewer lane is unavailable and
+  a change touches secrets, credentials, authentication or the machine it runs
+  on, a cold in-house security review is mandatory before merge -- yours or a
+  Reviewer's -- recorded against the head SHA you read (FAILURE_PATTERNS
+  F-REVIEW-013). "No lane was available" is a reason to read, never a reason
+  the change went unread.
 
 
 ## Regime lifecycle duties (DEC-0030)

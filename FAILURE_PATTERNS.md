@@ -21,6 +21,15 @@ A class whose mistake has a **code shape** carries a fenced `ast-grep` block;
 pre-commit hook keeps it in sync, and the scan lane runs it
 (`docs/SCAN_LANE.md`). Findings not yet worked live in `KNOWN_ISSUES.md`.
 
+**The kit's own roles count as "here".** When the kit's roles and procedures
+are run in an adopting repository and the *method* fails -- a role sheet
+allowed the mistake, or no role owned the duty -- the class is the kit's, and
+it is recorded here with a `Discovered` line naming the shape of the adopting
+setup (never the adopter). Its guard lives in the kit: a pinned rule in the
+role sheet or document that owns the duty. The entries from F-OPS-011 onward
+came from one day of running the roles across several adopting repositories on
+one workstation (DEC-0038).
+
 ## Recurring classes - watch these hardest
 
 | Class | The reminder, in one line | class-guard |
@@ -209,3 +218,160 @@ invalid:
 > class-guard: `test_pre_commit_generates_rules_from_the_staged_registry`
 > VARIANT: a formatter hook that formats the working-tree file and re-stages
 > all of it, sweeping unstaged hunks into the commit.
+
+---
+
+## F-OPS-011 - co-located agent services, model servers and runners exhaust one machine
+
+- **Discovered:** 2026-09-29, a workstation running several adopting
+  repositories' agent services, a local model server, hosted-review clients
+  and self-hosted CI runners
+- **Symptom:** The machine stopped responding to its owner. Memory and every
+  core were taken; each consumer, measured alone, was within reason, and
+  nothing on the machine could say which one to shed first.
+- **Root cause:** Every consumer sized itself as if it were alone. There was no
+  machine-wide plan, no launcher applied an operating-system limit, and the
+  runners took jobs whenever they were offered one, whatever the machine's
+  load. Where a load probe existed, a probe that failed read as "idle".
+- **Check:** One throttle plan per machine: a file with a ceiling per consumer
+  and **floors** always left for the owner. The launcher caps each process it
+  starts from that plan (job objects, cgroups, container limits). Runners take
+  a job only through a load gate, and **"could not look" closes the gate**. The
+  fleet operator reads the plan and measures against it
+  (`.claude/agents/fleet-operator.md` section 1).
+- **Command:** none in the kit; the plan and the launcher live on the machine
+
+> class-guard: `test_the_fleet_operator_carries_the_machine_throttle_plan`
+> VARIANT: one consumer that honours its own limit but spawns children that
+> the limit does not cover, because the cap was set on the process rather than
+> on the job or group that contains its children.
+
+---
+
+## F-OPS-012 - a restorer re-enables what the owner turned off
+
+- **Discovered:** 2026-09-29, the same workstation
+- **Symptom:** The owner stopped and disabled a service to take load off the
+  machine. Minutes later it was running again. A watchdog, a reconcile pass
+  and an installer re-run each, separately, brought something back that the
+  owner had turned off on purpose.
+- **Root cause:** Each restorer compared the machine against its own idea of
+  "should be running" and treated every difference as damage. None of them
+  could tell a crash from a clean stop, or an absent item from a removed one,
+  so the owner's decision read as a fault to repair.
+- **Check:** Only a **crashed** thing is restarted: an abnormal exit while it
+  was meant to run. A clean stop, a disable or a pause stays off. Every
+  re-register reads the item's current state first and leaves a disabled item
+  disabled (`.claude/agents/fleet-operator.md` section 3).
+- **Command:** none in the kit; a restorer's own tests construct the stopped and
+  disabled cases
+
+> class-guard: `test_only_a_crashed_thing_is_restarted`
+> VARIANT: an upgrade script that re-registers every scheduled task from its
+> template and silently flips a disabled task back to enabled.
+
+---
+
+## F-GIT-005 - parallel PRs in one repository each bump the version
+
+- **Discovered:** 2026-09-29, an adopting repository with two sessions' PRs
+  open at once
+- **Symptom:** Two PRs, each correct alone, both raised the version from the
+  same base. The first merged; the second conflicted on the version line, and
+  a hand-resolved rebase could have shipped two releases under one number.
+- **Root cause:** The version is shared, derived state (a counter), and each
+  change claimed it at authoring time, when neither could see the other.
+- **Check:** The version bump happens at integration time: the Integrator
+  bumps it after rebasing onto the moved main, immediately before the gates
+  (`.claude/agents/integrator.md` step 1b). Or the Maestro, or the program
+  lead across repositories, assigns the numbers up front. Nobody bumps it in
+  the unit.
+- **Command:** none; the rule is procedural
+
+> class-guard: `test_the_version_bump_happens_at_integration`
+> VARIANT: a changelog heading or a migration sequence number claimed by two
+> parallel changes.
+
+---
+
+## F-REVIEW-013 - every hosted reviewer lane is exhausted, and a sensitive change merges unreviewed
+
+- **Discovered:** 2026-09-29, an adopting repository
+- **Symptom:** A PR that handled credentials reached green with no reviewer
+  comment at all. Every hosted review lane had hit its spending cap or quota,
+  each was correctly recorded as unavailable, and the rule "an unavailable
+  lane does not hold the PR" let it through.
+- **Root cause:** The rule that stops a metered lane from blocking work was
+  written for one lane being down, not all of them. With every lane down, the
+  change had no adversarial read, and the most sensitive change of the day got
+  the least review.
+- **Check:** When hosted lanes are down, a **cold in-house security review**
+  (Warden or Reviewer) is mandatory before merge for anything touching
+  secrets, credentials, authentication or the machine it runs on. The review
+  is recorded before the merge (`.claude/agents/reviewer.md` section 5,
+  `.claude/agents/warden.md` section 6).
+- **Command:** none; the rule is procedural
+
+> class-guard: `test_lanes_down_means_a_cold_security_review`
+> VARIANT: one lane up, but it is the lane configured to skip the changed
+> paths, so the sensitive files are still unread.
+
+---
+
+## F-PROC-004 - a "merge on green" driver goes idle after green, and nothing merges
+
+- **Discovered:** 2026-09-29, several adopting repositories
+- **Symptom:** A PR sat green for a long time. The driver had reported green
+  and ended, exactly as its role sheet says; the session that owned the merge
+  read the report as the work being finished.
+- **Root cause:** "Report green and stop" and "the Maestro merges" were two
+  halves with no owner of the moment between them. The report was taken as
+  the merge.
+- **Check:** The Maestro's check-in merges green PRs; **a driver's report is
+  not the merge** (`.claude/MAESTRO.md` section 5,
+  `.claude/agents/program-lead.md` section 3).
+- **Command:** none; the rule is procedural
+
+> class-guard: `test_the_check_in_merges_green`
+> VARIANT: an auto-merge flag set on a PR whose required checks were later
+> changed, so it never fires and nobody looks.
+
+---
+
+## F-PROC-005 - a global quiet rule several sessions cannot satisfy
+
+- **Discovered:** 2026-09-29, an adopting repository with several sessions
+- **Symptom:** A standing rule said "no push while ANY CI run is in progress".
+  With several sessions sharing the repository's CI, some run was always in
+  progress, so every session either waited forever or broke the rule.
+- **Root cause:** A rule written for one session was stated over shared state
+  every session changes. No session could make it true by its own actions.
+- **Check:** Serialize through one owner: a push/merge queue held by one
+  Maestro per repository (its merge seat), or scope the rule to the session's
+  own PRs (`.claude/MAESTRO.md` section 5).
+- **Command:** none; the rule is procedural
+
+> class-guard: `test_push_serialization_is_owned_not_global`
+> VARIANT: "do not deploy while anyone has a change open", on a repository
+> where someone always has a change open.
+
+---
+
+## F-OPS-013 - a removal with no recorded way back
+
+- **Discovered:** 2026-09-29, the same workstation (the guard held; recorded so
+  it is not simplified away)
+- **Symptom:** A retire script meant to delete services and tasks the owner
+  had retired refused several of them. The refusal looked like a bug.
+- **Root cause:** Not a bug: the script saves each item's settings before
+  deleting and refuses any item it could not recreate on rollback. The hazard
+  it prevents is a deletion that cannot be undone because nothing recorded
+  what was there.
+- **Check:** Deletion is owner-run, never automatic. It saves settings first,
+  records a rollback, and refuses an item it could not recreate
+  (`.claude/agents/fleet-operator.md` section 4).
+- **Command:** none in the kit; the retire tool lives on the machine
+
+> class-guard: `test_deletion_is_owner_run_and_leaves_a_way_back`
+> VARIANT: a cleanup that deletes a branch or a stored record whose only copy
+> of its contents was the thing deleted.

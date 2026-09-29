@@ -1,6 +1,8 @@
 # AGENT_ROSTER_SPEC.md
 
-Eight roles. What each owns, what it runs on, and where its authority stops.
+Eight per-repository roles, plus two that span repositories and machines: the
+Program lead and the Fleet operator (DEC-0038). What each owns, what it runs
+on, and where its authority stops.
 
 Derived from `ORIGINAL_OUTLINE.md`, with three additions (Reviewer, Courier,
 Integrator) and several boundaries tightened where the original left them
@@ -26,7 +28,7 @@ reads as one set of rules rather than seven copies.
 | **G3** | No agent schedules itself. A subagent's timer fires into the parent session; a builder once waited forever on its own wake-up. Only the Maestro schedules. |
 | **G4** | Worktrees have no `.venv`. Interpreters are passed in, never resolved from the checkout. Seven phantom failures, chased three times independently. |
 | **G6** | Gates run last, after the final edit. A worktree unit has no CI between its commit and transplant. |
-| **G12** | Only the Maestro merges or flips a PR to ready. Everyone else reports green and stops. |
+| **G12** | Only the Maestro merges or flips a PR to ready -- or the Program lead, in a repository whose merge seat it has recorded that it holds (DEC-0038); one seat holder per repository at a time. Everyone else reports green and stops. |
 | **G0b** | Evidence over self-report, for every role. A builder's own CI claim was superseded twice by reading the check runs. |
 | **G14** | Report in transitions, not narration. A bullet earns its place by recording a state change; prose about in-progress work buys nothing the wall does not already carry, and every reader pays for it every cycle. |
 | **In-flight files** | No role commits or pushes another unit's working-tree files while that unit is live -- **including when a hook demands it**. That ships unvalidated mid-build work past the owning unit's own gate. Decline and say why, so the refusal is visible. |
@@ -69,8 +71,8 @@ degrades gracefully when the pool is tight.
 | Tier | Model | Roles | Rationale |
 |---|---|---|---|
 | Authority | Fable 5.1 (or Opus 5 -- never lighter) | Architect, Adjudicator, Warden | Deepest reasoning, lowest volume |
-| Execution | Opus 5 | Maestro, Builder (complex), Integrator | Dispatch and the work itself |
-| Verification | Sonnet 5 | Foreman, Reviewer, Researcher, Builder (mechanical) | Check and find out |
+| Execution | Opus 5 | Maestro, Program lead, Builder (complex), Integrator | Dispatch and the work itself |
+| Verification | Sonnet 5 | Foreman, Fleet operator, Reviewer, Researcher, Builder (mechanical) | Check and find out |
 
 The authority tier is written as `model: fable` in the definitions. On a host
 that does not resolve that alias, set `model: opus` -- **never** a
@@ -300,6 +302,57 @@ one thing that must be reproducible byte for byte.
 
 ---
 
+## Program lead -- Opus 5
+
+**One per engineer, across every repository that engineer owns.** *(Not in
+the original outline; added from running the roles across several adopting
+repositories -- DEC-0038.)*
+
+Acts for the engineer day to day. Owns product design direction and
+architecture priorities across repositories, runs the cross-repo queue,
+assigns work to each repository's Maestro, and merges green PRs within the
+rules. Usually the engineer's standing top-level session, which reads
+`.claude/agents/program-lead.md` the way a Maestro session reads
+`.claude/MAESTRO.md`; it can also be invoked from a session with a cross-repo
+brief.
+
+- Works **through** each repository's Maestro and wall, never around them: it
+  hands a Maestro its next items and priorities, and the Maestro dispatches
+  inside its own caps, leases and gates.
+- **Merge seat.** Each repository has exactly one holder of its push/merge
+  queue at a time: its Maestro by default, or the Program lead when it records
+  that it took the seat. The check-in merges green; a driver's report is not
+  the merge (FAILURE_PATTERNS F-PROC-004).
+- **Never takes a Patron consent decision:** starting or enabling anything on
+  a machine, deleting, widening access, spending money, production. It
+  prepares each one -- evidence, options, the command, the undo -- and files it
+  in the human queue.
+- Does not replace the per-repo Architect (requirements and documents),
+  Warden (blocks), Foreman (measures) or Adjudicator (ties).
+
+## Fleet operator -- Sonnet 5
+
+**One per machine.** *(Not in the original outline; DEC-0038.)*
+
+Observes one machine's resources and services across the fleet: the machine
+throttle plan and its floors, agent services, self-hosted runners and local
+model servers. Turns findings into recommendations with the numbers attached.
+
+- **Applies only** reversible, lower-only changes inside the plan's floors,
+  each with an override window and a recorded undo.
+- **Never starts, enables or raises anything, and never deletes.** The
+  engineer does. Only a crashed thing is restarted, and not by the Fleet
+  operator; a clean stop or a disable stays off (F-OPS-012).
+- A machine's Foreman, not its administrator: it measures and recommends, and
+  "could not look" is reported as unknown, never as idle.
+
+**Release manager: not a role.** The Integrator already owns the unit's path
+to merge, and the version bump moves to integration time (Integrator step 1b,
+F-GIT-005), with the Maestro or Program lead assigning numbers when several
+units release together. DEC-0038 records why no separate seat was added.
+
+---
+
 ## Caps
 
 ```json
@@ -314,6 +367,10 @@ Singletons are not in the cap table, and they are not all enforced the same way:
   TTL, not by the registry.
 - **Maestro** — the invoking session itself; it is never claimed, so there is
   nothing for the registry to count.
+- **Program lead** — one per engineer and **Fleet operator** — one per machine.
+  Both span repositories, and the registry is per repository, so neither is
+  registry-enforced; the limit is procedural (DEC-0038). Their keys use the
+  `prl` and `fop` prefixes in `tools/wall/agents.py`.
  Researcher cap should track builders + 2; if the
 builder cap moves, move it too.
 

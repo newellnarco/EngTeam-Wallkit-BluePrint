@@ -32,6 +32,9 @@ ROLE_PREFIX = {
     "foreman": "frm", "maestro": "mst", "architect": "arc", "adjudicator": "adj",
     "builder": "bld", "integrator": "itg", "reviewer": "rev", "warden": "wrd",
     "researcher": "res", "courier": "cou",
+    # DEC-0038: one program lead per engineer, one fleet operator per machine.
+    # Neither is a per-repo singleton, so neither is in SINGLETON_ROLES.
+    "program-lead": "prl", "fleet-operator": "fop",
 }
 
 POOL = {
@@ -46,6 +49,8 @@ POOL = {
     "reviewer":    ["Junia", "Malcolm", "Faye", "Rupert", "Ines"],
     "researcher":  ["Silas", "Nadia", "Quentin", "Delphine", "Roscoe",
                     "Greta", "Fitzgerald", "Verity", "Ozias", "Clementine"],
+    "program-lead": ["Octavia", "Evander", "Ulrika", "Zenobia", "Philippa"],
+    "fleet-operator": ["Gwendolyn", "Mortimer", "Cyrus", "Lavinia", "Tobias"],
 }
 
 #: Roles where a second LIVE agent is a contradiction, not a capacity choice:
