@@ -309,7 +309,7 @@ The orchestrator is **the top-level session you talk to, not a subagent**. Subag
 - **G4:** worktrees have no venv; pass the interpreter in.
 - **G6:** gates run last, after the final edit.
 - **G10:** budget-counted docs are re-measured.
-- **G12:** merge authority is the session's.
+- **G12:** merge authority is the merge seat's: one holder per repo, the Maestro by default, the program lead only when it records that it holds the seat (DEC-0038).
 - Evidence over self-report.
 
 ### Roles and authority
@@ -403,7 +403,7 @@ Every question is **mediated**: Builder → Maestro → decision log → Researc
 
 ### Pull requests and merging
 
-- **DEC-0016:** concurrent PRs on disjoint leased surfaces are allowed. **Merges are serialized** by the Maestro, and the next PR rebases first. A single-slot mode exists for hosts that mandate one designated branch.
+- **DEC-0016:** concurrent PRs on disjoint leased surfaces are allowed. **Merges are serialized** by the repo's merge seat holder (the Maestro by default; DEC-0038), and the next PR rebases first. A single-slot mode exists for hosts that mandate one designated branch.
 - Only the Integrator force-pushes, and only after a **two-sided path-filtered proof**: inside the unit's scope the diff shows only its work, outside it is empty. The push uses `--force-with-lease=<recorded sha>`.
 - Before merging, the Maestro confirms the green check's **name** is the one branch protection requires. A green check isn't necessarily the gating check.
 - Never push to a branch whose checks are running. One PR measured 11 cancelled runs and 77 wasted minutes.
@@ -754,7 +754,7 @@ Every learning record now has a command that writes it and refuses it when it br
 ### Principles
 
 1. **Block, never grant.** The Warden can stop anything on its own. No agent can widen any privilege; that stays with you. "A crew that can widen its own permissions has no permissions."
-2. **Segregation of duties.** Builders build, Reviewers read cold and can't edit, only the Integrator force-pushes, and only the Maestro merges. Hosted lanes never merge.
+2. **Segregation of duties.** Builders build, Reviewers read cold and can't edit, only the Integrator force-pushes, and only the merge seat holder merges (the Maestro, or the program lead when it holds the seat). Hosted lanes never merge.
 3. **Discovery is not trust.** A tool, MCP server or skill that an agent *finds* is parked by default until a person signs to allow it.
 4. **Fetched content is data.** Nothing that comes back from a web page, a tool or an issue is an instruction.
 5. **Assume breach anyway.** Every gate is designed so that one failure doesn't unlock the next.

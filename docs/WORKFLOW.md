@@ -307,7 +307,7 @@ more confident. Anchoring on tests and written decisions avoids that.
 | Reject work | | yes | yes | | yes | | | yes | |
 | Rebase / force-push the PR ref | | | | | | | yes | | |
 | Own a PR's review threads | | | | | | | yes | | |
-| Merge / flip ready | | yes | | | | | | | |
+| Merge / flip ready | | yes (the merge seat; the Program lead when it holds it) | | | | | | | |
 
 Foreman never assigns work. Maestro never edits ledgers. Keeping those separate
 is what stops the observability layer from becoming a second control plane.
@@ -332,7 +332,8 @@ makes an autonomous security authority safe to run (`.claude/agents/warden.md`).
 The Integrator edits source only to land a unit that is already built: rebase
 resolution and derived-file regeneration. It is the only role that may force-push
 the designated ref, and only behind the safety proof in section 9. **Merge and
-ready-flip belong to the Maestro alone** (G12) -- that authority caught two
+ready-flip belong to the repository's merge seat holder** (G12; the Maestro
+by default, the Program lead only when it has recorded that it holds the seat) -- that authority caught two
 would-have-been-early merges where draft-scoped checks read green but were not
 the full pyramid.
 
