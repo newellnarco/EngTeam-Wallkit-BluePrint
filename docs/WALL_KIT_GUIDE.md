@@ -1296,9 +1296,9 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
 
-### 2026-10-05: the kit's own CI runs on the owner's PC, and docs-only changes skip the scans
+### 2026-10-05: the kit's own CI stays on GitHub-hosted (public repository), and docs-only changes skip the scans
 
-- **Local first.** `ci.yml`'s jobs use the owner's local-first `runs-on` expression (their Actions rules, 2026-10-05). A fork's pull request is sent to GitHub-hosted by the expression's first clause, so the self-hosted runner never executes a stranger's code. With `RUNNER` unset a job waits for the PC; GitHub-hosted otherwise only with `HOSTED_OK`.
+- **GitHub-hosted, on purpose.** This repository is public, so the owner's Actions rules (2026-10-05, rule 7) keep it on `ubuntu-latest`: public repositories' hosted minutes are free, and a self-hosted runner on the owner's PC must never run a stranger's code. MU/TH/UR offers SET UP RUNNER only for private repositories, so a local-first `runs-on` here would wait for a runner that never comes.
 - **Docs-only changes skip the structural and security scans.** A new `changes` job diffs the push or PR (`docs/`, root `*.md`, `LICENSE`). The suite still runs on every change: forty of its tests read the documents, so it is this repo's docs pass.
 - `scanner-bump.yml` (weekly, short) is unchanged.
 - `tests/test_budget_trajectory.py::test_snapshot_carries_the_enriched_budget` dated its events 2026-09-19, which aged out of the current budget period, so it measured 0 and failed on `main` from 2026-10. Its events are now timestamped a minute before the run.

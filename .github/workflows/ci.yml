@@ -25,11 +25,10 @@ permissions: {}
 # Actions are pinned to a full commit SHA (the tag in the comment): a moved
 # tag cannot swap the code that runs with this workflow's token (zizmor
 # unpinned-uses). The weekly scanner-bump PR is where pins move.
-# Local first (the owner's Actions rules, 2026-10-05). Every job runs on the owner's PC through the
-# runs-on expression below, which MU/TH/UR recognises byte for byte and points at its runner with
-# RUNNER. A fork's pull request is never run on the PC: the expression's first clause sends it to
-# GitHub-hosted, so a self-hosted runner never executes a stranger's code. With RUNNER unset a job
-# waits for the PC; GitHub-hosted otherwise only with HOSTED_OK. No job here reads a secret.
+# GitHub-hosted on purpose (the owner's Actions rules, 2026-10-05, rule 7): this repository is
+# public, so its hosted minutes are free and a self-hosted runner on the owner's PC must never run a
+# stranger's code. MU/TH/UR lists only private repositories for SET UP RUNNER, so a local-first
+# runs-on here would wait for a runner that never comes. No job here reads a secret.
 jobs:
   # Docs-only changes (docs/, root *.md, LICENSE) skip the scans (Actions rule 4). The suite still
   # runs: forty of its tests read the documents (the guide, the context files, the budgets), so it
@@ -37,7 +36,7 @@ jobs:
   # a rename's old path too, so moving code into docs/ still runs the scans.
   changes:
     name: Docs-only change?
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (vars.RUNNER && fromJSON(vars.RUNNER) || vars.HOSTED_OK == 'true' && 'ubuntu-latest' || fromJSON('["self-hosted","linux","mother"]')) || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read
@@ -66,7 +65,7 @@ jobs:
 
   suite:
     name: Kit suite (pytest + ruff)
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (vars.RUNNER && fromJSON(vars.RUNNER) || vars.HOSTED_OK == 'true' && 'ubuntu-latest' || fromJSON('["self-hosted","linux","mother"]')) || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
@@ -96,7 +95,7 @@ jobs:
     name: Structural and security scans
     needs: changes
     if: needs.changes.outputs.code == 'true'
-    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && (vars.RUNNER && fromJSON(vars.RUNNER) || vars.HOSTED_OK == 'true' && 'ubuntu-latest' || fromJSON('["self-hosted","linux","mother"]')) || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
