@@ -1296,6 +1296,13 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
 
+### 2026-10-05: the kit's own CI stays on GitHub-hosted (public repository), and docs-only changes skip the scans
+
+- **GitHub-hosted, on purpose.** This repository is public, so the owner's Actions rules (2026-10-05, rule 7) keep it on `ubuntu-latest`: public repositories' hosted minutes are free, and a self-hosted runner on the owner's PC must never run a stranger's code. MU/TH/UR offers SET UP RUNNER only for private repositories, so a local-first `runs-on` here would wait for a runner that never comes.
+- **Docs-only changes skip the structural and security scans.** A new `changes` job diffs the push or PR (`docs/`, root `*.md`, `LICENSE`). The suite still runs on every change: forty of its tests read the documents, so it is this repo's docs pass.
+- `scanner-bump.yml` (weekly, short) is unchanged.
+- `tests/test_budget_trajectory.py::test_snapshot_carries_the_enriched_budget` dated its events 2026-09-19, which aged out of the current budget period, so it measured 0 and failed on `main` from 2026-10. Its events are now timestamped a minute before the run.
+
 ### 2026-10-05: the kit's own root AGENTS.md, and its generated CLAUDE.md
 
 - **The kit now follows its own context convention** (`docs/CONTEXT_FILES.md`). `AGENTS.md` at the root is the master and the entry point for an agent working on this repository. It names the mandatory reading (this guide, `docs/RECONCILIATION.md`, `FAILURE_PATTERNS.md`, `.claude/MAESTRO.md`), the checks CI runs, and a short document index.

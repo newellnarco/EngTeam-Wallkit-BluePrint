@@ -25,7 +25,44 @@ permissions: {}
 # Actions are pinned to a full commit SHA (the tag in the comment): a moved
 # tag cannot swap the code that runs with this workflow's token (zizmor
 # unpinned-uses). The weekly scanner-bump PR is where pins move.
+# GitHub-hosted on purpose (the owner's Actions rules, 2026-10-05, rule 7): this repository is
+# public, so its hosted minutes are free and a self-hosted runner on the owner's PC must never run a
+# stranger's code. MU/TH/UR lists only private repositories for SET UP RUNNER, so a local-first
+# runs-on here would wait for a runner that never comes. No job here reads a secret.
 jobs:
+  # Docs-only changes (docs/, root *.md, LICENSE) skip the scans (Actions rule 4). The suite still
+  # runs: forty of its tests read the documents (the guide, the context files, the budgets), so it
+  # IS the docs pass here. Anything unreadable counts as code (absent is not zero); --no-renames lists
+  # a rename's old path too, so moving code into docs/ still runs the scans.
+  changes:
+    name: Docs-only change?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      code: ${{ steps.changes.outputs.code }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            files=$(git diff --name-only --no-renames "$BASE" "$HEAD_SHA" || true)
+          else
+            files=$(git diff --name-only --no-renames "$BEFORE" "$HEAD_SHA" 2>/dev/null || true)
+          fi
+          if [ -n "$files" ] && ! printf '%s\n' "$files" | grep -qvE '^(docs/|LICENSE$|[^/]+\.md$)'; then code=false; else code=true; fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "changed files: $(printf '%s\n' "$files" | wc -l); code=$code"
+
   suite:
     name: Kit suite (pytest + ruff)
     runs-on: ubuntu-latest
@@ -56,6 +93,8 @@ jobs:
     # until a rule is promoted in tools/quality/quality.json, except secrets,
     # which always block. Runs beside the suite, not after.
     name: Structural and security scans
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
