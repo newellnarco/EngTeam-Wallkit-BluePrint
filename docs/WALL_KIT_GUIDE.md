@@ -1296,6 +1296,12 @@ The root context documents a project starts from: `AGENTS.md.template`, `BEST_PR
 
 Newest first. Every change to the kit adds an entry here in the same pull request.
 
+### 2026-10-05: the kit's own root AGENTS.md, and its generated CLAUDE.md
+
+- **The kit now follows its own context convention** (`docs/CONTEXT_FILES.md`). `AGENTS.md` at the root is the master and the entry point for an agent working on this repository. It names the mandatory reading (this guide, `docs/RECONCILIATION.md`, `FAILURE_PATTERNS.md`, `.claude/MAESTRO.md`), the checks CI runs, and a short document index.
+- `CLAUDE.md` is generated from it by `python tools/wall/context_sync.py sync`. Before this, a Claude Code session opened here started with no rules file.
+- The product's template, `templates/AGENTS.md.template`, is unchanged.
+
 ### 2026-09-29: a program lead and a fleet operator, and seven lessons from running the roles across repos (DEC-0038)
 
 - **Two roles.** `.claude/agents/program-lead.md` (one per engineer, across all their repos: product direction, architecture priorities, the cross-repo queue, assignment to each repo's Maestro, merging green PRs where it holds the repo's merge seat) and `.claude/agents/fleet-operator.md` (one per machine: the throttle plan, services, runners and local model servers; applies only reversible, lower-only changes inside the floors, with an override window). Neither takes a Patron consent decision: starting or enabling anything on a machine, deleting, widening access, spending money, production. The owner accepted that split in writing (DEC-0038). Key prefixes `prl` and `fop` and name pools in `tools/wall/agents.py`; neither is a registry singleton.
