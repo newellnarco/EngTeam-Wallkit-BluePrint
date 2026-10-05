@@ -133,14 +133,19 @@ def test_enrich_never_mutates_the_config_object():
 
 def test_snapshot_carries_the_enriched_budget(tmp_path):
     import json
-    day = "2026-09-19"
+    from datetime import datetime, timedelta, timezone
+    # Inside the current budget period, whatever today is: a fixed date ages out of the
+    # period and measures 0 (failed on main from 2026-10 on).
+    end = datetime.now(timezone.utc).replace(microsecond=0) - timedelta(minutes=1)
+    start = end - timedelta(minutes=1)
+    day = end.strftime("%Y-%m-%d")
     sh = tmp_path / ".wall" / "events" / day
     sh.mkdir(parents=True)
     evs = [
-        {"event_id": "ev_b1", "seq": 1, "ts": f"{day}T10:00:00Z",
+        {"event_id": "ev_b1", "seq": 1, "ts": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
          "session_id": "s_b", "event": "run_start", "run_id": "r1",
          "agent_key": "bld_000001", "actor": "bld_000001"},
-        {"event_id": "ev_b2", "seq": 2, "ts": f"{day}T11:00:00Z",
+        {"event_id": "ev_b2", "seq": 2, "ts": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
          "session_id": "s_b", "event": "run_end", "run_id": "r1",
          "agent_key": "bld_000001", "actor": "bld_000001", "outcome": "pass",
          "model_used": "claude-opus-5",
