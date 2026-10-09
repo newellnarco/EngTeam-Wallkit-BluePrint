@@ -5,21 +5,7 @@
 
 ---
 
-> [!CAUTION]
-> **Read this before adopting: this is a kit and blueprint for a complete
-> engineering team run by AI — and that is precisely why this notice exists.**
->
-> The author does **not** endorse using it to replace human decision makers,
-> builders, architects, designers, project or program managers, engineering
-> leaders, or any other role — specifically or arbitrarily. Every gate in
-> this kit that routes to "the engineer" exists because a human owns that
-> call, and removing the human removes the safety property, not just the
-> person.
->
-> **The recommendation:** review this kit and blueprint with your existing
-> team, and use these tools to help that team deliver and support quality,
-> secure, scalable, enterprise-grade products — an amplifier for the people
-> accountable for the work, not a substitute for them.
+> Kept in [README.md](../README.md) (line 8); this copy moved to [docs/archive/2026-10-09.md](archive/2026-10-09.md) on 2026-10-09. MU/TH/UR document steward.
 
 *(That disclaimer is quoted verbatim from the project README, and this article inherits it in full.)*
 
