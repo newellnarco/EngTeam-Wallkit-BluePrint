@@ -1,0 +1,19 @@
+{
+  "actual": null,
+  "arc_id": "ARC-03",
+  "arc_title": "Fast-track routing",
+  "assignee": "Theo",
+  "created_at": "2026-09-19T12:45:25.000Z",
+  "duplicate_of": null,
+  "estimate": "S",
+  "events": 2,
+  "item_id": "BG-025",
+  "kind": "bug",
+  "pr": null,
+  "scope": [],
+  "shipped_at": null,
+  "status": "blocked",
+  "title": "Lease TTL never expires on a crashed agent",
+  "trace_id": "tr_bg025",
+  "updated_at": "2026-09-19T12:45:42.000Z"
+}

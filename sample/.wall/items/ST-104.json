@@ -1,0 +1,21 @@
+{
+  "actual": "M",
+  "arc_id": "ARC-01",
+  "arc_title": "Event ledger and consolidation",
+  "assignee": "Desmond",
+  "created_at": "2026-09-19T12:08:25.000Z",
+  "duplicate_of": null,
+  "estimate": "M",
+  "events": 2,
+  "item_id": "ST-104",
+  "kind": "story",
+  "pr": null,
+  "scope": [
+    "backend/ledger/"
+  ],
+  "shipped_at": null,
+  "status": "done",
+  "title": "Append-only shard writer",
+  "trace_id": "tr_st104",
+  "updated_at": "2026-09-19T12:08:54.000Z"
+}

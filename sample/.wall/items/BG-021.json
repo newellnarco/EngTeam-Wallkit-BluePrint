@@ -1,0 +1,21 @@
+{
+  "actual": null,
+  "arc_id": "ARC-01",
+  "arc_title": "Event ledger and consolidation",
+  "assignee": "Priya",
+  "created_at": "2026-09-19T12:17:15.000Z",
+  "duplicate_of": null,
+  "estimate": "S",
+  "events": 2,
+  "item_id": "BG-021",
+  "kind": "bug",
+  "pr": null,
+  "scope": [
+    "backend/ledger/"
+  ],
+  "shipped_at": null,
+  "status": "blocked",
+  "title": "Duplicate event_id on retry",
+  "trace_id": "tr_bg021",
+  "updated_at": "2026-09-19T12:18:11.000Z"
+}
