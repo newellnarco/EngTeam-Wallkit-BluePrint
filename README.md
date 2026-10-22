@@ -1,6 +1,9 @@
 # The AI Engineering Organization — Blueprint & Drop-in Kit
 
-THIS IS A DEMO AND ILLUSTRATION OF THE REAL AGENT PLATFORM.  FOR THE FULL SET OF PROJECT FILES/REPO CONTACT: INFO@MAXRESEARCHCOLLECTIVE.COM.
+> [!NOTE]
+> **This is a demo and illustration of the real agent platform.** For the full
+> set of project files and the repository, contact
+> [info@maxresearchcollective.com](mailto:info@maxresearchcollective.com).
 
 **A complete engineering organization run by LLM agents — architecture,
 product, project management, development, quality, security, compliance,
