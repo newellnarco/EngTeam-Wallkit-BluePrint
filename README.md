@@ -87,6 +87,19 @@ More in [`docs/diagrams/`](docs/diagrams/):
 [agent topology](docs/diagrams/AGENT_TOPOLOGY.md) and
 [org mapping](docs/diagrams/ORG_MAPPING.md).
 
+## Readiness, attribution and proof
+
+Three mechanisms turn "it should work" into evidence before anyone relies on
+the kit for real work. Each is drawn in
+[architecture, section 4](docs/diagrams/ARCHITECTURE.md#4-readiness-attribution-and-the-audit-branch).
+
+| Mechanism | What it does | Why it matters |
+|---|---|---|
+| **A readiness gate** | Before a wave dispatches any agent, one command checks the machinery and the environment: the run registry, a half-finished merge in the working tree, a shared commit identity, unkeyed scratch files, a worktree missing its toolchain, the local guard against pushing to the main branch, integrity flags and budget pace. It writes a machine-readable verdict | Starting a run is refused while the verdict fails, so a known-bad environment cannot quietly host a wave. An exception needs a written reason, and the reason is recorded with the run |
+| **Definitive run attribution** | Each dispatch carries its run id in the agent's prompt, and the hook that records a finished agent reads it back from that agent's own transcript | Every finished agent is charged to its own run, even when several run in parallel. Without the id, a finished agent among several open runs is recorded as ambiguous and charged to none, never guessed |
+| **An audit trail that only grows** | Event records ship to a dedicated branch where every commit builds on the last, every day is kept, a shipped record is never shortened, and nothing is ever force-pushed | Losing one machine's local copy, or shipping from a second machine, cannot erase a day that already shipped |
+| **A proving run** | Eight trials an adopter runs in their own deployment: readiness, runtime integration, security boundaries, merge safety, recovery from an interrupted run, cost with one builder, observability, and the audit trail | Tests prove the machinery against fixtures; only a deployment can prove its own harness, repository settings, sandbox and bill. Each trial names the evidence that counts as a pass |
+
 ## See it
 
 ### The interactive demo
@@ -129,7 +142,8 @@ python3 -m http.server 8000 --bind 127.0.0.1 --directory sample/.wall/derived
 
 Also in [`docs/screenshots/`](docs/screenshots/): the blocked drill-in, the
 honest-degrade banner for a malformed snapshot, light mode, and the
-status-vocabulary fixture.
+status-vocabulary fixture. Every screenshot is rendered from fictional sample
+data; none shows a real deployment.
 
 ## The idea
 
