@@ -1,7 +1,9 @@
 # ARCHITECTURE.md
 
-Three pictures of the same system: what the parts are, how one item moves
-through them, and why the loop closes without anything polling.
+Four pictures of the same system: what the parts are, how one item moves
+through them, why the loop closes without anything polling, and how a wave
+proves it is ready, charges every agent to its own run and keeps its audit
+trail.
 
 These are the shape, not the contract. The contracts live in
 `docs/EVENT_SCHEMA.md` (records), `docs/AGENT_ROSTER_SPEC.md` (roles and
@@ -214,3 +216,84 @@ Three properties worth naming (a fourth, the validated writers, is above):
 - **The heartbeat is what makes the loop honest.** It is written on every run,
   successful or not, and the wall renders its age. Without it a dead timer and a
   quiet project produce the same picture, and the picture is a lie.
+
+---
+
+## 4. Readiness, attribution and the audit branch
+
+Three mechanisms that turn "it should work" into evidence: a gate before a
+wave dispatches anything, a run id that travels with the work so every
+finished agent is charged to its own run, and a telemetry branch that only
+ever grows. The contracts are `docs/WALL_KIT_GUIDE.md` sections 7.24 to 7.26,
+`docs/EVENT_SCHEMA.md` (`hook` and the preflight gate) and `docs/INSTALL.md`
+(the shipper). `docs/PROVING_RUN.md` is how a deployment proves all three.
+
+### 4.1 The preflight gate
+
+`wall preflight` reads the doctor's checks plus the standing rules a machine
+can see, and writes one verdict. Only what would make the wave's own record or
+merges wrong is a fail; everything else is reported and does not block.
+
+```mermaid
+flowchart LR
+    Sweep["wall run-once<br/>fresh snapshot"] --> Pre["wall preflight"]
+    Pre --> Checks["doctor rows: ledger, hooks, heartbeat, timer<br/>open runs · tree state<br/>identity G1 · scratch G2 · venv G4 · merge gate G12<br/>integrity flags · budget pace"]
+    Checks --> Report[(".wall/derived/preflight.json")]
+    Report -->|"READY"| Start["wall run-start<br/>opens the run"]
+    Report -->|"BLOCKED"| Fix["fix the failing check<br/>and re-run preflight"]
+    Fix --> Pre
+    Report -->|"BLOCKED + --preflight-reason"| Exception["run opens; the failing checks<br/>and the reason are on run_start"]
+```
+
+### 4.2 A run id that travels with the work
+
+The harness tells the stop hook which agent stopped and where its transcript
+is, but not which dispatch started it. So the run id rides in the prompt, and
+the hook reads it back from that agent's own transcript.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant M as Maestro
+    participant W as wall run-start
+    participant P as PreToolUse hook
+    participant A as Subagent
+    participant S as SubagentStop hook
+    participant L as Ledger
+    M->>W: --key --role --item --deadline-min
+    W->>L: run_start (registered in open_runs.json)
+    W-->>M: [wall-run: run_id]
+    M->>A: dispatch, the prompt carries the marker line
+    P->>P: logs dispatch=run_id, or dispatch=unmarked
+    A-->>S: stops: agent_id, agent_transcript_path
+    S->>S: first registered marker in the agent's own transcript
+    alt marker found
+        S->>L: run_end on that run (definitive)
+    else no marker, one open run
+        S->>L: run_end, labelled an inference
+    else no marker, several open runs
+        S->>L: ambiguous stop with its candidates, charged to no run
+    end
+```
+
+### 4.3 The audit branch only grows
+
+`wall ship` builds each commit on the branch tip through an isolated index, so
+the checkout is never touched and no earlier day is ever lost.
+
+```mermaid
+flowchart TB
+    Tip["origin/wall-events tip"] --> Base["isolated index starts<br/>from the tip's tree"]
+    Local[(".wall/events, every day on disk")] --> Cmp{"each shard vs<br/>the shipped copy"}
+    Base --> Cmp
+    Cmp -->|"identical"| Skip["skip"]
+    Cmp -->|"local extends it"| Replace["stage the local copy"]
+    Cmp -->|"local is a prefix of it"| Keep["keep the shipped copy"]
+    Cmp -->|"diverged"| Merge["merge by event_id"]
+    Replace --> Commit
+    Merge --> Commit
+    Skip --> Commit
+    Keep --> Commit
+    Commit["commit, parent = tip"] --> Push["fast-forward push<br/>never forced"]
+    Push --> Tip
+```

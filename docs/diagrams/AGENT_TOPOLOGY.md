@@ -43,7 +43,7 @@ flowchart TB
     subgraph SESSION["The session — Maestro (sequential control plane)"]
         MAESTRO["Maestro<br/><i>dispatch, decisions, merge/ready flip.<br/>The top-level session itself, never a subagent</i>"]
         HOOK_SS["SessionStart hook<br/><i>detect-only: registry, heartbeat age,<br/>marker version. Never installs</i>"]
-        HOOK_ST["SubagentStop hook<br/><i>terminal run events; never blocks;<br/>honest orphans (agent_key null)</i>"]
+        HOOK_ST["SubagentStop hook<br/><i>terminal run events; never blocks;<br/>run named by the prompt's marker;<br/>honest orphans (agent_key null)</i>"]
         HOOK_TU["ToolUse hook<br/><i>provenance on records</i>"]
         CLI["wall CLI writers<br/><i>run-start (role cap refused in code) / run-end,<br/>retro, rebalance, finding / story-filed,<br/>verify-request / verified — each validated</i>"]
     end
