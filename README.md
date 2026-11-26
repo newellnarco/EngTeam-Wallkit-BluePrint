@@ -125,25 +125,68 @@ python3 -m http.server 8000 --bind 127.0.0.1 --directory sample/.wall/derived
 
 ### The wall, screen by screen
 
+**MAIN**: board counts, work in flight, agents at work, waiting and integrity
+
 ![The MAIN screen: board counts, work in flight, agents at work, waiting, integrity](docs/screenshots/wall-main.png)
 
-| | |
-|---|---|
-| ![The STORIES tab: arcs with nested stories and bugs](docs/screenshots/wall-stories.png) | ![The CREW tab: the roster, budget gauges, integrity](docs/screenshots/wall-crew.png) |
-| **STORIES**: arcs with their stories and bugs, literal status chips, and a drill-in on every blocked item | **CREW**: names and keys, models, tokens and cost, budget trajectory, integrity flags |
-| ![The LEDGER tab: budget gauges, advisory, per-role rollup](docs/screenshots/wall-ledger.png) | ![The WAITING tab: asks parked on the human](docs/screenshots/wall-waiting.png) |
-| **LEDGER**: per-tool budget gauges with pace and projected exhaustion, and the per-role cost rollup, counted from run events | **WAITING**: every ask that needs a human, with the command that answers it |
-| ![The RETRO tab: retrospective trends, landed diffs, pending inputs](docs/screenshots/wall-retro.png) | ![The POSTURE tab: Warden rulings by gate and the compliance regimes](docs/screenshots/wall-posture.png) |
-| **RETRO**: signal trends across waves, landed diffs re-measured, and the inputs the next retro must address | **POSTURE**: the Warden's latest ruling per subject, and the compliance regimes with their selections and challenges |
-| ![The DOCS tab: documents of record with review states](docs/screenshots/wall-docs.png) | ![The FLOW tab: velocity, sizing, bugs and burndown per iteration](docs/screenshots/wall-flow.png) |
-| **DOCS**: every standard at its sha, reviewed, changed or never reviewed, readable and approvable in place | **FLOW**: per-iteration shipped work, estimate against actual, bugs filed, burndown |
-| ![The compliance self-attestation popout](docs/screenshots/wall-audit.png) | ![The iteration drill-in popout](docs/screenshots/wall-iteration.png) |
-| **The audit popout**: per regime, every control's pass, fail or waiver with its note | **The iteration popout**: cost, agents by role, duration, delivered and not delivered |
+**STORIES**: arcs with their stories and bugs, literal status chips, and a drill-in on every blocked item
 
-Also in [`docs/screenshots/`](docs/screenshots/): the blocked drill-in, the
-honest-degrade banner for a malformed snapshot, light mode, and the
-status-vocabulary fixture. Every screenshot is rendered from fictional sample
-data; none shows a real deployment.
+![The STORIES tab: arcs with nested stories and bugs](docs/screenshots/wall-stories.png)
+
+**CREW**: names and keys, models, tokens and cost, budget trajectory, integrity flags
+
+![The CREW tab: the roster, budget gauges, integrity](docs/screenshots/wall-crew.png)
+
+**LEDGER**: per-tool budget gauges with pace and projected exhaustion, and the per-role cost rollup, counted from run events
+
+![The LEDGER tab: budget gauges, advisory, per-role rollup](docs/screenshots/wall-ledger.png)
+
+**WAITING**: every ask that needs a human, with the command that answers it
+
+![The WAITING tab: asks parked on the human](docs/screenshots/wall-waiting.png)
+
+**RETRO**: signal trends across waves, landed diffs re-measured, and the inputs the next retro must address
+
+![The RETRO tab: retrospective trends, landed diffs, pending inputs](docs/screenshots/wall-retro.png)
+
+**POSTURE**: the Warden's latest ruling per subject, and the compliance regimes with their selections and challenges
+
+![The POSTURE tab: Warden rulings by gate and the compliance regimes](docs/screenshots/wall-posture.png)
+
+**DOCS**: every standard at its sha, reviewed, changed or never reviewed, readable and approvable in place
+
+![The DOCS tab: documents of record with review states](docs/screenshots/wall-docs.png)
+
+**FLOW**: per-iteration shipped work, estimate against actual, bugs filed, burndown
+
+![The FLOW tab: velocity, sizing, bugs and burndown per iteration](docs/screenshots/wall-flow.png)
+
+**The audit popout**: per regime, every control's pass, fail or waiver with its note
+
+![The compliance self-attestation popout](docs/screenshots/wall-audit.png)
+
+**The iteration popout**: cost, agents by role, duration, delivered and not delivered
+
+![The iteration drill-in popout](docs/screenshots/wall-iteration.png)
+
+**The blocked drill-in**: what an item is blocked on, and by whom
+
+![The blocked drill-in on a story](docs/screenshots/wall-blocked.png)
+
+**Honest degrade**: the banner shown when a snapshot is malformed, instead of stale figures
+
+![The honest-degrade banner for a malformed snapshot](docs/screenshots/wall-degrade.png)
+
+**Light mode**: the same wall in the light theme
+
+![The wall in light mode](docs/screenshots/wall-light.png)
+
+**Status vocabulary**: the fixture that shows every status chip the wall can print
+
+![The status-vocabulary fixture](docs/screenshots/wall-fixture.png)
+
+Every screenshot is rendered from fictional sample data; none shows a real
+deployment.
 
 ## The idea
 
@@ -152,3 +195,9 @@ organization's *procedure* can be written down precisely enough for agents to
 execute, that the parts which cannot be written down are exactly the parts
 that need humans, and that the boundary between the two should be found by
 measurement. Every rule in it cites the incident that taught it.
+
+## Author
+
+Built by Jason Newell, [MAX Research Collective](https://www.maxresearchcollective.com).
+The project page is [maxresearchcollective.com/engteam.html](https://www.maxresearchcollective.com/engteam.html),
+and the other project showcases are on the [GitHub profile](https://github.com/newellnarco).
